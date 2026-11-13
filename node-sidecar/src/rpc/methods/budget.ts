@@ -3,7 +3,7 @@
 import type { RpcRouter } from '../router.js';
 import type { BudgetMapping } from '../../types/rpc-contract.js';
 import {
-  budgetAnalyze, budgetApply, budgetBook, budgetExport, budgetImport, budgetItemAdd, budgetItemUpdate, budgetReverse, budgetSettle, budgetSuggest,
+  budgetAnalyze, budgetApply, budgetEvidence, budgetBook, budgetExport, budgetImport, budgetItemAdd, budgetItemUpdate, budgetReverse, budgetSettle, budgetSuggest,
 } from '../../core/budget/index.js';
 import { bool, num, oneOf, optPath, registrar, reqPath, str, strList } from './params.js';
 
@@ -49,5 +49,12 @@ export function registerBudget(router: RpcRouter): void {
   });
   reg('budget_settle', (p) => budgetSettle({ year: year(p), id: id(p.id), amount: num(p.amount), date: str(p.date), memo: str(p.memo) }));
   reg('budget_reverse', (p) => budgetReverse({ year: year(p), id: id(p.id), reason: str(p.reason) }));
+  reg('budget_evidence', (p, signal) => {
+    const v = (p.voucher && typeof p.voucher === 'object' ? p.voucher : {}) as Record<string, unknown>;
+    return budgetEvidence({
+      path: reqPath(p.path),
+      voucher: { amount: num(v.amount), vendor_no: str(v.vendor_no), memo: str(v.memo), related: str(v.related), date: str(v.date), kind: oneOf(v.kind, ['travel', 'purchase', 'general'] as const) },
+    }, signal);
+  }, { heavy: true });
   reg('budget_export', (p) => budgetExport({ year: year(p), output_path: optPath(p.output_path) }));
 }

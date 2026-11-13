@@ -15,6 +15,7 @@ import { Seg } from "../common/Field";
 import { Empty, ErrorLine, Note, Working } from "../common/Status";
 import { budgetChanged, itemPath, LETTER_FILTER, parseWon, useBudgetBook, won } from "./useBudget";
 import { VoucherDraft } from "./VoucherDraft";
+import { EvidenceCheck } from "./EvidenceCheck";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -208,6 +209,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                       ))}
                     </div>
                   )}
+                  {a.doc_kind && a.doc_kind !== "공문" && <EvidenceCheck key={a.path} analysis={a} />}
                   {a.budget_lines && a.budget_lines.length > 0 && (
                     <div className="flex flex-col gap-1.5" aria-label="결의서 예산 줄">
                       <span className="kd-label">결의서 예산 줄{a.budget_lines.length > 1 ? ` ${a.budget_lines.length}개: 줄을 누르면 그 금액·과목으로 추천합니다` : ""}</span>

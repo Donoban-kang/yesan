@@ -7,7 +7,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type {
-  BudgetAnalysis, BudgetApplyResult, BudgetBookView, BudgetEntry, BudgetImportResult, BudgetItem, BudgetItemView, BudgetMapping, BudgetSuggestion,
+  BudgetAnalysis, BudgetApplyResult, BudgetEvidenceResult, BudgetVoucherFacts, BudgetBookView, BudgetEntry, BudgetImportResult, BudgetItem, BudgetItemView, BudgetMapping, BudgetSuggestion,
 } from '../../types/rpc-contract.js';
 import { getSettings } from '../../infra/config.js';
 import { sendProgress } from '../../infra/progress.js';
@@ -22,6 +22,8 @@ import { findAmounts } from './amount.js';
 import { detectHeader, itemKey, rowsToItems, type ParsedItem } from './mapping.js';
 import { readBudgetDoc } from './read-doc.js';
 import { extractVoucher } from './voucher.js';
+import { compareEvidence, readEvidence } from './evidence.js';
+import { ocrModelsReady } from '../system/index.js';
 import { budgetSettings, yearOf } from './settings.js';
 import { loadBook, saveBook, serial, type BudgetFile } from './store.js';
 import { accountHintOf, natureOf, suggestItems } from './suggest.js';
@@ -417,3 +419,12 @@ export async function budgetExport(p: { year?: number; output_path?: string }): 
 }
 
 
+
+// ── 증빙 자동 대조 ──
+
+export async function budgetEvidence(p: { path: string; voucher?: BudgetVoucherFacts }, signal?: AbortSignal): Promise<BudgetEvidenceResult> {
+  sendProgress({ current: 0, total: 1, message: '증빙을 쪽마다 읽는 중' });
+  const pages = await readEvidence(p.path, signal);
+  const { checks, missing } = compareEvidence(pages, p.voucher ?? {});
+  return { pages, checks, missing, ocr: ocrModelsReady() };
+}

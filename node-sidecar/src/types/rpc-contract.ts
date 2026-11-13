@@ -212,6 +212,8 @@ export interface RpcMethods {
   budget_settle: [{ year?: number; id: string; amount?: number; date?: string; memo?: string }, BudgetApplyResult];
   /** 반영 취소: 기록을 지우지 않고 반대 기록을 남긴다 */
   budget_reverse: [{ year?: number; id: string; reason?: string }, BudgetApplyResult];
+  /** 증빙 자동 대조: 스캔 증빙(PDF·그림)을 쪽마다 읽어 서류 종류·금액·사업자번호·날짜·수량을 뽑고 결의서 값과 맞춰 본다 */
+  budget_evidence: [{ path: string; voucher?: BudgetVoucherFacts }, BudgetEvidenceResult];
   /** 예산 현황·지출 대장 엑셀 (시트 두 장) */
   budget_export: [{ year?: number; output_path?: string }, { output_path: string; items: number; entries: number }];
 
@@ -772,6 +774,37 @@ export interface BudgetApplyResult {
   item: BudgetItemView;
   /** 집행률이 경고 기준을 넘었으면 그 문장 */
   warning?: string;
+}
+
+/** 증빙 대조에 쓰는 결의서 값 (budget_analyze 결과에서) */
+export interface BudgetVoucherFacts {
+  amount?: number;
+  vendor_no?: string;
+  memo?: string;
+  related?: string;
+  date?: string;
+  kind?: 'travel' | 'purchase' | 'general';
+}
+
+export interface BudgetEvidencePage {
+  page: number;
+  kind: 'travel_claim' | 'ticket' | 'trip_request' | 'notice' | 'quote' | 'purchase_request' | 'item_list' | 'card_receipt' | 'inspection' | 'photo' | 'other';
+  label: string;
+  amount?: number;
+  fare?: number;
+  brn?: string;
+  date?: string;
+  qty?: number;
+  count?: number;
+  doc_no?: string;
+}
+
+export interface BudgetEvidenceResult {
+  pages: BudgetEvidencePage[];
+  checks: Array<{ label: string; ok: boolean; detail: string }>;
+  /** 갈래에 비해 빠진 서류 이름 */
+  missing: string[];
+  ocr: boolean;
 }
 
 /** 합치기 결과 (merge_files) */

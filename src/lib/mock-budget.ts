@@ -147,6 +147,23 @@ export const budgetHandlers: H = {
     if (p.spent_before !== undefined) it.spent_before = p.spent_before;
     return viewOf(it, entries);
   },
+  budget_evidence: async (p) => {
+    await wait(600);
+    // 가상 증빙: 여비 묶음(원인행위서 금액과 같은 값)
+    const amount = p.voucher?.amount ?? 412_000;
+    return {
+      ocr: true, missing: [],
+      pages: [
+        { page: 1, kind: "travel_claim", label: "여비 정산 신청서", amount, fare: 52_000, date: "2026-01-07" },
+        { page: 2, kind: "ticket", label: "교통비 영수증", amount: 52_000, brn: "000-00-00000", date: "2026-01-05" },
+        { page: 3, kind: "trip_request", label: "출장 신청서", doc_no: "교육혁신과-1234", date: "2026-01-02" },
+      ],
+      checks: [
+        { label: "여비 정산 신청서(1쪽) 금액 = 결의 금액", ok: true, detail: `${amount.toLocaleString("ko-KR")}원 / ${amount.toLocaleString("ko-KR")}원` },
+        { label: "교통비 영수증 합계 = 정산서 운임", ok: true, detail: "52,000원 / 52,000원" },
+      ],
+    };
+  },
   budget_export: async () => { await wait(300); return { output_path: "/Users/kim/Documents/KorDoc AI 결과/예산현황_2026_20261113.xlsx", items: items.length, entries: entries.length }; },
 };
 
