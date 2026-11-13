@@ -13,7 +13,7 @@ import { won } from "./useBudget";
 
 const FILTER = [{ name: "스캔 증빙", extensions: ["pdf", "png", "jpg", "jpeg", "webp"] }];
 
-export function EvidenceCheck({ analysis }: { analysis: BudgetAnalysis }) {
+export function EvidenceCheck({ analysis, onResult }: { analysis: BudgetAnalysis; onResult?: (note: string) => void }) {
   const task = useTask<BudgetEvidenceResult & { path: string }>({ keepOnFail: true });
   const run = (path: string) => void task.run(async ({ signal, onProgress }) => {
     const r = await rpc("budget_evidence", {
@@ -23,6 +23,9 @@ export function EvidenceCheck({ analysis }: { analysis: BudgetAnalysis }) {
         kind: draftKindOf(analysis.nature),
       },
     }, { signal, onProgress });
+    const ok = r.checks.filter((c) => c.ok).length;
+    // 대장 메모: 반영할 때 함께 남긴다 (감사 대응)
+    onResult?.(`증빙 대조 ${baseName(path)}: 맞음 ${ok}·다름 ${r.checks.length - ok}${r.missing.length ? `·빠진 서류 ${r.missing.join("·")}` : ""}`);
     return { ...r, path };
   });
   const pick = () => void pickFiles({ filters: FILTER, multiple: false }).then((p) => { if (p[0]) run(p[0]); });

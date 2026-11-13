@@ -380,3 +380,17 @@ describe('물품 구매 원인행위서 (가상 값): 적요 "지출금액 … �
     expect(bad.checks.filter((c) => !c.ok).map((c) => c.label)).toEqual(['금액 칸 ≤ 적요의 지출금액(이내)', '금액 칸 = 명세서 합계']);
   });
 });
+
+describe('같은 결의서 중복 반영', () => {
+  it('결의번호가 같으면 다른 파일 이름이어도 막고, 나눠 반영(again)·취소 뒤에는 받는다', async () => {
+    const it0 = await call('budget_item_add', { year: 2031, account: 'univ', name: '일반수용비', budget: 1_000_000 });
+    const first = await call('budget_apply', { year: 2031, item_id: it0.id, amount: 100_000, stage: 'commit', doc_path: '/x/가.hwx', doc_number: '20311BD0000E10000001' });
+    await expect(call('budget_apply', { year: 2031, item_id: it0.id, amount: 100_000, stage: 'commit', doc_path: '/x/가 (2).hwx', doc_number: '20311BD0000E10000001' })).rejects.toThrow(/이미 반영/);
+    await call('budget_apply', { year: 2031, item_id: it0.id, amount: 50_000, stage: 'commit', doc_number: '20311BD0000E10000001', again: true });
+    let book = await call<BudgetBookView>('budget_book', { year: 2031 });
+    expect(book.linked_numbers).toEqual(['20311BD0000E10000001']);
+    await call('budget_reverse', { year: 2031, id: first.entries[0].id });
+    book = await call<BudgetBookView>('budget_book', { year: 2031 });
+    expect(book.linked_numbers).toEqual(['20311BD0000E10000001']); // 나눠 넣은 줄이 남아 있다
+  });
+});

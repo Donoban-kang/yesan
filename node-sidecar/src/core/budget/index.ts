@@ -27,7 +27,7 @@ import { ocrModelsReady } from '../system/index.js';
 import { budgetSettings, yearOf } from './settings.js';
 import { loadBook, saveBook, serial, type BudgetFile } from './store.js';
 import { accountHintOf, natureOf, suggestItems } from './suggest.js';
-import { linkedDocs, reversedGroups, reversibleGroups, settledCommits, viewOf, won } from './tally.js';
+import { linkedDocs, linkedNumbers, reversedGroups, reversibleGroups, settledCommits, viewOf, won } from './tally.js';
 
 const MAX_AMOUNT = 1e13;
 const newId = () => randomUUID().replace(/-/g, '').slice(0, 12);
@@ -62,6 +62,7 @@ function viewBook(book: BudgetFile): BudgetBookView {
     entries: book.entries,
     reversible: reversibleGroups(book.entries),
     linked_docs: linkedDocs(book.entries),
+    linked_numbers: linkedNumbers(book.entries),
     imports: book.imports,
     totals: sum(items.filter((x) => !x.retired)),
   };
@@ -310,7 +311,7 @@ const dateOk = (d?: string) => (d && isIsoDate(d) ? d : todayIso());
 
 export async function budgetApply(p: {
   year?: number; item_id: string; amount: number; stage: 'commit' | 'paid'; date?: string;
-  doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string;
+  doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string; again?: boolean;
 }): Promise<BudgetApplyResult> {
   const amount = amountOk(p.amount);
   return serial(async () => {
@@ -318,6 +319,11 @@ export async function budgetApply(p: {
     const item = book.items.find((x) => x.id === p.item_id);
     if (!item) throw new Error('예산 과목을 찾지 못했습니다. 과목표를 다시 불러왔다면 과목을 다시 고르세요.');
     if (item.retired) throw new Error('지금 과목표에 없는 과목입니다. 다른 과목을 고르세요.');
+    // 같은 결의서를 두 번 반영하지 않게 (나눠 반영은 again)
+    const no = clip(p.doc_number, 80);
+    if (no && !p.again && linkedNumbers(book.entries).includes(no)) {
+      throw new Error(`결의번호(문서번호) ${no} 은(는) 이미 반영했습니다. 지출 대장을 확인하고, 다른 과목에 나눠 넣는 것이면 "다른 과목에 나눠 더 반영하기"를 누르세요.`);
+    }
     overCheck(viewOf(item, book.entries), amount);
     const group = newId();
     const e: BudgetEntry = {

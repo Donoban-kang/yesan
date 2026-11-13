@@ -44,7 +44,7 @@ export function registerBudget(router: RpcRouter): void {
     if (!stage) throw new Error('반영 단계(품의 또는 지출 완료)를 고르세요.');
     return budgetApply({
       year: year(p), item_id: id(p.item_id), amount: num(p.amount) ?? 0, stage, date: str(p.date),
-      doc_path: optPath(p.doc_path), doc_title: str(p.doc_title), doc_number: str(p.doc_number), sender: str(p.sender), memo: str(p.memo),
+      doc_path: optPath(p.doc_path), doc_title: str(p.doc_title), doc_number: str(p.doc_number), sender: str(p.sender), memo: str(p.memo), again: bool(p.again),
     });
   });
   reg('budget_settle', (p) => budgetSettle({ year: year(p), id: id(p.id), amount: num(p.amount), date: str(p.date), memo: str(p.memo) }));

@@ -207,7 +207,7 @@ export interface RpcMethods {
   /** 글과 금액으로 다시 추천 (회계 구분을 바꾸거나 금액을 고쳤을 때) */
   budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }, BudgetSuggestion[]];
   /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */
-  budget_apply: [{ year?: number; item_id: string; amount: number; stage: 'commit' | 'paid'; date?: string; doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string }, BudgetApplyResult];
+  budget_apply: [{ year?: number; item_id: string; amount: number; stage: 'commit' | 'paid'; date?: string; doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string; again?: boolean }, BudgetApplyResult];
   /** 품의 중인 기록을 지출 완료로 (실제 금액이 다르면 amount) */
   budget_settle: [{ year?: number; id: string; amount?: number; date?: string; memo?: string }, BudgetApplyResult];
   /** 반영 취소: 기록을 지우지 않고 반대 기록을 남긴다 */
@@ -673,6 +673,8 @@ export interface BudgetBookView {
   reversible: string[];
   /** 반영한 공문 경로 (취소하지 않은 것) */
   linked_docs: string[];
+  /** 반영한 결의번호·문서번호 (취소하지 않은 것) */
+  linked_numbers: string[];
   imports: Array<{ at: string; file: string; sha256: string; items: number }>;
   totals: { budget: number; paid: number; commit: number; avail: number; rate: number };
 }

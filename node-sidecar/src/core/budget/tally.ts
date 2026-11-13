@@ -50,6 +50,14 @@ export function reversibleGroups(entries: BudgetEntry[]): string[] {
   return [...groups];
 }
 
+/** 반영된 채로 남은 결의번호·문서번호 (같은 결의서를 다른 파일 이름으로 다시 넣어도 알아보게) */
+export function linkedNumbers(entries: BudgetEntry[]): string[] {
+  const reversed = reversedGroups(entries);
+  const out = new Set<string>();
+  for (const e of entries) if (e.doc_number && e.kind === 'apply' && !reversed.has(e.group)) out.add(e.doc_number);
+  return [...out];
+}
+
 /** 반영된 채로 남은 공문 경로 */
 export function linkedDocs(entries: BudgetEntry[]): string[] {
   const reversed = reversedGroups(entries);

@@ -1,7 +1,7 @@
 /** 브라우저 미리보기용 예산 목 — 가상의 가온대학교 2026 장부. 잔액·추천 계산은 엔진과 같은 순수 함수를 그대로 쓴다 */
 
 import type { BudgetAnalysis, BudgetBookView, BudgetEntry, BudgetItem, RpcMethod, RpcParams, RpcResult, Settings } from "./contract";
-import { linkedDocs, reversedGroups, reversibleGroups, settledCommits, viewOf } from "../../node-sidecar/src/core/budget/tally";
+import { linkedDocs, linkedNumbers, reversedGroups, reversibleGroups, settledCommits, viewOf } from "../../node-sidecar/src/core/budget/tally";
 import { suggestItems } from "../../node-sidecar/src/core/budget/suggest";
 
 export const MOCK_BUDGET_SETTINGS: Settings["budget"] = {
@@ -52,7 +52,7 @@ const book = (): BudgetBookView => {
   return {
     year: 2026,
     accounts: MOCK_BUDGET_SETTINGS.accounts.map((a) => ({ id: a.id, label: a.label, items: views.filter((x) => x.account === a.id).length, ...sum(views.filter((x) => x.account === a.id)) })),
-    items: views, entries: [...entries], reversible: reversibleGroups(entries), linked_docs: linkedDocs(entries),
+    items: views, entries: [...entries], reversible: reversibleGroups(entries), linked_docs: linkedDocs(entries), linked_numbers: linkedNumbers(entries),
     imports: [{ at: "2026-10-31T00:00:00.000Z", file: "2026_예산현황_1031.xlsx", sha256: "", items: items.length }], totals: sum(views),
   };
 };
