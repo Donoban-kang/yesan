@@ -159,7 +159,7 @@ export function agyInput(messages: ChatMessage[], system: string): string {
   const body = messages.length === 1
     ? last.content
     : `<conversation>\n${messages.map((m) => `<${m.role}>\n${m.content}\n</${m.role}>`).join('\n')}\n</conversation>\n마지막 user 말에 답하세요.`;
-  const content = `[KorDoc AI 요청]\n<instructions>\n${system}\n</instructions>\n\n${body}`;
+  const content = `[KnuDoc AI 요청]\n<instructions>\n${system}\n</instructions>\n\n${body}`;
   return `${JSON.stringify({ event: 'user', message: { content } })}\n`;
 }
 

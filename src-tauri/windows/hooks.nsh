@@ -1,7 +1,7 @@
-; KorDoc AI NSIS installer hooks (tauri.conf.json > bundle.windows.nsis.installerHooks).
+; KnuDoc AI NSIS installer hooks (tauri.conf.json > bundle.windows.nsis.installerHooks).
 ; Keep this file ASCII only: NSIS reads an !include file without a BOM in the build machine's ANSI code page.
 ;
-; The app adds its Explorer right-click menu itself (Settings, or "kordoc-ai.exe --shell-menu install"):
+; The app adds its Explorer right-click menu itself (Settings, or "knudoc-ai.exe --shell-menu install"):
 ; one key per extension, HKCU\Software\Classes\SystemFileAssociations\<ext>\shell\KorDoc, plus the folder menu
 ; HKCU\Software\Classes\Directory\shell\KorDoc and Directory\Background\shell\KorDoc (src-tauri/src/shell.rs,
 ; a unit test there checks this list against EXTS and FOLDER_KEYS). A real uninstall removes exactly those keys so no dead menu

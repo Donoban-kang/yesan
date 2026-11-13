@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   KorDoc Shell — MSIX Sparse Package
-  탐색기 우클릭 컨텍스트 메뉴 + kordoc:// 프로토콜 등록.
+  탐색기 우클릭 컨텍스트 메뉴 + knudoc:// 프로토콜 등록.
   SparsePackage이므로 별도 앱 설치 없이 registry-like 확장만 제공.
   참조: docs/archive/PRD.md §3.1, docs/archive/SPEC.md §3.1 (v1 기획)
 -->
@@ -62,7 +62,7 @@
           </uap:FileTypeAssociation>
         </uap:Extension>
 
-        <!-- 커스텀 프로토콜: kordoc:// -->
+        <!-- 커스텀 프로토콜: knudoc:// -->
         <uap:Extension Category="windows.protocol">
           <uap:Protocol Name="kordoc">
             <uap:DisplayName>KorDoc 프로토콜</uap:DisplayName>

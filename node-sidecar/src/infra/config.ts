@@ -1,7 +1,7 @@
 /** 설정 로더 — 앱 데이터 폴더의 settings.json, 원자적 쓰기
  *
  * 위치: KORDOC_AI_DATA_DIR(Tauri 가 OS 앱 데이터 폴더를 넘김) → 없으면 OS 기본 경로.
- * v1(YAML, %APPDATA%/com.kordoc-ai.app/config/settings.yaml) 이 있으면 키·출력 폴더만 옮겨 온다.
+ * v1(YAML, %APPDATA%/com.knudoc-ai.app/config/settings.yaml) 이 있으면 키·출력 폴더만 옮겨 온다.
  * 적용 순서: 기본값 < 기관 배포 설정 defaults < 사용자 값(settings.json) < 기관 배포 설정 locked (policy.ts).
  * settings.json 에는 사용자가 정한 값만 쓴다 — 고정값·기관 기본값을 굳혀 두지 않아야 정책을 고치거나 빼면 그대로 따라간다.
  */
@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
     approval_line: [], agency: '', seal_image: '', doc_number_prefix: '',
   },
   // 결과는 원본과 다른 폴더에 (원본 보호). 사용자가 비우면(설정의 "원래대로") 원본 옆
-  convert: { output_dir: join(existsSync(join(homedir(), 'Documents')) ? join(homedir(), 'Documents') : homedir(), 'KorDoc AI 결과'), ocr: 'auto' },
+  convert: { output_dir: join(existsSync(join(homedir(), 'Documents')) ? join(homedir(), 'Documents') : homedir(), 'KnuDoc AI 결과'), ocr: 'auto' },
   general: { log_level: 'info' },
   impact: { baselines: {} },
   law: { oc: '' },
@@ -73,10 +73,10 @@ export function dataDir(): string {
   const env = process.env.KORDOC_AI_DATA_DIR;
   if (env && env.trim()) return env;
   if (process.platform === 'win32') {
-    return join(process.env.APPDATA || join(homedir(), 'AppData', 'Roaming'), 'com.kordoc-ai.app');
+    return join(process.env.APPDATA || join(homedir(), 'AppData', 'Roaming'), 'com.knudoc-ai.app');
   }
-  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'com.kordoc-ai.app');
-  return join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'com.kordoc-ai.app');
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'com.knudoc-ai.app');
+  return join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'com.knudoc-ai.app');
 }
 
 const configPath = () => join(dataDir(), 'settings.json');
@@ -135,7 +135,7 @@ function sealedForFile(o: Obj): Obj {
 /** v1 YAML 에서 쓸 만한 값만 옮김 — 옮긴 값만 둬야 기관 기본값을 가리지 않는다 */
 function migrateV1(): Obj | null {
   const appData = process.env.APPDATA || join(homedir(), 'AppData', 'Roaming');
-  const v1 = join(appData, 'com.kordoc-ai.app', 'config', 'settings.yaml');
+  const v1 = join(appData, 'com.knudoc-ai.app', 'config', 'settings.yaml');
   if (!existsSync(v1)) return null;
   try {
     const old = parseYaml(readFileSync(v1, 'utf-8')) as {

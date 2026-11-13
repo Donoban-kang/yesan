@@ -253,7 +253,7 @@ export function AppProvider({ toast, children }: { toast: (msg: string, type?: T
         : `문서 엔진이 다시 켜져 폴더 지켜보기 ${gone.length}곳을 다시 시작했습니다.`;
       toast(msg, failed ? "error" : "info");
       // 창을 닫고 알림 영역에서 돌리는 기능이다: 멈췄다는 것은 창 안 알림만으로는 못 본다
-      if (failed) void notifySystem("KorDoc AI: 폴더 지켜보기가 멈췄습니다", msg);
+      if (failed) void notifySystem("KnuDoc AI: 폴더 지켜보기가 멈췄습니다", msg);
     } finally {
       rearming.current = false;
     }

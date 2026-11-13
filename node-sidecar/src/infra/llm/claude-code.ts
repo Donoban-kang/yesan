@@ -46,7 +46,7 @@ export function claudeArgs(model: string, systemFile: string): string[] {
 /** 우리가 앞에 두는 지시: 도구 없이 글로만 */
 export function claudeSystemText(req: Pick<ChatRequest, 'system' | 'json' | 'schema' | 'maxTokens'>): string {
   const parts = [
-    '이 대화는 KorDoc AI 가 보낸 것입니다. 도구는 없습니다. 파일·명령·웹을 쓰지 말고, 받은 글만 보고 답을 글로만 쓰세요.',
+    '이 대화는 KnuDoc AI 가 보낸 것입니다. 도구는 없습니다. 파일·명령·웹을 쓰지 말고, 받은 글만 보고 답을 글로만 쓰세요.',
   ];
   if (req.schema) parts.push(`답은 아래 JSON 스키마에 맞는 JSON 객체 하나만 쓰세요. 코드 블록·설명을 붙이지 마세요.\n<response_schema>\n${JSON.stringify(req.schema)}\n</response_schema>`);
   else if (req.json) parts.push('답은 JSON 객체 하나만 쓰세요. 코드 블록·설명을 붙이지 마세요.');

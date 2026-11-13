@@ -179,7 +179,7 @@ export async function watchStart(p: { dir: string; out_dir?: string; format?: Wa
 }
 
 async function startWatcher(p: { dir: string; out_dir?: string; format?: WatchFormat }): Promise<{ id: string }> {
-  // 사용자가 정한 출력 폴더가 있으면 그곳, 기본값(문서/KorDoc AI 결과)이면 감시 폴더 안 '변환 결과'
+  // 사용자가 정한 출력 폴더가 있으면 그곳, 기본값(문서/KnuDoc AI 결과)이면 감시 폴더 안 '변환 결과'
   // (감시는 같은 원본의 결과를 덮어쓰므로 여러 감시가 한 기본 폴더를 함께 쓰면 같은 이름끼리 덮인다)
   const configured = getSettings().convert.output_dir?.trim();
   const own = configured && configured !== DEFAULT_SETTINGS.convert.output_dir ? configured : '';

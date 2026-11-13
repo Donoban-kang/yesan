@@ -232,7 +232,7 @@ export function PdfScreen({ active }: { active: boolean }) {
         const typed = opts.name.trim().replace(/\.pdf$/i, "");
         const source = typed && b.files[0] ? joinPath(dirName(b.files[0].path), `${typed}.pdf`) : common.source;
         const r = await rpc("pdf_to_images", { ...common, source, items: imageItems(b, keys), format: opts.imageFormat, dpi: opts.dpi }, { signal, onProgress });
-        void notifySystem("KorDoc AI: PDF 작업 끝", `그림 ${r.files.length}장을 저장했습니다`);
+        void notifySystem("KnuDoc AI: PDF 작업 끝", `그림 ${r.files.length}장을 저장했습니다`);
         return { kind: "images", dir: r.output_dir, count: r.files.length };
       }
       // 고른 쪽 이름은 지금 고른 것으로 다시 짓는다: 우클릭 메뉴는 고르기를 바꾼 그 자리에서 저장을 불러, 미리 지어 둔 이름은 바뀌기 전 것이다
@@ -248,7 +248,7 @@ export function PdfScreen({ active }: { active: boolean }) {
         ...(opts.shrink ? { shrink: "normal" as const } : {}),
         ...(opts.fitA4 ? { fit_a4: true } : {}),
       }, { signal, onProgress });
-      void notifySystem("KorDoc AI: PDF 작업 끝", r.outputs.length > 1 ? `PDF ${r.outputs.length}개를 저장했습니다` : `${r.outputs[0].page_count}쪽짜리 PDF를 저장했습니다`);
+      void notifySystem("KnuDoc AI: PDF 작업 끝", r.outputs.length > 1 ? `PDF ${r.outputs.length}개를 저장했습니다` : `${r.outputs[0].page_count}쪽짜리 PDF를 저장했습니다`);
       return { kind: "pdf", outputs: r.outputs, secured: r.secured };
     });
   }, [save, opts, names]);

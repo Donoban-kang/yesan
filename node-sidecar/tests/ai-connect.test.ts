@@ -41,7 +41,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await Promise.all([ollama.close(), plain.close()]);
-  delete process.env.KORDOC_AI_POLICY;
+  delete process.env.KNUDOC_AI_POLICY;
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -109,13 +109,13 @@ describe('구독 계정 — 앱 쪽 규칙', () => {
   const cliPolicy = join(root, 'cli-policy.json');
   const usePolicy = (extra: Record<string, unknown> = {}) => {
     writeFileSync(cliPolicy, JSON.stringify({ version: 1, defaults: { ai: { claude_code: { cli_path: FAKE_CLAUDE } } }, ...extra }));
-    process.env.KORDOC_AI_POLICY = cliPolicy;
+    process.env.KNUDOC_AI_POLICY = cliPolicy;
     reload();
   };
   const useClaude = (extra: Record<string, unknown> = {}) => updateSettings({ privacy: { offline: false }, ai: { provider: 'claude-code', claude_code: { model: '' }, timeout_ms: 5000, redact_before_cloud: true, ...extra } });
 
   beforeAll(() => { rmSync(log, { force: true }); usePolicy(); });
-  afterAll(() => { delete process.env.KORDOC_AI_POLICY; reload(); rmSync(log, { force: true }); });
+  afterAll(() => { delete process.env.KNUDOC_AI_POLICY; reload(); rmSync(log, { force: true }); });
 
   it('기본은 꺼짐: 고르기만 해서는 보내지 않고, 허용을 켜라고 알린다', async () => {
     await useClaude();
@@ -254,7 +254,7 @@ describe('구독 업데이트 — 성공 경로 (PATH 에서 찾은 가짜 프�
     process.env[pathKey] = `${bin}${delimiter}${saved.PATH ?? ''}`;
     // Windows Codex 앱 폴더(appDirs)를 PATH 보다 먼저 보니 실제 앱이 깔린 PC 에서도 가짜를 찾게 비운다
     process.env.LOCALAPPDATA = join(root, 'localappdata');
-    delete process.env.KORDOC_AI_POLICY;
+    delete process.env.KNUDOC_AI_POLICY;
     reload();
     await updateSettings({ privacy: { offline: false }, ai: { allow_subscription: true } });
   });

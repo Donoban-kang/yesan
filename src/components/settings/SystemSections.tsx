@@ -41,7 +41,7 @@ export function EngineSection() {
   useEffect(loadModels, [loadModels]);
 
   // 관리자에게 전할 버전·환경은 고급에 (평소엔 앱 버전만)
-  const rows: Array<[string, string]> = system ? [["앱", `KorDoc AI ${system.app_version}`]] : [];
+  const rows: Array<[string, string]> = system ? [["앱", `KnuDoc AI ${system.app_version}`]] : [];
   const techRows: Array<[string, string]> = system ? [
     ["문서 엔진", `kordoc ${system.kordoc_version}`],
     ["실행 환경", `Node ${system.node_version} (앱에 들어 있음)`],
@@ -127,7 +127,7 @@ export function StorageSection() {
     try {
       await invokeCmd(removing ? "shell_menu_uninstall" : "shell_menu_install");
       // 빠른 동작은 끝나면 알림으로 알린다: 넣을 때 알림 권한을 미리 묻는다 (맥은 묻기 전엔 꺼져 있다)
-      if (!removing) await notifyQuick("KorDoc AI", "우클릭 메뉴를 넣었습니다. 빠른 동작이 끝나면 이렇게 알립니다.");
+      if (!removing) await notifyQuick("KnuDoc AI", "우클릭 메뉴를 넣었습니다. 빠른 동작이 끝나면 이렇게 알립니다.");
       const now = await invokeCmd<{ supported: boolean; installed: boolean; kind: string }>("shell_menu_status");
       setShell(now);
       if (now.installed === removing) setShellErr(removing ? "메뉴를 빼지 못했습니다. 앱을 다시 켠 뒤 해 보세요." : "메뉴를 넣지 못했습니다. 앱을 다시 켠 뒤 해 보세요.");
@@ -242,7 +242,7 @@ export function AboutSection() {
         <span className="kd-row-aside"><Button variant="secondary" size="sm" onClick={() => go("impact")}><Activity size={13} /> 효과 보기</Button></span>
       </div>
       <dl className="kd-dl kd-dl-wide mt-4">
-        <div><dt>버전</dt><dd>KorDoc AI {system?.app_version ?? ""}</dd></div>
+        <div><dt>버전</dt><dd>KnuDoc AI {system?.app_version ?? ""}</dd></div>
       </dl>
       <div className="kd-row mt-4">
         <FileText size={18} className="kd-muted flex-none" />

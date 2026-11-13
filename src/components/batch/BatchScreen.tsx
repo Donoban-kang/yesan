@@ -109,7 +109,7 @@ export function BatchScreen({ active }: { active: boolean }) {
     if (outcome?.kind === "gather") { setGatherPrev(outcome.result.output_path); setLate(0); }
     // 결과는 맨 위에 나온다: 작은 화면에서도 보이게 올린다
     if (outcome) mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-    if (outcome) void notifySystem("KorDoc AI: 여러 파일 작업 끝", outcome.message);
+    if (outcome) void notifySystem("KnuDoc AI: 여러 파일 작업 끝", outcome.message);
   }, [usable, task, opts, run, ai, gatherPrev]);
 
   // 홈·우클릭·예제에서 넘어온 파일과 할 일 (우클릭은 바로 시작)

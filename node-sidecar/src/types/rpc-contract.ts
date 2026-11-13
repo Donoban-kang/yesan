@@ -1,5 +1,5 @@
 /**
- * KorDoc AI v2 — 사이드카 RPC 계약 (정본)
+ * KnuDoc AI v2 — 사이드카 RPC 계약 (정본)
  *
  * 프론트(src/)는 이 파일을 `import type` 으로 읽고, 사이드카 핸들러는 이 모양대로 돌려준다.
  * 메서드를 추가·변경하면 여기부터 고친다. Rust 화이트리스트(src-tauri/src/commands/sidecar_cmd.rs)도 같이.

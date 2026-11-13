@@ -60,7 +60,7 @@ export function ImpactScreen({ active }: { active: boolean }) {
   const exportHwpx = () => void exp.run(async () => {
     if (!report) throw new Error("집계를 아직 읽지 못했습니다");
     const [y, m] = report.since.split("-").map(Number);
-    const title = `KorDoc AI 활용 효과 (${range === "month" ? `${y}년 ${m}월` : `${day(report.since)}부터`})`;
+    const title = `KnuDoc AI 활용 효과 (${range === "month" ? `${y}년 ${m}월` : `${day(report.since)}부터`})`;
     const md = [
       `# ${title}`, "",
       `- 집계 시작: ${day(report.since)}`,

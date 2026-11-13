@@ -119,7 +119,7 @@ export function strictSchema(schema: unknown): boolean {
 
 /** stdin 으로 줄 글: 우리 지시 + 호출한 쪽 지시 + 대화 */
 export function codexPrompt(req: Pick<ChatRequest, 'system' | 'messages' | 'json' | 'schema' | 'maxTokens'>): string {
-  const parts = ['이 요청은 KorDoc AI 가 보낸 것입니다. 도구는 없습니다. 파일·명령·웹을 쓰지 말고, 받은 글만 보고 답을 글로만 쓰세요.'];
+  const parts = ['이 요청은 KnuDoc AI 가 보낸 것입니다. 도구는 없습니다. 파일·명령·웹을 쓰지 말고, 받은 글만 보고 답을 글로만 쓰세요.'];
   if (req.json || req.schema) parts.push('답은 JSON 객체 하나만 쓰세요. 코드 블록·설명을 붙이지 마세요.');
   if (req.maxTokens) parts.push(`답은 대략 ${req.maxTokens} 토큰 안으로 쓰세요.`);
   if (req.system) parts.push(`<instructions>\n${req.system}\n</instructions>`);

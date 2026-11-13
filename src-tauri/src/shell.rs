@@ -1,10 +1,10 @@
 //! 우클릭 메뉴(Windows 탐색기·macOS Finder) + 밖에서 들어온 파일 묶기.
 //!
-//! - Windows: HKCU\Software\Classes\SystemFileAssociations\<확장자>\shell\KorDoc 계단식 메뉴(확장자마다 맞는 항목만),
+//! - Windows: HKCU\Software\Classes\SystemFileAssociations\<확장자>\shell\KnuDoc 계단식 메뉴(확장자마다 맞는 항목만),
 //!   폴더는 Directory\shell·Directory\Background\shell. 관리자 권한·인증서 불필요, 기본 연결 프로그램(한컴 등)은 건드리지 않는다.
 //!   (Win11 상단 메뉴가 필요하면 shell/windows 의 MSIX 패키지를 따로 쓴다.)
-//! - macOS: ~/Library/Services 에 Finder 빠른 동작(.workflow) — kordoc:// 주소를 연다. 메뉴가 길어지지 않게 자주 쓰는 것만.
-//! - 실행 인자(`--shell <동작> <파일…>`)·kordoc:// 주소·Finder "다음으로 열기"는 전부
+//! - macOS: ~/Library/Services 에 Finder 빠른 동작(.workflow) — knudoc:// 주소를 연다. 메뉴가 길어지지 않게 자주 쓰는 것만.
+//! - 실행 인자(`--shell <동작> <파일…>`)·knudoc:// 주소·Finder "다음으로 열기"는 전부
 //!   ShellCollector 로 모아, 같은 동작으로 0.4초 안에 들어온 파일을 한 묶음으로 프론트에 넘긴다.
 //!   (탐색기는 여러 파일 선택 시 명령을 파일마다 따로 부른다. 화면이 아직 구독 전이면 쌓아 두었다가
 //!   화면이 shell_take_pending 으로 받아 간다)
@@ -70,7 +70,7 @@ const fn act(group: Group, id: &'static str, label: &'static str, quick: bool) -
 pub const ACTIONS: &[Action] = &[
     // 맨 앞은 맡기기 (macOS 는 ACTIONS[0].label 의 빠른 동작으로 깔렸는지 본다: 자리를 바꾸지 말 것, 이름을 바꾸면 옛 이름을 macOS LEGACY_ASK 에)
     // 문서 카드(작은 창): 이 문서로 무엇을 할지 말로 시키기
-    Action { folder: Some("KorDoc AI에게 맡기기…"), mac: true, ..act(Ai, "ask", "KorDoc AI에게 맡기기…", false) },
+    Action { folder: Some("KnuDoc AI에게 맡기기…"), mac: true, ..act(Ai, "ask", "KnuDoc AI에게 맡기기…", false) },
     Action { mac: true, ..act(Ai, "summarize", "AI로 요약하기", false) },
     // 열기
     Action { mac: true, ..act(Open, "open", "앱에서 열기", false) },
@@ -95,7 +95,7 @@ pub const ACTIONS: &[Action] = &[
     Action { only: &[".pdf", ".hwp", ".hwpx"], ..act(Join, "split", "나누기", true) },
     Action { mac: true, ..act(Join, "pdfwork", "PDF 쪽 편집하기", false) },
     Action { files: false, folder: Some("문서 수합하기"), ..act(Join, "collect", "문서 수합하기", false) },
-    // 옛 판 동작: 메뉴에는 없고 kordoc:// 주소·실행 인자로만 (예전에 만든 바로 가기·링크가 계속 되게)
+    // 옛 판 동작: 메뉴에는 없고 knudoc:// 주소·실행 인자로만 (예전에 만든 바로 가기·링크가 계속 되게)
     Action { files: false, ..act(Join, "pdfmerge", "PDF 하나로 합치기", true) },
     Action { files: false, ..act(Join, "hwpmerge", "한글 문서 하나로 합치기", true) },
     Action { files: false, ..act(Join, "pdfsplit", "PDF 쪽마다 나누기", true) },
@@ -120,14 +120,14 @@ const EXTS: &[&str] = &[
 /// 확장자별 메뉴 키. 설치 프로그램의 제거 훅(windows/hooks.nsh)도 같은 키를 지운다 (테스트가 맞춰 본다)
 #[cfg_attr(not(windows), allow(dead_code))]
 fn key(ext: &str) -> String {
-    format!(r"HKCU\Software\Classes\SystemFileAssociations\{}\shell\KorDoc", ext)
+    format!(r"HKCU\Software\Classes\SystemFileAssociations\{}\shell\KnuDoc", ext)
 }
 
 /// 폴더 메뉴 키: 폴더 아이콘 우클릭(%1)·폴더 안 빈 곳 우클릭(%V)
 #[cfg_attr(not(windows), allow(dead_code))]
 const FOLDER_KEYS: &[(&str, &str)] = &[
-    (r"HKCU\Software\Classes\Directory\shell\KorDoc", "%1"),
-    (r"HKCU\Software\Classes\Directory\Background\shell\KorDoc", "%V"),
+    (r"HKCU\Software\Classes\Directory\shell\KnuDoc", "%1"),
+    (r"HKCU\Software\Classes\Directory\Background\shell\KnuDoc", "%V"),
 ];
 
 /// .reg 글의 키 이름 (HKCU 줄임 → 전체 이름)
@@ -155,9 +155,9 @@ fn reg_script(exe: &str) -> String {
     let mut out = String::from("Windows Registry Editor Version 5.00\r\n\r\n");
     let mut menu = |base: &str, items: Vec<(&Action, &str)>, arg: &str| {
         let root = reg_root(base);
-        out += &format!("[-{root}]\r\n\r\n[{root}]\r\n\"MUIVerb\"=\"KorDoc AI\"\r\n\"Icon\"=\"{}\"\r\n\"SubCommands\"=\"\"\r\n", reg_q(&format!("\"{exe}\",0")));
+        out += &format!("[-{root}]\r\n\r\n[{root}]\r\n\"MUIVerb\"=\"KnuDoc AI\"\r\n\"Icon\"=\"{}\"\r\n\"SubCommands\"=\"\"\r\n", reg_q(&format!("\"{exe}\",0")));
         // 기본(Document)은 15개 넘게 고르면 메뉴를 숨긴다
-        out += &format!("\"MultiSelectModel\"=\"Player\"\r\n\"KorDocMenu\"=\"{MENU_VERSION}\"\r\n\"KorDocExe\"=\"{}\"\r\n\r\n", exe_mark(exe));
+        out += &format!("\"MultiSelectModel\"=\"Player\"\r\n\"KnuDocMenu\"=\"{MENU_VERSION}\"\r\n\"KnuDocExe\"=\"{}\"\r\n\r\n", exe_mark(exe));
         for (i, (a, label)) in items.iter().enumerate() {
             let sub = format!(r"{root}\shell\{:02}{}", i + 1, a.id);
             out += &format!("[{sub}]\r\n@=\"{}\"\r\n\"MultiSelectModel\"=\"Player\"\r\n", reg_q(label));
@@ -316,7 +316,7 @@ const GATHER_QUIET: Duration = Duration::from_millis(400);
 /// 아무리 계속 와도 첫 도착 뒤 이만큼이면 넘긴다
 const GATHER_MAX: Duration = Duration::from_secs(4);
 
-/// Tauri 이벤트는 화면이 구독하기 전에 나가면 그대로 사라진다. 앱이 꺼져 있다 우클릭·더블클릭·kordoc:// 로
+/// Tauri 이벤트는 화면이 구독하기 전에 나가면 그대로 사라진다. 앱이 꺼져 있다 우클릭·더블클릭·knudoc:// 로
 /// 켜지면 첫 동작이 화면보다 먼저 와서 없어졌다 → 화면이 shell_take_pending 을 부를 때까지 여기 모아 둔다
 #[derive(Default)]
 struct Inbox {
@@ -333,7 +333,7 @@ pub struct Delivery {
 
 impl ShellCollector {
     pub fn push(&self, app: &AppHandle, action: &str, paths: Vec<String>) {
-        // 빈 경로(kordoc://pdf?path= 같은 주소)는 버린다: 받으면 화면이 처리할 것이 없어 끝났다는 신호도 오지 않고 숨은 앱이 남는다
+        // 빈 경로(knudoc://pdf?path= 같은 주소)는 버린다: 받으면 화면이 처리할 것이 없어 끝났다는 신호도 오지 않고 숨은 앱이 남는다
         let paths: Vec<String> = paths.into_iter().filter(|p| !p.trim().is_empty()).collect();
         if paths.is_empty() {
             return;
@@ -482,7 +482,7 @@ fn card_config(app: &AppHandle, label: &str, action: &str, paths: &[String]) -> 
     let mut c = app.config().app.windows.first().cloned().unwrap_or_default();
     c.label = label.to_string();
     c.url = tauri::WebviewUrl::App(format!("index.html?card={}", urlencoding::encode(&q)).into());
-    c.title = format!("KorDoc AI · {}{}", first, more);
+    c.title = format!("KnuDoc AI · {}{}", first, more);
     // 영수증 카드는 고칠 수 있는 표를 보여서 넓게
     let wide = action == "receipt";
     c.width = if wide { 860.0 } else { 520.0 };
@@ -576,17 +576,17 @@ fn flush(app: &AppHandle, items: Vec<(String, String)>) {
     }
 }
 
-/// 본창 화면으로 동작 하나 넘기기: 열기는 open-files, 파일 하나는 kordoc://<동작>?path=, 여럿은 묶음 목록 파일
+/// 본창 화면으로 동작 하나 넘기기: 열기는 open-files, 파일 하나는 knudoc://<동작>?path=, 여럿은 묶음 목록 파일
 fn send_to_main(app: &AppHandle, action: &str, paths: &[String]) {
     if action == "open" {
         deliver(app, "open-files", paths.to_vec().into());
     } else if paths.len() == 1 {
-        let url = format!("kordoc://{}?path={}", action, urlencoding::encode(&paths[0]));
+        let url = format!("knudoc://{}?path={}", action, urlencoding::encode(&paths[0]));
         deliver(app, "deep-link", url.into());
     } else {
         match write_manifest(action, paths) {
             Ok(m) => {
-                let url = format!("kordoc://batch?manifest={}", urlencoding::encode(&m.to_string_lossy()));
+                let url = format!("knudoc://batch?manifest={}", urlencoding::encode(&m.to_string_lossy()));
                 deliver(app, "deep-link", url.into());
             }
             Err(e) => {
@@ -643,10 +643,10 @@ pub fn parse_args(args: &[String]) -> Option<(String, Vec<String>)> {
     if rest[0] == "--shell" && rest.len() >= 3 && is_action(rest[1]) {
         return Some((rest[1].clone(), rest[2..].iter().map(|s| unquote_root(s)).collect()));
     }
-    // 주소(kordoc://…)로 켜진 실행은 그 주소 하나만 다룬다. 주소 속 `|` 나 따옴표로 갈라져 나온 나머지 토큰을 파일로 보면
+    // 주소(knudoc://…)로 켜진 실행은 그 주소 하나만 다룬다. 주소 속 `|` 나 따옴표로 갈라져 나온 나머지 토큰을 파일로 보면
     // 링크 하나로 임의 파일이 "앱에서 열기"로 뜬다 (single-instance 플러그인은 인자를 `|` 로 이어 보내고 다시 `|` 로 자른다)
     // (스킴은 대소문자를 가리지 않는다: "KORDOC://…" 도 같은 주소다)
-    if rest.iter().any(|a| a.get(..7).is_some_and(|s| s.eq_ignore_ascii_case("kordoc:"))) {
+    if rest.iter().any(|a| a.get(..7).is_some_and(|s| s.eq_ignore_ascii_case("knudoc:"))) {
         return None;
     }
     // 네트워크 경로(\\서버\공유)는 있는지 찔러 보지 않는다: is_file() 만으로 그 서버에 접속이 나가고(계정 인증이 따라간다),
@@ -660,10 +660,10 @@ pub fn parse_args(args: &[String]) -> Option<(String, Vec<String>)> {
     (!files.is_empty()).then(|| ("open".to_string(), files))
 }
 
-/// kordoc://<동작>?path=… 이면 (동작, 경로). batch 등 그 밖은 None(그대로 프론트로)
+/// knudoc://<동작>?path=… 이면 (동작, 경로). batch 등 그 밖은 None(그대로 프론트로)
 pub fn parse_action_url(url: &str) -> Option<(String, String)> {
     let u = tauri::Url::parse(url).ok()?;
-    if u.scheme() != "kordoc" {
+    if u.scheme() != "knudoc" {
         return None;
     }
     let action = url_action(&u);
@@ -674,7 +674,7 @@ pub fn parse_action_url(url: &str) -> Option<(String, String)> {
     Some((action, path))
 }
 
-/// 주소의 동작 이름. host 자리("kordoc://convert?…")에 오고, "//" 없이 쓴 주소("kordoc:convert?…" · "kordoc:/convert?…")는
+/// 주소의 동작 이름. host 자리("knudoc://convert?…")에 오고, "//" 없이 쓴 주소("knudoc:convert?…" · "knudoc:/convert?…")는
 /// host 가 비고 경로 첫 토막에 온다. 둘 다 같은 동작으로 읽는다: 여기서 못 읽은 주소를 화면이 따로 풀면
 /// 주소로 온 빠른 동작이 "여러 파일 화면에 올리기"를 건너뛰고 확인 없이 바로 돈다
 fn url_action(u: &tauri::Url) -> String {
@@ -684,12 +684,12 @@ fn url_action(u: &tauri::Url) -> String {
     }
 }
 
-/// 묶음 주소(kordoc://batch?manifest=…)인가 — 동작 주소가 아닌 것 가운데 화면으로 넘기는 것은 이것뿐이다
+/// 묶음 주소(knudoc://batch?manifest=…)인가 — 동작 주소가 아닌 것 가운데 화면으로 넘기는 것은 이것뿐이다
 pub fn is_batch_url(url: &str) -> bool {
-    tauri::Url::parse(url).map(|u| u.scheme() == "kordoc" && url_action(&u) == "batch").unwrap_or(false)
+    tauri::Url::parse(url).map(|u| u.scheme() == "knudoc" && url_action(&u) == "batch").unwrap_or(false)
 }
 
-/// 주소(kordoc://…)로 온 동작을 어떻게 돌릴지. 윈도에서는 빠른 동작(창 없이 바로 처리)을 그대로 돌리지 않고
+/// 주소(knudoc://…)로 온 동작을 어떻게 돌릴지. 윈도에서는 빠른 동작(창 없이 바로 처리)을 그대로 돌리지 않고
 /// "여러 파일 한꺼번에" 화면에 파일만 올려 둔다: 주소는 웹·메일·문서 속 링크로도 올 수 있어, 누른 사람이 모르는 사이
 /// 폴더 안 문서 수천 개를 바꾸거나 글 사본을 만들 수 있다. 탐색기 우클릭은 실행 인자(--shell)로 오므로 그대로 바로 돈다.
 /// macOS 는 Finder 빠른 동작이 주소로 들어오므로 그대로 둔다
@@ -748,8 +748,8 @@ mod platform {
         let _lock = MENU_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let base = key(".hwpx");
         let Ok(out) = reg_out(&["query", &base]) else { return };
-        let current = out.lines().any(|l| l.contains("KorDocMenu") && l.split_whitespace().last() == Some(MENU_VERSION));
-        // 다른 폴더에 다시 깔았거나 설치 방식을 바꿨으면 메뉴가 없어진 옛 실행 파일을 가리킨다. 깔 때 적어 둔 실행 파일 표지(KorDocExe)와 견준다:
+        let current = out.lines().any(|l| l.contains("KnuDocMenu") && l.split_whitespace().last() == Some(MENU_VERSION));
+        // 다른 폴더에 다시 깔았거나 설치 방식을 바꿨으면 메뉴가 없어진 옛 실행 파일을 가리킨다. 깔 때 적어 둔 실행 파일 표지(KnuDocExe)와 견준다:
         // 경로 글자를 그대로 견주면 reg 출력이 윈도 코드 페이지라 사용자 이름이 한글인 PC 에서 늘 다르다고 나와 켤 때마다 메뉴를 다시 깔았다.
         // 개발 빌드는 깔린 메뉴를 자기 경로로 바꾸지 않는다
         let exe = std::env::current_exe().ok().map(|p| exe_mark(&p.to_string_lossy()));
@@ -824,7 +824,7 @@ mod platform {
     }
 
     fn bundle_name(label: &str) -> String {
-        format!("KorDoc - {}.workflow", label)
+        format!("KnuDoc - {}.workflow", label)
     }
 
     fn xml_escape(s: &str) -> String {
@@ -832,7 +832,7 @@ mod platform {
     }
 
     /// 예전 판의 맡기기 이름 (ACTIONS[0] 이름이 바뀌기 전에 깐 PC 도 깔린 것으로 보고 다시 깐다)
-    const LEGACY_ASK: &str = "KorDoc AI 에게 맡기기…";
+    const LEGACY_ASK: &str = "KnuDoc AI 에게 맡기기…";
     /// 예전 판의 빠른 동작 이름 (다시 깔 때 지운다)
     const LEGACY: &[&str] = &[LEGACY_ASK, "PDF로 내보내기", "글(마크다운)로 바꾸기", "한글 문서(HWPX)로 바꾸기", "PDF 쪽 정리 (나누기·뽑기·돌리기)"];
 
@@ -886,7 +886,7 @@ mod platform {
             let root = dir.join(bundle_name(a.label)).join("Contents");
             std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
             let script = format!(
-                r#"/usr/bin/osascript -l JavaScript -e 'function run(argv){{var a=Application.currentApplication();a.includeStandardAdditions=true;argv.forEach(function(p){{a.openLocation("kordoc://{}?path="+encodeURIComponent(p))}})}}' "$@""#,
+                r#"/usr/bin/osascript -l JavaScript -e 'function run(argv){{var a=Application.currentApplication();a.includeStandardAdditions=true;argv.forEach(function(p){{a.openLocation("knudoc://{}?path="+encodeURIComponent(p))}})}}' "$@""#,
                 a.id
             );
             std::fs::write(root.join("document.wflow"), WFLOW.replace("__COMMAND__", &xml_escape(&script)))
@@ -900,7 +900,7 @@ mod platform {
 	<array>
 		<dict>
 			<key>NSMenuItem</key>
-			<dict><key>default</key><string>KorDoc AI: {}</string></dict>
+			<dict><key>default</key><string>KnuDoc AI: {}</string></dict>
 			<key>NSMessage</key><string>runWorkflowAsService</string>
 			<key>NSRequiredContext</key>
 			<dict><key>NSApplicationIdentifier</key><string>com.apple.finder</string></dict>
@@ -955,7 +955,7 @@ mod platform {
 
 /// tauri.conf.json 의 identifier (윈도 알림 설정이 이 이름으로 남는다)
 #[cfg_attr(not(windows), allow(dead_code))]
-const APP_ID: &str = "com.kordoc-ai.app";
+const APP_ID: &str = "com.knudoc-ai.app";
 
 /// `reg query … /v 값` 출력에서 스위치가 꺼졌는가 (REG_DWORD 0x0)
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -997,10 +997,10 @@ pub fn shell_menu_uninstall() -> Result<MenuStatus, String> {
     Ok(platform::status())
 }
 
-/// 화면 없이 우클릭 메뉴 넣기·빼기·상태 — 기관 배포 스크립트용 (`kordoc-ai.exe --shell-menu install`).
+/// 화면 없이 우클릭 메뉴 넣기·빼기·상태 — 기관 배포 스크립트용 (`knudoc-ai.exe --shell-menu install`).
 /// 창을 띄우기 전에 처리하고 종료 코드를 돌려준다. 해당 인자가 없으면 None.
 pub fn cli_shell_menu(args: &[String]) -> Option<i32> {
-    // 첫 인자일 때만 받는다. 어디에 있든 받으면 `kordoc://x" --shell-menu uninstall "` 같은 링크가
+    // 첫 인자일 때만 받는다. 어디에 있든 받으면 `knudoc://x" --shell-menu uninstall "` 같은 링크가
     // 따옴표를 그대로 넘기는 프로그램을 거쳐 사용자의 우클릭 메뉴를 빼 버릴 수 있다
     if args.get(1).map(String::as_str) != Some("--shell-menu") {
         return None;
@@ -1036,17 +1036,17 @@ mod tests {
 
     #[test]
     fn deep_link_launch_never_opens_other_tokens_as_files() {
-        // 실제로 있는 파일을 인자로 줘도, 주소(kordoc:)가 섞인 실행이면 파일로 열지 않는다
+        // 실제로 있는 파일을 인자로 줘도, 주소(knudoc:)가 섞인 실행이면 파일로 열지 않는다
         let me = std::env::current_exe().unwrap().to_string_lossy().into_owned();
         assert_eq!(parse_args(&["app".into(), me.clone()]), Some(("open".into(), vec![me.clone()])));
-        assert_eq!(parse_args(&["app".into(), "kordoc://x?".into(), me.clone()]), None);
-        assert_eq!(parse_args(&["app".into(), me.clone(), "kordoc://open?path=a".into()]), None);
+        assert_eq!(parse_args(&["app".into(), "knudoc://x?".into(), me.clone()]), None);
+        assert_eq!(parse_args(&["app".into(), me.clone(), "knudoc://open?path=a".into()]), None);
         assert_eq!(parse_args(&["app".into(), "KORDOC://x?".into(), me.clone()]), None);
         // 네트워크 경로는 있는지 찔러 보지 않고 그대로 넘긴다 (엔진이 열지 않고 까닭을 알린다). 주소가 섞였으면 그것도 버린다
         for unc in ["\\\\192.0.2.1\\share\\a.hwp", "//192.0.2.1/share/a.hwp", "/\\192.0.2.1\\share\\a.hwp", "\\\\?\\UNC\\192.0.2.1\\share\\a.hwp"] {
             assert!(is_network_path(unc), "{unc}");
             assert_eq!(parse_args(&["app".into(), unc.into()]), Some(("open".into(), vec![unc.to_string()])));
-            assert_eq!(parse_args(&["app".into(), "kordoc://x?".into(), unc.into()]), None);
+            assert_eq!(parse_args(&["app".into(), "knudoc://x?".into(), unc.into()]), None);
         }
         // 긴 경로 표기의 로컬 파일·보통 경로는 네트워크 경로가 아니다
         for local in ["\\\\?\\C:\\a\\b.hwp", "C:\\a\\b.hwp", "/Users/a/b.hwp", "Z:\\share\\a.hwp"] {
@@ -1056,15 +1056,15 @@ mod tests {
 
     #[test]
     fn parses_action_url() {
-        let u = "kordoc://convert?path=%2FUsers%2F%ED%99%8D%2Fa.hwpx";
+        let u = "knudoc://convert?path=%2FUsers%2F%ED%99%8D%2Fa.hwpx";
         assert_eq!(parse_action_url(u), Some(("convert".into(), "/Users/홍/a.hwpx".into())));
-        assert_eq!(parse_action_url("kordoc://batch?manifest=x"), None);
+        assert_eq!(parse_action_url("knudoc://batch?manifest=x"), None);
     }
 
     #[test]
     fn slashless_action_urls_are_actions_too() {
         // "//" 없이 쓴 주소도 같은 동작으로 읽는다. 못 읽으면 화면이 따로 풀어, 주소로 온 빠른 동작이 확인 없이 바로 돈다
-        for u in ["kordoc:convert?path=D%3A%5C", "kordoc:/convert?path=D%3A%5C", "kordoc:///convert?path=D%3A%5C", "kordoc://CONVERT?path=D%3A%5C"] {
+        for u in ["knudoc:convert?path=D%3A%5C", "knudoc:/convert?path=D%3A%5C", "knudoc:///convert?path=D%3A%5C", "knudoc://CONVERT?path=D%3A%5C"] {
             assert_eq!(parse_action_url(u), Some(("convert".into(), "D:\\".into())), "{u}");
             // 윈도·리눅스에서는 빠른 동작을 바로 돌리지 않고 여러 파일 화면에 올린다
             if cfg!(not(target_os = "macos")) {
@@ -1072,9 +1072,9 @@ mod tests {
             }
         }
         // 동작으로 읽지 못한 주소 가운데 화면으로 넘기는 것은 묶음 주소뿐
-        assert!(is_batch_url("kordoc://batch?manifest=x"));
-        assert!(is_batch_url("kordoc:batch?manifest=x"));
-        for u in ["kordoc://nope?path=x", "kordoc:redactx?path=x", "https://batch/?manifest=x", "kordoc://convert"] {
+        assert!(is_batch_url("knudoc://batch?manifest=x"));
+        assert!(is_batch_url("knudoc:batch?manifest=x"));
+        for u in ["knudoc://nope?path=x", "knudoc:redactx?path=x", "https://batch/?manifest=x", "knudoc://convert"] {
             assert!(!is_batch_url(u), "{u}");
         }
     }
@@ -1085,17 +1085,17 @@ mod tests {
         let link = |u: &str| Delivery { event: "deep-link", payload: u.into() };
         let files = Delivery { event: "open-files", payload: serde_json::json!(["C:\\a.hwp"]) };
         // 화면 구독 전(꺼진 앱이 우클릭으로 켜진 직후): 보내지 않고 쌓는다
-        assert_eq!(c.hold(link("kordoc://convert?path=a")), None);
+        assert_eq!(c.hold(link("knudoc://convert?path=a")), None);
         assert_eq!(c.hold(files.clone()), None);
         // 화면이 한 번 받아 간다: 들어온 순서대로, 실시간 이벤트와 같은 모양
         let taken = c.take_pending();
-        assert_eq!(taken, vec![link("kordoc://convert?path=a"), files]);
+        assert_eq!(taken, vec![link("knudoc://convert?path=a"), files]);
         assert_eq!(
             serde_json::to_value(&taken[0]).unwrap(),
-            serde_json::json!({ "event": "deep-link", "payload": "kordoc://convert?path=a" })
+            serde_json::json!({ "event": "deep-link", "payload": "knudoc://convert?path=a" })
         );
         // 그 뒤로는 바로 보낸다 (다시 받아 가도 빈 목록)
-        assert_eq!(c.hold(link("kordoc://pdf?path=b")), Some(link("kordoc://pdf?path=b")));
+        assert_eq!(c.hold(link("knudoc://pdf?path=b")), Some(link("knudoc://pdf?path=b")));
         assert!(c.take_pending().is_empty());
     }
 
@@ -1178,19 +1178,19 @@ mod tests {
 
     #[test]
     fn reg_script_builds_menus_in_one_import() {
-        let exe = r"C:\Users\홍 길동\AppData\Local\KorDoc AI\kordoc-ai.exe";
+        let exe = r"C:\Users\홍 길동\AppData\Local\KnuDoc AI\knudoc-ai.exe";
         let s = reg_script(exe);
         assert!(s.starts_with("Windows Registry Editor Version 5.00\r\n"));
         let pdf = reg_root(&key(".pdf"));
         // 옛 항목이 남지 않게 지우고 다시
-        assert!(s.contains(&format!("[-{pdf}]\r\n\r\n[{pdf}]\r\n\"MUIVerb\"=\"KorDoc AI\"")));
-        assert!(s.contains(&format!("[{pdf}\\shell\\01ask]\r\n@=\"KorDoc AI에게 맡기기…\"\r\n\"MultiSelectModel\"=\"Player\"")));
+        assert!(s.contains(&format!("[-{pdf}]\r\n\r\n[{pdf}]\r\n\"MUIVerb\"=\"KnuDoc AI\"")));
+        assert!(s.contains(&format!("[{pdf}\\shell\\01ask]\r\n@=\"KnuDoc AI에게 맡기기…\"\r\n\"MultiSelectModel\"=\"Player\"")));
         assert!(s.contains(&format!("[{pdf}\\shell\\10receipt]\r\n@=\"영수증으로 지출조서 만들기\"")));
         assert!(s.contains(&format!("[{pdf}\\shell\\17versions]\r\n@=\"최종본 찾기\"")));
         assert!(!(1..=30).any(|n| s.contains(&format!("[{pdf}\\shell\\{n:02}pdf]"))));
         // 실행 줄: 경로 역슬래시·따옴표를 .reg 규칙대로
-        assert!(s.contains(r#"@="\"C:\\Users\\홍 길동\\AppData\\Local\\KorDoc AI\\kordoc-ai.exe\" --shell join \"%1\"""#));
-        assert!(s.contains(&format!("\"KorDocMenu\"=\"{MENU_VERSION}\"")));
+        assert!(s.contains(r#"@="\"C:\\Users\\홍 길동\\AppData\\Local\\KnuDoc AI\\knudoc-ai.exe\" --shell join \"%1\"""#));
+        assert!(s.contains(&format!("\"KnuDocMenu\"=\"{MENU_VERSION}\"")));
         // 묶음 첫 항목 앞에 구분선 (맨 앞 항목·묶음 안 항목에는 없음)
         let hwp = reg_root(&key(".hwp"));
         let sep = |root: &str, n: &str, label: &str| format!("[{root}\\shell\\{n}]\r\n@=\"{label}\"\r\n\"MultiSelectModel\"=\"Player\"\r\n\"CommandFlags\"=dword:00000020");
@@ -1199,14 +1199,14 @@ mod tests {
         assert!(s.contains(&sep(&hwp, "05pdf", "PDF로 저장")));
         assert!(s.contains(&sep(&hwp, "11join", "하나로 합치기")));
         assert!(s.contains(&sep(&hwp, "14precheck", "결재 전 점검하기")));
-        assert!(s.contains(&plain(&hwp, "01ask", "KorDoc AI에게 맡기기…")));
+        assert!(s.contains(&plain(&hwp, "01ask", "KnuDoc AI에게 맡기기…")));
         assert!(s.contains(&plain(&hwp, "02summarize", "AI로 요약하기")));
         assert!(s.contains(&plain(&hwp, "12split", "나누기")) && s.contains(&plain(&hwp, "13pdfwork", "PDF 쪽 편집하기")));
         // .pdf 에는 바꾸기 묶음 첫 항목(PDF로 저장)이 빠져도 다음 항목(한글 문서로 바꾸기)에 구분선
         assert!(s.contains(&sep(&pdf, "04hwpx", "한글 문서로 바꾸기")));
         // 폴더: 아이콘 우클릭은 %1, 빈 곳 우클릭은 %V, 폴더 이름으로
         let bg = reg_root(FOLDER_KEYS[1].0);
-        assert!(s.contains(&plain(&bg, "01ask", "KorDoc AI에게 맡기기…")));
+        assert!(s.contains(&plain(&bg, "01ask", "KnuDoc AI에게 맡기기…")));
         assert!(s.contains(&sep(&bg, "02tools", "여러 파일 한꺼번에 열기")));
         assert!(s.contains(&sep(&bg, "03pdf", "모두 PDF로 저장")));
         assert!(s.contains(&plain(&bg, "04hwpx", "모두 한글 문서로 바꾸기")));
@@ -1296,7 +1296,7 @@ mod tests {
     #[test]
     fn links_do_not_run_quick_actions_unseen() {
         // 주소로 온 빠른 동작은 윈도에서 바로 돌리지 않고 여러 파일 한꺼번에 화면에 올려 둔다 (맥은 Finder 빠른 동작이 주소로 온다)
-        let quick = routed_action("kordoc://convert?path=C%3A%5CUsers").unwrap();
+        let quick = routed_action("knudoc://convert?path=C%3A%5CUsers").unwrap();
         if cfg!(target_os = "macos") {
             assert_eq!(quick.0, "convert");
         } else {
@@ -1304,16 +1304,16 @@ mod tests {
             assert!(!is_quick(&quick.0));
         }
         // 창을 여는 동작은 그대로
-        assert_eq!(routed_action("kordoc://pdfwork?path=%2Fa.pdf").unwrap().0, "pdfwork");
-        assert_eq!(routed_action("kordoc://batch?manifest=x"), None);
+        assert_eq!(routed_action("knudoc://pdfwork?path=%2Fa.pdf").unwrap().0, "pdfwork");
+        assert_eq!(routed_action("knudoc://batch?manifest=x"), None);
     }
 
     #[test]
     fn exe_mark_is_ascii_whatever_the_path() {
-        let m = exe_mark(r"\\?\C:\Users\홍길동\AppData\Local\KorDoc AI\kordoc-ai.exe");
+        let m = exe_mark(r"\\?\C:\Users\홍길동\AppData\Local\KnuDoc AI\knudoc-ai.exe");
         assert!(m.chars().all(|c| c.is_ascii_hexdigit()));
-        assert_eq!(m, exe_mark(r"c:\users\홍길동\appdata\local\kordoc ai\KORDOC-AI.EXE"));
-        assert!(reg_script(r"C:\App\kordoc-ai.exe").contains(&format!("\"KorDocExe\"=\"{}\"", exe_mark(r"C:\App\kordoc-ai.exe"))));
+        assert_eq!(m, exe_mark(r"c:\users\홍길동\appdata\local\knudoc ai\KNUDOC-AI.EXE"));
+        assert!(reg_script(r"C:\App\knudoc-ai.exe").contains(&format!("\"KnuDocExe\"=\"{}\"", exe_mark(r"C:\App\knudoc-ai.exe"))));
     }
 
     #[test]
@@ -1355,6 +1355,6 @@ mod tests {
         assert_eq!(parse_args(&a), Some(("pdfmerge".into(), vec!["C:\\a.pdf".into(), "C:\\b.pdf".into()])));
         assert!(is_quick("pagenum") && is_quick("xlsxmerge") && is_quick("inbox") && is_quick("join") && is_quick("split"));
         assert!(is_quick("pdfsplit") && is_quick("shrink") && !is_quick("pdfwork") && !is_quick("open") && !is_quick("evil"));
-        assert_eq!(parse_action_url("kordoc://pdfwork?path=%2Fa.pdf"), Some(("pdfwork".into(), "/a.pdf".into())));
+        assert_eq!(parse_action_url("knudoc://pdfwork?path=%2Fa.pdf"), Some(("pdfwork".into(), "/a.pdf".into())));
     }
 }

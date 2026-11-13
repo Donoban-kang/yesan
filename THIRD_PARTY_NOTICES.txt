@@ -1,6 +1,6 @@
-KorDoc AI 제3자 고지 (THIRD_PARTY_NOTICES)
+KnuDoc AI 제3자 고지 (THIRD_PARTY_NOTICES)
 
-KorDoc AI 는 MIT 라이선스(LICENSE)로 배포한다. 설치본에 함께 들어 있는 제3자 저작물의 이름·버전·라이선스와
+KnuDoc AI 는 MIT 라이선스(LICENSE)로 배포한다. 설치본에 함께 들어 있는 제3자 저작물의 이름·버전·라이선스와
 라이선스 전문을 아래에 모았다. 각 저작물의 권리는 원 저작권자에게 있고 각자의 라이선스를 따른다.
 요약과 Microsoft 구성요소(Visual C++ 런타임·WebView2 설치 파일)의 배포 조건은 NOTICE 에 있다.
 

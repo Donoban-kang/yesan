@@ -86,7 +86,7 @@ export function NavRail({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     <nav className="kd-nav" data-collapsed={collapsed} aria-label="주 메뉴" onKeyDown={onKey}>
       <div className="kd-nav-brand">
         <img src="/logo.png" alt="" />
-        {!collapsed && <strong>KorDoc AI</strong>}
+        {!collapsed && <strong>KnuDoc AI</strong>}
       </div>
       <div className="kd-nav-list">
         {uiMode === "easy" ? (

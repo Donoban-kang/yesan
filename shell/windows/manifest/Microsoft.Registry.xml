@@ -9,7 +9,7 @@
     4. KorDoc 앱 열기
 
   실행 흐름: kordoc-launcher.exe <action> "%1"
-    → kordoc:// deep-link 변환 → kordoc-ai 수신
+    → knudoc:// deep-link 변환 → kordoc-ai 수신
   참조: docs/archive/SPEC.md §3.2 (v1 기획)
 -->
 <RegistryData>
@@ -17,43 +17,43 @@
   <!-- ┌─ 7개 확장자 각각에 동일한 KorDoc 메뉴 등록 ─┐ -->
   <!-- HWP -->
   <RegistryKey Path="HKCU\Software\Classes\.hwp\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
     <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
   </RegistryKey>
 
   <RegistryKey Path="HKCU\Software\Classes\.hwpx\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
     <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
   </RegistryKey>
 
   <RegistryKey Path="HKCU\Software\Classes\.pdf\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
     <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
   </RegistryKey>
 
   <RegistryKey Path="HKCU\Software\Classes\.xls\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
     <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
   </RegistryKey>
 
   <RegistryKey Path="HKCU\Software\Classes\.xlsx\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
     <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
   </RegistryKey>
 
   <RegistryKey Path="HKCU\Software\Classes\.doc\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
     <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
   </RegistryKey>
 
   <RegistryKey Path="HKCU\Software\Classes\.docx\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
     <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
   </RegistryKey>

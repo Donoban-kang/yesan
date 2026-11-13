@@ -32,7 +32,7 @@ export const NO_BROWSER = 'PDF로 내보내려면 Microsoft Edge나 Chrome이 �
 const CHUNK_CHARS = 12 * 1024 * 1024;
 
 /** 브라우저 임시 프로필. 엔진이 PDF 를 만들다 강제로 꺼지면 남으므로, 한 시간 넘은 것은 다음에 띄울 때 지운다 */
-const PROFILE_PREFIX = 'kordoc-ai-chrome-';
+const PROFILE_PREFIX = 'knudoc-ai-chrome-';
 function sweepProfiles() {
   const cut = Date.now() - 3_600_000;
   for (const name of readdirSync(tmpdir())) {

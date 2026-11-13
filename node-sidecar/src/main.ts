@@ -1,5 +1,5 @@
 /**
- * KorDoc AI — Node.js Sidecar
+ * KnuDoc AI — Node.js Sidecar
  * JSON-RPC 2.0 server over stdin/stdout
  */
 

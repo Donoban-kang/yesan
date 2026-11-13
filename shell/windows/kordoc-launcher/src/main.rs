@@ -3,9 +3,9 @@
 //! 흐름:
 //!   shell 우클릭 verb → kordoc-launcher.exe <action> "<file>" [more files...]
 //!     ↓
-//!   단일 파일: kordoc://<action>?path=<encoded>
+//!   단일 파일: knudoc://<action>?path=<encoded>
 //!   다중 파일: %TEMP%/kordoc-batch-*.json manifest 생성
-//!              kordoc://batch?manifest=<encoded path>
+//!              knudoc://batch?manifest=<encoded path>
 //!     ↓
 //!   ShellExecuteW → kordoc-ai (Tauri deep-link 핸들러 수신)
 //!
@@ -82,8 +82,8 @@ fn main() -> ExitCode {
 fn build_single_url(action: &str, path: &str, sub: Option<&str>) -> String {
     let encoded = urlencoding::encode(path);
     match sub {
-        Some(s) => format!("kordoc://{}?path={}&action={}", action, encoded, s),
-        None => format!("kordoc://{}?path={}", action, encoded),
+        Some(s) => format!("knudoc://{}?path={}&action={}", action, encoded, s),
+        None => format!("knudoc://{}?path={}", action, encoded),
     }
 }
 
@@ -107,7 +107,7 @@ fn build_batch_url(action: &str, files: &[&String]) -> Result<String, String> {
 
     let manifest_str = manifest_path.to_string_lossy().into_owned();
     let encoded = urlencoding::encode(&manifest_str);
-    Ok(format!("kordoc://batch?manifest={}", encoded))
+    Ok(format!("knudoc://batch?manifest={}", encoded))
 }
 
 #[cfg(target_os = "windows")]

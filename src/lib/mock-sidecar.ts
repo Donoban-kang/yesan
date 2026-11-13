@@ -60,7 +60,7 @@ const settings: Settings = {
   version: 2,
   ai: {
     provider: "embedded",
-    embedded: { model_path: "/Users/kim/Library/Application Support/com.kordoc-ai.app/models/qwen3-4b-instruct-q4_k_m.gguf", context_size: 8192, gpu: "auto" },
+    embedded: { model_path: "/Users/kim/Library/Application Support/com.knudoc-ai.app/models/qwen3-4b-instruct-q4_k_m.gguf", context_size: 8192, gpu: "auto" },
     openai: { base_url: "http://127.0.0.1:11434/v1", api_key: "", model: "", vision_model: "" },
     gemini: { api_key: "", model: "gemini-3.8-flash" },
     anthropic: { api_key: "", model: "claude-opus-5-5" },
@@ -196,7 +196,7 @@ const handlers: Handlers = {
   ping: () => "pong",
   system_info: () => ({
     app_version: "2.1.2", kordoc_version: "4.22.18", node_version: "v24.11.0", platform: "macOS 27 (arm64)",
-    data_dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app", model_cache: "/Users/kim/Library/Application Support/com.kordoc-ai.app/models",
+    data_dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app", model_cache: "/Users/kim/Library/Application Support/com.knudoc-ai.app/models",
     ocr_models_ready: true, offline: settings.privacy.offline, ai_provider: settings.ai.provider,
     llm_models: [{ path: settings.ai.embedded.model_path, name: "qwen3-4b-instruct-q4_k_m.gguf", size: 2_497_000_000 }],
   }),
@@ -282,7 +282,7 @@ const handlers: Handlers = {
     ],
   }),
   install_mcp_config: async (p) => { await wait(400); return { installed: p.clients, failed: [] }; },
-  models_status: () => ({ ocr: { ready: true, dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app/models/ocr" }, formula: { ready: false, dir: "" } }),
+  models_status: () => ({ ocr: { ready: true, dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app/models/ocr" }, formula: { ready: false, dir: "" } }),
   models_import: async () => { await wait(300); return { imported: ["det.onnx", "rec_korean.onnx", "rec_korean.yml"] }; },
 
   doc_info: async (p) => { await wait(120); return infoOf(p.path); },
@@ -352,7 +352,7 @@ const handlers: Handlers = {
       rejected: [],
     };
   },
-  working_path: async (p) => ({ path: joinPath("/Users/kim/Library/Application Support/com.kordoc-ai.app/작업 사본", p.name || "새 문서.hwpx"), dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app/작업 사본" }),
+  working_path: async (p) => ({ path: joinPath("/Users/kim/Library/Application Support/com.knudoc-ai.app/작업 사본", p.name || "새 문서.hwpx"), dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app/작업 사본" }),
   lint: async (p) => {
     await wait(200);
     const findings = fakeLint(p.text ?? "2026.10.10 점검을 실시하였음\n14시 30분 회의 및 및 보고");
@@ -441,7 +441,7 @@ const handlers: Handlers = {
   llm_list: () => [{ path: settings.ai.embedded.model_path, name: "qwen3-4b-instruct-q4_k_m.gguf", size: 2_497_000_000 }],
   llm_download: async (p, emit) => {
     for (let i = 1; i <= 10; i++) { emit.progress(i, 10, `${(i * 0.73).toFixed(1)}GB / 7.3GB`); await wait(220); }
-    return { path: `/Users/kim/Library/Application Support/com.kordoc-ai.app/models/${p.id}.gguf` };
+    return { path: `/Users/kim/Library/Application Support/com.knudoc-ai.app/models/${p.id}.gguf` };
   },
   llm_import: async (p) => { await wait(400); return { path: p.path }; },
   llm_delete: () => true,
@@ -605,7 +605,7 @@ const handlers: Handlers = {
   },
   usage_reset: () => true,
   samples_list: () => {
-    const dir = "/Applications/KorDoc AI.app/Contents/Resources/samples";
+    const dir = "/Applications/KnuDoc AI.app/Contents/Resources/samples";
     return {
       dir, note: "예제 문서는 가상의 가온시와 지어낸 개인정보로 만든 합성 문서입니다.",
       scenarios: [
@@ -625,7 +625,7 @@ const handlers: Handlers = {
       { at: "2026-10-10T09:01:40", host: "127.0.0.1:11434 (Ollama)", external: false, allowed: true },
       { at: "2026-10-10T08:58:03", host: "generativelanguage.googleapis.com", external: true, allowed: false },
     ],
-    data_dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app", telemetry: false,
+    data_dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app", telemetry: false,
   }),
 };
 

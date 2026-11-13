@@ -1,4 +1,4 @@
-/** MCP 설치 다이얼로그 — PC 의 AI 도구에 KorDoc AI MCP(엔진 번들 --mcp, 도구는 '일 시키기'와 같은 목록) 원클릭 등록 */
+/** MCP 설치 다이얼로그 — PC 의 AI 도구에 KnuDoc AI MCP(엔진 번들 --mcp, 도구는 '일 시키기'와 같은 목록) 원클릭 등록 */
 
 import { useState, useEffect, useCallback } from "react";
 import { Link2, Check, X, FolderOpen, RefreshCw, ChevronRight } from "lucide-react";
@@ -92,7 +92,7 @@ export function MCPSetupDialog({ isOpen, onClose, showToast }: MCPSetupDialogPro
         ...result.failed.map((f) => ({ clientId: f.client, clientName: name(f.client), ok: false, error: f.error })),
       ]);
       if (result.installed.length > 0) {
-        showToast(`AI 도구 ${result.installed.length}개에 KorDoc AI를 연결했습니다`, "success");
+        showToast(`AI 도구 ${result.installed.length}개에 KnuDoc AI를 연결했습니다`, "success");
         detect();
       }
       if (result.failed.length > 0) {
@@ -112,7 +112,7 @@ export function MCPSetupDialog({ isOpen, onClose, showToast }: MCPSetupDialogPro
     <div className="kd-mcp-foot">
       <div className="kd-mcp-acts">
         <Button size="sm" onClick={handleInstall} disabled={installing || selected.size === 0}
-          data-tip="고른 AI 도구의 설정 파일에 KorDoc AI 항목을 넣습니다">
+          data-tip="고른 AI 도구의 설정 파일에 KnuDoc AI 항목을 넣습니다">
           {installing ? <><RefreshCw size={13} className="kd-spin" /> 연결하는 중</> : <><Link2 size={13} /> 선택한 도구에 연결{selected.size ? ` (${selected.size})` : ""}</>}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => { setInstallResults(null); void detect(); }} disabled={loading}
@@ -125,7 +125,7 @@ export function MCPSetupDialog({ isOpen, onClose, showToast }: MCPSetupDialogPro
   ) : undefined;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="AI 도구에 KorDoc AI 연결" size="lg" footer={footer}>
+    <Modal isOpen={isOpen} onClose={onClose} title="AI 도구에 KnuDoc AI 연결" size="lg" footer={footer}>
       <div className="kd-mcp">
         <p className="kd-mcp-lead">
           Claude Code·Codex·Claude·Cursor·VS Code 같은 AI 도구에서 이 앱의 문서 도구(읽기·공문 쓰기·서식 채우기·점검·가리기·PDF)를 씁니다. 결과는 늘 새 파일이고 원본은 그대로입니다.
@@ -198,8 +198,8 @@ export function MCPSetupDialog({ isOpen, onClose, showToast }: MCPSetupDialogPro
           {tab === "manual" && (
             <>
               <p className="kd-mcp-lead">
-                자동 연결은 이 앱에 든 문서 엔진 경로를 아래 설정 파일의 kordoc-ai 항목에 써 넣습니다. 인터넷이나 따로 깐 Node 없이 돌아갑니다.
-                손으로 고칠 때도 kordoc-ai 항목(command·args·env)은 바꾸지 마세요. 목록에 없는 AI 도구는 한 도구에 자동 연결한 뒤 그 항목과 같은 값을 넣으면 됩니다.
+                자동 연결은 이 앱에 든 문서 엔진 경로를 아래 설정 파일의 knudoc-ai 항목에 써 넣습니다. 인터넷이나 따로 깐 Node 없이 돌아갑니다.
+                손으로 고칠 때도 knudoc-ai 항목(command·args·env)은 바꾸지 마세요. 목록에 없는 AI 도구는 한 도구에 자동 연결한 뒤 그 항목과 같은 값을 넣으면 됩니다.
               </p>
               {env ? (
                 <div className="kd-mcp-paths">

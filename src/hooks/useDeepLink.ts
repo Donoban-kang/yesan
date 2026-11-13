@@ -5,8 +5,8 @@ import { canQuit } from "../lib/quit";
 
 /**
  * 우클릭 메뉴·Finder 빠른 동작·파일 연결로 들어오는 동작 (Rust 가 Tauri 이벤트로 넘긴다)
- *   deep-link: kordoc://<동작>?path=<인코딩된 경로>   (동작 = LINK_ACTIONS, 정본은 src-tauri/src/shell.rs 의 ACTIONS: Rust 시험이 맞춰 본다)
- *              kordoc://batch?manifest=<인코딩된 경로>   (같은 동작으로 묶인 여러 파일)
+ *   deep-link: knudoc://<동작>?path=<인코딩된 경로>   (동작 = LINK_ACTIONS, 정본은 src-tauri/src/shell.rs 의 ACTIONS: Rust 시험이 맞춰 본다)
+ *              knudoc://batch?manifest=<인코딩된 경로>   (같은 동작으로 묶인 여러 파일)
  *   open-files: string[]  (파일 연결 "다음으로 열기")
  * 앱이 꺼져 있다 이 동작으로 켜지면 이벤트가 화면 구독보다 먼저 나가 사라지므로, Rust 가 쌓아 두었다가
  * shell_take_pending 으로 넘긴다 (모양은 실시간 이벤트와 같다).
@@ -36,8 +36,8 @@ export function parseDeepLink(raw: string): DeepLinkPayload | null {
   } catch {
     return null;
   }
-  if (url.protocol !== "kordoc:") return null;
-  // 동작 이름은 host 자리만 본다 (Rust 가 넘기는 꼴: kordoc://<동작>?path=…). 경로 첫 토막까지 읽으면 "kordoc:convert?path=…" 처럼
+  if (url.protocol !== "knudoc:") return null;
+  // 동작 이름은 host 자리만 본다 (Rust 가 넘기는 꼴: knudoc://<동작>?path=…). 경로 첫 토막까지 읽으면 "knudoc:convert?path=…" 처럼
   // Rust 가 동작으로 보지 않은 주소를 여기서 동작으로 읽게 된다
   const action = url.host;
   if (action === "batch") {

@@ -164,7 +164,7 @@ export const budgetHandlers: H = {
       ],
     };
   },
-  budget_export: async () => { await wait(300); return { output_path: "/Users/kim/Documents/KorDoc AI 결과/예산현황_2026_20261113.xlsx", items: items.length, entries: entries.length }; },
+  budget_export: async () => { await wait(300); return { output_path: "/Users/kim/Documents/KnuDoc AI 결과/예산현황_2026_20261113.xlsx", items: items.length, entries: entries.length }; },
 };
 
 export const MOCK_LETTERS = [LETTER, `${D}/글로컬 지역 협업 포럼 개최 안내.hwx`, `${D}/[원인행위] 출장여비 정산 결의.hwx`];

@@ -1,4 +1,4 @@
-/* AI 도구에 KorDoc AI 연결 (MCP) */
+/* AI 도구에 KnuDoc AI 연결 (MCP) */
 .kd-mcp { display: flex; flex-direction: column; gap: 12px; }
 .kd-mcp-lead { font-size: var(--fs-small); line-height: 1.55; color: var(--color-text-secondary); }
 .kd-mcp-body { display: flex; flex-direction: column; gap: 12px; min-height: 220px; }

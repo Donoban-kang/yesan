@@ -15,7 +15,7 @@ fn safe_ext(ext: Option<&str>) -> String {
 /// 붙여 넣은 글·그림을 두는 임시 폴더. 붙여 넣을 때마다 파일이 하나씩 생기므로, 올 때마다 7일 지난 것을 치운다
 /// (붙여 넣은 문서 내용이 임시 폴더에 영영 남지 않게)
 fn clipboard_dir() -> Result<PathBuf, AppError> {
-    let dir = std::env::temp_dir().join("kordoc-ai");
+    let dir = std::env::temp_dir().join("knudoc-ai");
     std::fs::create_dir_all(&dir)?;
     sweep(&dir);
     Ok(dir)
@@ -23,7 +23,7 @@ fn clipboard_dir() -> Result<PathBuf, AppError> {
 
 /// 앱을 켤 때도 치운다 (한 번 붙여 넣고 다시 붙여 넣지 않으면 그 파일이 계속 남는다)
 pub fn sweep_old() {
-    let dir = std::env::temp_dir().join("kordoc-ai");
+    let dir = std::env::temp_dir().join("knudoc-ai");
     if dir.is_dir() {
         sweep(&dir);
     }

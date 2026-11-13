@@ -1,7 +1,7 @@
 /** 기관 배포 설정 — 정보통신 담당자가 파일 하나로 여러 PC에 같은 설정을 미리 넣고 일부는 고정한다
  *
- * 찾는 곳(처음 찾은 하나만): 환경변수 KORDOC_AI_POLICY → 기계 전체(Windows %ProgramData%\KorDoc AI\policy.json,
- * macOS /Library/Application Support/KorDoc AI/policy.json) → 설치 폴더(동봉 Node <resources>/node/node 의 위 폴더 policy.json).
+ * 찾는 곳(처음 찾은 하나만): 환경변수 KNUDOC_AI_POLICY → 기계 전체(Windows %ProgramData%\KnuDoc AI\policy.json,
+ * macOS /Library/Application Support/KnuDoc AI/policy.json) → 설치 폴더(동봉 Node <resources>/node/node 의 위 폴더 policy.json).
  * 형식 v1: { "version": 1, "notice": "…", "defaults": { 설정 일부 }, "locked": { 설정 일부 } }
  * 값은 기본 설정과 같은 자리·같은 타입만 받고 나머지는 그 값만 버린다(로그).
  * 파일 자체가 깨졌으면(못 읽음·UTF-8 아님·JSON 아님·version 다름) 통째로 무시하고 error 로 화면에 알린다.
@@ -44,10 +44,10 @@ const programData = (env: NodeJS.ProcessEnv): string => env.ProgramData || env.P
 export function policyCandidates(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform, execPath = process.execPath): string[] {
   const path = platform === 'win32' ? win32 : posix;
   const out: string[] = [];
-  const fromEnv = env.KORDOC_AI_POLICY?.trim();
+  const fromEnv = env.KNUDOC_AI_POLICY?.trim();
   if (fromEnv) out.push(fromEnv);
-  if (platform === 'win32') out.push(path.join(programData(env), 'KorDoc AI', 'policy.json'));
-  if (platform === 'darwin') out.push('/Library/Application Support/KorDoc AI/policy.json');
+  if (platform === 'win32') out.push(path.join(programData(env), 'KnuDoc AI', 'policy.json'));
+  if (platform === 'darwin') out.push('/Library/Application Support/KnuDoc AI/policy.json');
   // 설치본은 동봉 Node(<resources>/node/node[.exe])로 돈다 → <resources>/policy.json (Windows 는 설치 폴더)
   const nodeDir = path.dirname(execPath);
   if (path.basename(nodeDir) === 'node' && /^node(\.exe)?$/i.test(path.basename(execPath))) out.push(path.join(path.dirname(nodeDir), 'policy.json'));
@@ -149,9 +149,9 @@ export function machinePolicyState(path: string, platform: NodeJS.Platform = pro
 
 /** 이 자리는 기계 전체 정책 자리인가 (환경 변수로 준 자리·설치 폴더는 아니다: 그 사용자 자신만 바꿀 수 있다) */
 function isMachineSpot(source: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): boolean {
-  if (env.KORDOC_AI_POLICY?.trim() === source) return false;
-  if (platform === 'win32') return win32.normalize(source).toLowerCase() === win32.join(programData(env), 'KorDoc AI', 'policy.json').toLowerCase();
-  return platform === 'darwin' && source === '/Library/Application Support/KorDoc AI/policy.json';
+  if (env.KNUDOC_AI_POLICY?.trim() === source) return false;
+  if (platform === 'win32') return win32.normalize(source).toLowerCase() === win32.join(programData(env), 'KnuDoc AI', 'policy.json').toLowerCase();
+  return platform === 'darwin' && source === '/Library/Application Support/KnuDoc AI/policy.json';
 }
 
 /** 파일 → JSON 객체. 실패하면 화면에 그대로 보일 문장(무엇이 틀렸는지 + 할 일)으로 던진다 */
@@ -203,7 +203,7 @@ function pick(raw: Obj, shape: Obj, at: string, drop: (path: string, why: string
       if (Array.isArray(v) && v.every((x) => typeof x === 'string')) out[k] = [...v];
       else drop(path, '글자 목록이 아님');
     } else if (typeof v === 'string' && /dir$/.test(k) && isUncLike(v)) {
-      // 저장 위치를 공유 폴더(UNC)로 고정하면 모든 저장이 막힌다 → 그 값만 빼고 기본 위치(문서\KorDoc AI 결과)로
+      // 저장 위치를 공유 폴더(UNC)로 고정하면 모든 저장이 막힌다 → 그 값만 빼고 기본 위치(문서\KnuDoc AI 결과)로
       drop(path, '네트워크 경로(UNC)는 쓸 수 없음: 드라이브 문자(Z:)로 연결한 폴더를 쓰세요');
     } else if (typeof v === typeof shape[k]) out[k] = v;
     else drop(path, `${KIND[typeof shape[k]]}여야 함`);

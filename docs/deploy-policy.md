@@ -11,19 +11,19 @@
 
 | 순서 | 위치 | 비고 |
 | --- | --- | --- |
-| 1 | 환경변수 `KORDOC_AI_POLICY` 에 적은 경로 | 시험·특수 배치용 |
-| 2 | Windows: `%ProgramData%\KorDoc AI\policy.json` (보통 `C:\ProgramData\KorDoc AI\policy.json`) | **권장.** 관리자만 고칠 수 있게 둠 |
-| 2 | macOS: `/Library/Application Support/KorDoc AI/policy.json` | **권장.** 관리자 권한이 있어야 쓸 수 있는 곳 |
-| 3 | 설치 폴더의 `policy.json`: `node` 폴더가 들어 있는 폴더 (Windows 는 `kordoc-ai.exe` 가 있는 폴더, macOS 는 `KorDoc AI.app/Contents/Resources/`) | 설치 파일과 함께 묶어 배포할 때 |
+| 1 | 환경변수 `KNUDOC_AI_POLICY` 에 적은 경로 | 시험·특수 배치용 |
+| 2 | Windows: `%ProgramData%\KnuDoc AI\policy.json` (보통 `C:\ProgramData\KnuDoc AI\policy.json`) | **권장.** 관리자만 고칠 수 있게 둠 |
+| 2 | macOS: `/Library/Application Support/KnuDoc AI/policy.json` | **권장.** 관리자 권한이 있어야 쓸 수 있는 곳 |
+| 3 | 설치 폴더의 `policy.json`: `node` 폴더가 들어 있는 폴더 (Windows 는 `knudoc-ai.exe` 가 있는 폴더, macOS 는 `KnuDoc AI.app/Contents/Resources/`) | 설치 파일과 함께 묶어 배포할 때 |
 
 - 고정(`locked`)을 지키려면 2번 위치에 두고 사용자에게 쓰기 권한을 주지 않음. 1번 환경변수는 다음 줄처럼 따로 막아야 함.
-- **2번 위치의 파일은 관리자만 고칠 수 있을 때만 적용함.** Windows 는 파일과 `KorDoc AI` 폴더의 소유자가 Administrators·SYSTEM 이어야 하고, 관리자·SYSTEM 이 아닌 계정에 쓰기·지우기·권한 바꾸기 권한이 없어야 함. macOS 는 소유자가 root 이고 다른 사용자가 쓸 수 없어야 함. `%ProgramData%` 는 일반 사용자도 폴더와 파일을 만들 수 있어서, 이것을 보지 않으면 여럿이 쓰는 PC 에서 한 사용자가 만들거나 고친 정책 파일이 다른 사용자에게 적용됨.
+- **2번 위치의 파일은 관리자만 고칠 수 있을 때만 적용함.** Windows 는 파일과 `KnuDoc AI` 폴더의 소유자가 Administrators·SYSTEM 이어야 하고, 관리자·SYSTEM 이 아닌 계정에 쓰기·지우기·권한 바꾸기 권한이 없어야 함. macOS 는 소유자가 root 이고 다른 사용자가 쓸 수 없어야 함. `%ProgramData%` 는 일반 사용자도 폴더와 파일을 만들 수 있어서, 이것을 보지 않으면 여럿이 쓰는 PC 에서 한 사용자가 만들거나 고친 정책 파일이 다른 사용자에게 적용됨.
   - 배포 도구(SCCM·그룹 정책 시작 스크립트)는 SYSTEM 으로 돌므로 폴더와 파일을 함께 만들면 그대로 됨. 관리자 권한 명령 프롬프트에서 폴더를 만들고 복사해도 됨.
   - 일반 사용자가 먼저 만든 폴더에 넣었거나 탐색기로 끌어다 놓았으면 적용되지 않음. 이때 앱 설정 화면에 "소유자가 관리자가 아니거나 일반 사용자가 고칠 수 있는 권한이 있어 적용하지 않았습니다"가 뜸. 소유자만 바꾸면 그 사용자의 쓰기 권한이 남으므로, 관리자 권한 명령 프롬프트에서 아래 두 줄로 소유자와 권한을 함께 맞춤.
 
     ```
-    icacls "C:\ProgramData\KorDoc AI" /setowner Administrators /T
-    icacls "C:\ProgramData\KorDoc AI" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Users:(OI)(CI)RX" /T
+    icacls "C:\ProgramData\KnuDoc AI" /setowner Administrators /T
+    icacls "C:\ProgramData\KnuDoc AI" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Users:(OI)(CI)RX" /T
     ```
 
   - 소유자·권한 확인에는 PowerShell 을 씀. PowerShell 실행이 막힌 PC 에서는 확인하지 못해 2번 위치의 파일을 적용하지 않으므로, 그런 환경은 3번 위치(MSI 로 `Program Files` 에 설치한 폴더)를 씀.
@@ -115,7 +115,7 @@ JSON 문법 오류는 몇째 줄 몇째 칸 근처인지 알려 줌. 흔한 원�
 ## 주의
 
 - 정책 파일은 PC 사용자가 읽을 수 있음. `api_key` 를 넣으면 화면에서는 가려도 파일을 열면 보이므로 기관 내부 서버용 키만 넣음.
-- 고정은 설정 화면과 엔진에서 값을 바꾸지 못하게 하는 장치이며 보안 경계가 아님. 사용자가 자기 계정 환경변수 `KORDOC_AI_POLICY` 로 다른 파일을 가리키면 기관 파일의 고정이 빠짐(관리자 권한 불필요, 막는 법은 위 "두는 곳"). PC 관리자 권한이 있으면 정책 파일 자체도 고칠 수 있음.
+- 고정은 설정 화면과 엔진에서 값을 바꾸지 못하게 하는 장치이며 보안 경계가 아님. 사용자가 자기 계정 환경변수 `KNUDOC_AI_POLICY` 로 다른 파일을 가리키면 기관 파일의 고정이 빠짐(관리자 권한 불필요, 막는 법은 위 "두는 곳"). PC 관리자 권한이 있으면 정책 파일 자체도 고칠 수 있음.
 
 ## 우클릭 메뉴 (Windows 탐색기)
 
@@ -125,15 +125,15 @@ JSON 문법 오류는 몇째 줄 몇째 칸 근처인지 알려 줌. 흔한 원�
 
 | 명령 | 하는 일 |
 | --- | --- |
-| `kordoc-ai.exe --shell-menu install` | 메뉴 넣기 (메뉴는 이 명령을 실행한 `kordoc-ai.exe` 경로를 가리킴) |
-| `kordoc-ai.exe --shell-menu uninstall` | 메뉴 빼기 |
-| `kordoc-ai.exe --shell-menu status` | 들어 있는지 확인 |
+| `knudoc-ai.exe --shell-menu install` | 메뉴 넣기 (메뉴는 이 명령을 실행한 `knudoc-ai.exe` 경로를 가리킴) |
+| `knudoc-ai.exe --shell-menu uninstall` | 메뉴 빼기 |
+| `knudoc-ai.exe --shell-menu status` | 들어 있는지 확인 |
 
 - 창 없이 처리하고 끝남. 성공하면 종료 코드 0, 실패하면 1. 배포판은 창 앱이라 명령 프롬프트가 끝나길 기다리지 않고 안내 글도 보이지 않으므로, PowerShell 에서 끝날 때까지 기다린 뒤 종료 코드와 레지스트리로 확인함.
 
 ```powershell
-# 사용자 단위 설치(NSIS) 기본 위치. MSI 로 깔았으면 그 설치 폴더의 kordoc-ai.exe
-$exe = "$env:LOCALAPPDATA\KorDoc AI\kordoc-ai.exe"
+# 사용자 단위 설치(NSIS) 기본 위치. MSI 로 깔았으면 그 설치 폴더의 knudoc-ai.exe
+$exe = "$env:LOCALAPPDATA\KnuDoc AI\knudoc-ai.exe"
 $p = Start-Process -FilePath $exe -ArgumentList '--shell-menu', 'install' -Wait -PassThru
 if ($p.ExitCode -ne 0) { Write-Error "우클릭 메뉴를 넣지 못했습니다(종료 코드 $($p.ExitCode)). 앱을 한 번 켜서 설정 > 저장과 연결에서 메뉴 넣기를 눌러 보세요." }
 Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.hwpx\shell\KorDoc'   # True 면 들어 있음
@@ -141,7 +141,7 @@ Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.hwpx\shell\KorDoc'   #
 
 - 지울 때: 사용자 단위 설치(NSIS)의 제거 프로그램은 제거하는 사용자의 메뉴를 함께 지움. MSI 제거는 우클릭 메뉴를 지우지 않음(제거하는 사용자의 것도 남음). 남은 메뉴를 누르면 "프로그램을 찾을 수 없음"이 뜨므로, MSI 로 깔았으면 제거 전에 사용자마다 `--shell-menu uninstall` 을 실행함. 이미 제거했으면 저장소의 `docs/remove-explorer-menu.reg` 를 그 사용자로 실행함(`reg import remove-explorer-menu.reg`, 관리자 권한 필요 없음. 메뉴 키만 지움).
 - MSI 제거에 메뉴 지우기를 넣지 않은 까닭: 메뉴는 사용자마다(HKCU) 들어가는데 MSI 일괄 제거는 시스템 계정으로 돌아 사용자 메뉴에 닿지 않고, 제거 단계에 넣으면 MSI 로 판을 올릴 때마다(옛 판 제거 → 새 판 설치) 켜 둔 메뉴가 사라짐.
-- macOS 는 Finder 빠른 동작(`~/Library/Services/KorDoc - … .workflow`)으로 들어가고, 같은 명령을 `"/Applications/KorDoc AI.app/Contents/MacOS/kordoc-ai" --shell-menu install` 로 실행함.
+- macOS 는 Finder 빠른 동작(`~/Library/Services/KorDoc - … .workflow`)으로 들어가고, 같은 명령을 `"/Applications/KnuDoc AI.app/Contents/MacOS/kordoc-ai" --shell-menu install` 로 실행함.
 
 ## 공유 폴더 (네트워크 경로)
 
