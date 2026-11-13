@@ -14,6 +14,7 @@ import { Button } from "../ui/Button";
 import { Seg } from "../common/Field";
 import { Empty, ErrorLine, Note, Working } from "../common/Status";
 import { budgetChanged, itemPath, LETTER_FILTER, parseWon, useBudgetBook, won } from "./useBudget";
+import { VoucherDraft } from "./VoucherDraft";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -357,6 +358,10 @@ export function SpendScreen({ active }: { active: boolean }) {
                     </Note>
                   )}
                 </div>
+              )}
+              {/* 공문으로 지출할 때만: 이미 결의서(원인행위서 등)를 넣었으면 초안은 필요 없다 */}
+              {a && item && amount > 0 && (!a.doc_kind || a.doc_kind === "공문") && (
+                <VoucherDraft key={`${a.path}#${item.id}`} analysis={a} item={item} amount={amount} accountLabel={label(item.account)} />
               )}
               <p className="kd-small kd-muted">잔액은 업무 참고용 추정치입니다. 공식 집행·결산은 기관 회계 시스템 기준입니다.</p>
             </div>
