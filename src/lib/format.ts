@@ -28,7 +28,7 @@ export function extOf(name: string): string {
 }
 
 const EXT_FORMAT: Record<string, DocFormat> = {
-  hwp: "hwp", hwpx: "hwpx", hml: "hwpml", hwpml: "hwpml", pdf: "pdf",
+  hwp: "hwp", hwpx: "hwpx", hml: "hwpml", hwpml: "hwpml", hwx: "hwx", pdf: "pdf",
   xls: "xls", xlsx: "xlsx", docx: "docx", pptx: "pptx",
   png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", bmp: "image", tif: "image", tiff: "image",
   md: "md", txt: "txt", csv: "csv",
@@ -39,13 +39,13 @@ export function formatOf(path: string): DocFormat {
 }
 
 export const FORMAT_LABEL: Record<DocFormat, string> = {
-  hwp: "HWP", hwp3: "HWP 3", hwpx: "HWPX", hwpml: "HWPML", pdf: "PDF", xls: "XLS", xlsx: "XLSX",
+  hwp: "HWP", hwp3: "HWP 3", hwpx: "HWPX", hwpml: "HWPML", hwx: "HWX", pdf: "PDF", xls: "XLS", xlsx: "XLSX",
   docx: "DOCX", pptx: "PPTX", image: "그림", md: "MD", txt: "TXT", csv: "CSV", unknown: "기타",
 };
 
 /** 쉬운 이름 (형식 이름을 모르는 사람용) */
 export const FORMAT_KIND: Record<DocFormat, string> = {
-  hwp: "한글 문서", hwp3: "옛 한글 문서", hwpx: "한글 문서", hwpml: "한글 문서", pdf: "PDF 문서",
+  hwp: "한글 문서", hwp3: "옛 한글 문서", hwpx: "한글 문서", hwpml: "한글 문서", hwx: "전자결재 문서", pdf: "PDF 문서",
   xls: "엑셀 표", xlsx: "엑셀 표", docx: "워드 문서", pptx: "파워포인트", image: "그림 파일",
   md: "글 파일", txt: "글 파일", csv: "표 파일", unknown: "파일",
 };
@@ -54,7 +54,7 @@ export type FormatFamily = "hwp" | "pdf" | "xlsx" | "doc" | "ppt" | "img" | "txt
 
 export function formatFamily(f: DocFormat): FormatFamily {
   switch (f) {
-    case "hwp": case "hwp3": case "hwpx": case "hwpml": return "hwp";
+    case "hwp": case "hwp3": case "hwpx": case "hwpml": case "hwx": return "hwp";
     case "pdf": return "pdf";
     case "xls": case "xlsx": case "csv": return "xlsx";
     case "docx": return "doc";

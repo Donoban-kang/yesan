@@ -18,12 +18,27 @@ import { errorText } from '../errors.js';
 import { formatOf } from '../files/format.js';
 import { ocrModelsReady } from '../system/index.js';
 import { isIsoDate, todayIso } from './dates.js';
-import { extractInbox } from './extract.js';
+import { extractInbox, type Extracted } from './extract.js';
+import { extractVoucher } from '../budget/voucher.js';
+
+/** 회계 시스템의 원인행위서·지출결의서는 공문 꼴(제목·시행 줄)이 없다: 결의서 칸으로 제목·보낸 곳·번호·날짜를 채운다 */
+function withVoucher(ex: Extracted, markdown: string): Extracted {
+  const v = extractVoucher(markdown);
+  if (!v) return ex;
+  return {
+    ...ex,
+    // 결의서로 판별되면(칸이 있음) 결의서 칸이 공문 꼴 짐작보다 정확하다: 첫 줄 "…회계연도 … 회계"를 제목으로 잡지 않게
+    title: v.title ? `[${v.kind}] ${v.title}` : ex.title ?? v.kind,
+    sender: v.dept ?? ex.sender,
+    doc_number: v.resolution_no ?? ex.doc_number,
+    sent_date: v.date ?? ex.sent_date,
+  };
+}
 
 /** manual_due: 사람이 고친 기한 ('' 은 "기한 없음"으로 정함). 화면에는 due 하나로 나간다 */
 type Stored = InboxItem & { manual_due?: string };
 
-const READABLE = new Set(['hwp', 'hwp3', 'hwpx', 'hwpml', 'pdf', 'docx', 'image', 'txt', 'md']);
+const READABLE = new Set(['hwp', 'hwp3', 'hwpx', 'hwpml', 'hwx', 'pdf', 'docx', 'image', 'txt', 'md']);
 const file = () => join(dataDir(), 'inbox.json');
 
 /** 읽고 고쳐 쓰기를 한 줄로 세운다 (공문 넣기와 상태 바꾸기가 겹쳐도 서로 덮어쓰지 않게) */
@@ -95,14 +110,14 @@ function hasImage(blocks: IRBlock[] | undefined, depth = 0): boolean {
 
 async function readOne(path: string, signal?: AbortSignal) {
   const format = formatOf(path);
-  if (!READABLE.has(format)) throw new Error('받은 공문으로 읽을 수 없는 형식입니다. HWP·HWPX·PDF(스캔본 포함) 파일을 넣으세요.');
+  if (!READABLE.has(format)) throw new Error('받은 공문으로 읽을 수 없는 형식입니다. HWP·HWPX·HWX·PDF(스캔본 포함) 파일을 넣으세요.');
   // PDF 는 붙임까지 합친 긴 파일이 있어 앞 10쪽만 (공문 본문·시행 줄은 앞에 있다)
   const r = await parseDoc(path, { images: false, plain: true, pages: format === 'pdf' ? '1-10' : undefined, signal });
   const hangulPictures = (format === 'hwp' || format === 'hwpx') && hasImage(r.blocks) && ocrModelsReady();
   if (r.markdown.replace(/\s/g, '').length < 20 && !hangulPictures) {
     throw new Error('글자를 읽지 못했습니다. 스캔한 공문이면 설정 › 저장과 연결에서 스캔한 쪽 글자 읽기를 켜고 다시 넣으세요.');
   }
-  const ex = extractInbox(r.markdown, todayIso());
+  const ex = withVoucher(extractInbox(r.markdown, todayIso()), r.markdown);
   if (!hangulPictures) return ex;
   // 한글 공문 속 그림(기한 안내·붙임 표를 그림으로 넣은 것)은 OCR 모델이 있을 때만 다시 읽어 요청·기한을 보탠다.
   // 보낸 곳·문서번호·제목은 글로 읽은 값을 그대로 쓴다 (기관 상징·캠페인 그림 글자가 끼어들어 발신명의를 흐린다).

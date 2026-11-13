@@ -20,7 +20,7 @@ import type { Settings } from './index.js';
 
 // ── 공통 ──
 
-export type DocFormat = 'hwp' | 'hwp3' | 'hwpx' | 'hwpml' | 'pdf' | 'xls' | 'xlsx' | 'docx' | 'pptx' | 'image' | 'md' | 'txt' | 'csv' | 'unknown';
+export type DocFormat = 'hwp' | 'hwp3' | 'hwpx' | 'hwpml' | 'hwx' | 'pdf' | 'xls' | 'xlsx' | 'docx' | 'pptx' | 'image' | 'md' | 'txt' | 'csv' | 'unknown';
 
 export interface FileEntry {
   path: string;
@@ -725,7 +725,7 @@ export interface BudgetSuggestion {
 export interface BudgetAnalysis {
   path: string;
   name: string;
-  format: DocFormat | 'hwx';
+  format: DocFormat;
   /** HWX 를 어떻게 읽었는지 등 */
   notes: string[];
   /** 공문 · 원인행위서 · 지출결의서 … */

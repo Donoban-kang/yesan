@@ -9,6 +9,8 @@ const EXT_FORMAT: Record<string, DocFormat> = {
   '.hwpx': 'hwpx',
   '.hml': 'hwpml',
   '.hwpml': 'hwpml',
+  /** 전자결재 공문서 파일 (한솔 HWX 등): 문서 엔진이 바로 못 읽어 예산·접수함이 속을 꺼내 읽는다 (core/budget/read-doc) */
+  '.hwx': 'hwx',
   '.pdf': 'pdf',
   '.xls': 'xls',
   '.xlsx': 'xlsx',

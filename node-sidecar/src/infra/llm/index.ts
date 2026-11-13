@@ -3,6 +3,7 @@
 // 외부 AI 로 보내기 전 가림: kordoc 규칙 + kordoc 이 놓치는 도로명·동·호 주소까지 (문서 가리기와 같은 규칙)
 import { DEFAULT_REDACT_RULES } from 'kordoc';
 import { redactMarkdown } from '../../core/redact/rules.js';
+import { maskNames } from '../../core/redact/names.js';
 
 /** 외부 AI 로 나가는 글: kordoc 기본 규칙(주민·전화·전자우편·카드·계좌·외국인·여권·운전면허)에 주소까지. 이름은 문서 뜻을 망가뜨려 두지 않는다 */
 const CLOUD_RULES = [...DEFAULT_REDACT_RULES, 'address' as const];
@@ -91,13 +92,19 @@ export async function contextCharBudget(opts: { reserveTokens?: number; signal?:
  *  고쳐 쓴 글·칸 값은 문서에 그대로 들어가므로, 되돌리지 않으면 전화·전자우편·주소가 ● 로 바뀐 문서가 만들어진다.
  *  같은 가림 모양이 서로 다른 값에서 나왔으면(끝자리가 같은 전화 둘) 어느 값인지 알 수 없어 그 모양은 그대로 둔다 */
 export function restoreMasked(source: string, answer: string): string {
-  if (!answer.includes('●')) return answer;
+  if (!answer.includes('●') && !answer.includes('○')) return answer;
   const r = redactMarkdown(source, { rules: CLOUD_RULES });
   const byMask = new Map<string, Set<string>>();
   for (const h of r.hits) {
     if (!h.masked.includes('●')) continue;
     if (!byMask.has(h.masked)) byMask.set(h.masked, new Set());
     byMask.get(h.masked)!.add(source.slice(h.index, h.index + h.length));
+  }
+  // 가린 이름("홍○○")도 같은 방식으로: 보낸 글(번호를 가린 뒤)에서 찾은 이름 자리
+  const named = maskNames(r.text);
+  for (const h of named.hits) {
+    if (!byMask.has(h.masked)) byMask.set(h.masked, new Set());
+    byMask.get(h.masked)!.add(r.text.slice(h.index, h.index + h.length));
   }
   let out = answer;
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -133,16 +140,15 @@ export async function ask(opts: AskOptions): Promise<{ text: string; redacted: n
   let messages = opts.messages;
   let system = opts.system;
   if (p.isCloud && ai.redact_before_cloud) {
-    messages = messages.map((m) => {
-      const r = redactMarkdown(m.content, { rules: CLOUD_RULES });
-      redacted += r.hits.length;
-      return { ...m, content: r.text };
-    });
-    if (system && (p.id === 'claude-code' || p.id === 'codex' || p.id === 'gemini-cli')) {
-      const r = redactMarkdown(system, { rules: CLOUD_RULES });
-      redacted += r.hits.length;
-      system = r.text;
-    }
+    // kordoc 규칙(번호·연락처·주소) 다음에 사람 이름 (표 칸 속 명단은 kordoc 규칙이 놓친다)
+    const hide = (text: string) => {
+      const r = redactMarkdown(text, { rules: CLOUD_RULES });
+      const n = maskNames(r.text);
+      redacted += r.hits.length + n.hits.length;
+      return n.text;
+    };
+    messages = messages.map((m) => ({ ...m, content: hide(m.content) }));
+    if (system && (p.id === 'claude-code' || p.id === 'codex' || p.id === 'gemini-cli')) system = hide(system);
   }
   // 답 길이 상한: 서버가 max_tokens 를 무시하거나 모델이 같은 말을 끝없이 되풀이하면 수십만 자가 온다.
   // 그 글이 미리보기·검사로 넘어가면 엔진이 몇 분씩 멈춰 다른 일(문서 열기·편집기)까지 못 한다 → 넘으면 그 자리에서 끊는다
