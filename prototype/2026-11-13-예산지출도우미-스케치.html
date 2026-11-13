@@ -254,13 +254,28 @@ table.grid tr.rev td { color: var(--tm); }
   .spend { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .spend > .col:last-child { grid-column: 1 / -1; }
 }
+/* 접힌 메뉴: 아이콘 + 짧은 이름 (KorDoc AI 의 80px 폭) */
+.nav { transition: width .2s cubic-bezier(.16,1,.3,1); }
+.nav[data-collapsed="true"] { width: 80px; }
+.nav[data-collapsed="true"] .brand { padding: 0; justify-content: center; }
+.nav[data-collapsed="true"] .brand-text, .nav[data-collapsed="true"] .nav-group, .nav[data-collapsed="true"] .nt { display: none; }
+.nav[data-collapsed="true"] .nav-list { padding: 4px 8px 12px; }
+.nav[data-collapsed="true"] .nav-item { grid-template-columns: 1fr; justify-items: center; row-gap: 4px; padding: 8px 0 7px; min-height: 56px; }
+.nav[data-collapsed="true"] .badge { position: absolute; top: 3px; right: 5px; height: 18px; min-width: 18px; padding: 0 5px; }
+.nav[data-collapsed="true"] .nav-foot { padding: 10px 0; align-items: center; }
+.ns { display: none; font-size: var(--fs-cap); font-weight: 600; line-height: 1.2; letter-spacing: -.02em; white-space: nowrap; }
+.nav[data-collapsed="true"] .ns { display: block; }
+.nav[data-collapsed="true"] .status { flex-direction: column; gap: 2px; min-width: 56px; min-height: 40px; justify-content: center; padding: 4px; }
+.nav[data-collapsed="true"] .status .full, .nav[data-collapsed="true"] .mode .full { display: none; }
+.nav[data-collapsed="true"] .mode { flex-direction: column; gap: 3px; justify-content: center; min-width: 56px; padding: 4px; }
+.short { display: none; font-size: var(--fs-cap); font-weight: 600; }
+.nav[data-collapsed="true"] .short { display: block; }
+.fold { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 4px; border: 0; background: none; border-radius: var(--r-sm); color: var(--t2); font-size: var(--fs-small); margin-top: 2px; }
+.fold:hover { background: var(--bg3); color: var(--t1); }
+.fold svg { width: 16px; height: 16px; }
+.nav[data-collapsed="true"] .fold { justify-content: center; width: 40px; height: 36px; padding: 0; }
+.nav[data-collapsed="true"] .fold .full { display: none; }
 @media (max-width: 860px) {
-  .app { flex-direction: column; }
-  .nav { width: auto; border-right: 0; border-bottom: 1px solid var(--bd); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
-  .brand { height: 48px; padding: 0 8px; }
-  .nav-list { flex-direction: row; overflow-x: auto; padding: 0 0 8px; }
-  .nav-group, .nav-sep, .nav-foot { display: none; }
-  .nav-item { grid-template-columns: 20px auto auto; flex: none; }
   .head { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px)); }
   .body { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px)); }
   .spend, .settings, .tiles, .form2, .choice { grid-template-columns: minmax(0, 1fr); }
@@ -273,18 +288,13 @@ table.grid tr.rev td { color: var(--tm); }
 </style>
 
 <div class="app">
-  <nav class="nav" aria-label="주 메뉴">
+  <nav class="nav" id="nav" aria-label="주 메뉴">
     <div class="brand">
       <div class="logo" aria-hidden="true">예</div>
-      <div><strong>예산 도우미</strong><small>KorDoc AI 기반</small></div>
+      <div class="brand-text"><strong>예산 도우미</strong><small>KorDoc AI 기반</small></div>
     </div>
     <div class="nav-list" id="navList"></div>
-    <div class="nav-foot">
-      <span class="status" data-tone="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>문서 엔진 준비됨</span>
-      <button type="button" class="status" data-tone="ok" data-go="settings" data-sec="set-ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>이 PC에서 · 내장 AI</button>
-      <span class="status" data-tone="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>폐쇄망 모드 켜짐</span>
-      <button type="button" class="mode" id="modeBtn"><span class="dot" id="modeDot"></span><span id="modeText"></span></button>
-    </div>
+    <div class="nav-foot" id="navFoot"></div>
   </nav>
   <main class="main" id="main"></main>
 </div>
@@ -315,6 +325,10 @@ const P = {
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  cpu: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  pclose: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+  popen: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',
   clip: '<path d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>',
 };
 const ic = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
@@ -358,7 +372,11 @@ let S = {
   ],
   linked: {},
 };
-try { const m = localStorage.getItem('yesan-easy'); if (m) S.easy = m === '1'; } catch (e) {}
+S.collapsed = window.innerWidth < 1100;
+try { const m = localStorage.getItem('yesan-easy'); if (m) S.easy = m === '1'; const c = localStorage.getItem('yesan-nav'); if (c) S.collapsed = c === '1'; } catch (e) {}
+if (window.innerWidth < 640) S.collapsed = true;
+let wasNarrow = window.innerWidth < 640;
+window.addEventListener('resize', () => { const n = window.innerWidth < 640; if (n && !wasNarrow && !S.collapsed) { S.collapsed = true; render(); } wasNarrow = n; });
 
 const item = (id) => ITEMS.find((i) => i.id === id);
 const doc = () => DOCS.find((d) => d.id === S.docId);
@@ -383,15 +401,15 @@ function suggest(d) {
 /* ---------- 메뉴 ---------- */
 const NAV = [
   { group: null, items: [['home', '홈', 'home'], ['chat', 'AI 대화', 'chat'], ['inbox', '접수함', 'inbox']] },
-  { group: '문서 작업', items: [['workbench', '문서 보기', 'book'], ['create', '새로 쓰기', 'pen'], ['pdf', 'PDF 합치기·나누기', 'stack'], ['batch', '여러 파일 한꺼번에', 'layers']] },
-  { group: '예산', isNew: true, items: [['spend', '지출 도우미', 'wallet'], ['budget', '예산 현황', 'chart'], ['ledger', '지출 대장', 'ledger']] },
+  { group: '문서 작업', items: [['workbench', '문서 보기', 'book', '문서'], ['create', '새로 쓰기', 'pen'], ['pdf', 'PDF 합치기·나누기', 'stack', 'PDF'], ['batch', '여러 파일 한꺼번에', 'layers', '한꺼번에']] },
+  { group: '예산', isNew: true, items: [['spend', '지출 도우미', 'wallet', '지출'], ['budget', '예산 현황', 'chart', '현황'], ['ledger', '지출 대장', 'ledger', '대장']] },
 ];
 const EASY = ['home', 'chat', 'inbox', 'workbench', 'spend'];
 function navHTML() {
   const unlinked = DOCS.filter((d) => !S.linked[d.id]).length;
-  const btn = ([id, t, i]) => {
-    const b = id === 'inbox' ? `<span class="badge">2</span>` : id === 'spend' && unlinked ? `<span class="badge soft" title="예산 연결 안 된 공문">${unlinked}</span>` : '<span></span>';
-    return `<button type="button" class="nav-item" data-go="${id}" ${S.screen === id ? 'aria-current="page"' : ''}>${ic(i, 20)}<span class="nt">${t}</span>${b}</button>`;
+  const btn = ([id, t, i, short]) => {
+    const b = id === 'inbox' ? `<span class="badge">2</span>` : id === 'spend' && unlinked ? `<span class="badge soft" title="예산 연결 안 된 공문">${unlinked}</span>` : '';
+    return `<button type="button" class="nav-item" data-go="${id}" ${S.screen === id ? 'aria-current="page"' : ''} ${S.collapsed ? `title="${t}" aria-label="${t}"` : ''}>${ic(i, 20)}<span class="ns" aria-hidden="true">${short || t}</span><span class="nt">${t}</span>${b}</button>`;
   };
   let h = '';
   for (const g of NAV) {
@@ -402,8 +420,15 @@ function navHTML() {
   }
   h += `<div class="nav-sep" role="separator"></div>` + btn(['settings', '설정', 'gear']) + btn(['help', '도움말', 'help']);
   document.getElementById('navList').innerHTML = h;
-  document.getElementById('modeDot').dataset.on = S.easy;
-  document.getElementById('modeText').textContent = S.easy ? '쉬운 화면 사용 중 · 전체 화면으로' : '전체 화면 사용 중 · 쉬운 화면으로';
+  document.getElementById('nav').dataset.collapsed = S.collapsed;
+  const c = S.collapsed;
+  document.getElementById('navFoot').innerHTML = `
+    <button type="button" class="status" data-tone="ok" data-go="settings" data-sec="set-ai" title="이 PC에서 · 내장 AI: 눌러서 설정 열기">${ic('cpu')}<span class="full">이 PC에서 · 내장 AI</span><span class="short">AI</span></button>
+    <span class="status" data-tone="ok" title="폐쇄망 모드 켜짐: 인터넷으로 나가는 연결을 모두 막습니다">${ic('shield')}<span class="full">폐쇄망 모드 켜짐</span><span class="short">폐쇄망</span></span>
+    <button type="button" class="mode" id="modeBtn" title="${S.easy ? '모든 기능과 세부 설정을 메뉴에 펼쳐 보입니다' : '자주 하는 일만 크게 보이고 세부 설정은 접어 둡니다'}"><span class="dot" data-on="${S.easy}"></span><span class="full">${S.easy ? '쉬운 화면 사용 중 · 전체 화면으로' : '전체 화면 사용 중 · 쉬운 화면으로'}</span><span class="short">${S.easy ? '쉬운' : '전체'}</span></button>
+    <button type="button" class="fold" id="foldBtn" aria-label="${c ? '메뉴 펼치기' : '메뉴 접기'}" title="${c ? '메뉴 펼치기' : '메뉴 접기'}" aria-expanded="${!c}">${ic(c ? 'popen' : 'pclose')}<span class="full">메뉴 접기</span></button>`;
+  document.getElementById('modeBtn').onclick = () => setEasy(!S.easy);
+  document.getElementById('foldBtn').onclick = () => { S.collapsed = !S.collapsed; try { localStorage.setItem('yesan-nav', S.collapsed ? '1' : '0'); } catch (e) {} render(); document.getElementById('foldBtn').focus(); };
 }
 
 /* ---------- 화면들 ---------- */
@@ -687,7 +712,6 @@ function fakeRead(f) {
   DOCS.push(d); pickDoc(d.id); render(); toast(`“${f.name}”을(를) 넣었습니다. 스케치라 예시 값으로 채웠습니다.`);
 }
 function setEasy(v) { S.easy = v; try { localStorage.setItem('yesan-easy', v ? '1' : '0'); } catch (e) {} if (v && !EASY.includes(S.screen) && S.screen !== 'settings' && S.screen !== 'help') S.screen = 'home'; render(); }
-document.getElementById('modeBtn').onclick = () => setEasy(!S.easy);
 render();
 })();
 </script>
