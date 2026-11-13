@@ -190,6 +190,22 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {a.fiscal_year && book && a.fiscal_year !== book.year && (
                     <Note tone="warn">문서는 {a.fiscal_year}회계연도인데 지금 장부는 {book.year}회계연도입니다. 맞는 장부에 반영하려면 설정 › 예산과 회계에서 회계연도를 바꾸세요.</Note>
                   )}
+                  {a.memo && (
+                    <div className="kd-inset p-3">
+                      <span className="kd-label">적요{a.related ? ` · 관련 ${a.related}` : ""}</span>
+                      <p className="kd-small mt-1" style={{ whiteSpace: "pre-wrap" }}>{a.memo}</p>
+                    </div>
+                  )}
+                  {a.checks && a.checks.length > 0 && (
+                    <div className="flex flex-col gap-1" aria-label="결의서 칸 대조">
+                      <span className="kd-label">결의서 칸 대조</span>
+                      {a.checks.map((c) => (
+                        <span key={c.label} className="kd-small flex flex-wrap items-center gap-2">
+                          <span className="kd-badge" data-tone={c.ok ? "ok" : "err"}>{c.ok ? "맞음" : "다름"}</span>{c.label}<span className="kd-muted kd-num">{c.detail}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {a.budget_lines && a.budget_lines.length > 0 && (
                     <div className="flex flex-col gap-1.5" aria-label="결의서 예산 줄">
                       <span className="kd-label">결의서 예산 줄{a.budget_lines.length > 1 ? ` ${a.budget_lines.length}개: 줄을 누르면 그 금액·과목으로 추천합니다` : ""}</span>

@@ -738,6 +738,12 @@ export interface BudgetAnalysis {
   budget_lines?: Array<{ dept?: string; ledger?: string; source?: string; detail: string; subject: string; amount: number }>;
   /** 결의서 예산 줄 글 (budget_suggest 로 다시 넘긴다) */
   subjects?: string[];
+  /** 결의서 적요 칸 (관련 문서·내용·일시·지급금액) */
+  memo?: string;
+  /** 적요의 관련 문서번호(날짜) */
+  related?: string;
+  /** 결의서 칸끼리 맞춰 본 결과 (금액 칸·예산 줄·적요·여비명세서) */
+  checks?: Array<{ label: string; ok: boolean; detail: string }>;
   title?: string;
   sender?: string;
   doc_number?: string;

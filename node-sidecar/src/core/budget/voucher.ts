@@ -28,6 +28,14 @@ export interface Voucher {
   dept?: string;
   total?: number;
   lines: VoucherLine[];
+  /** 적요 칸 글 */
+  memo?: string;
+  /** 적요의 "관련: 문서번호(날짜)" */
+  related?: string;
+  /** 여비명세서 합계 (있으면) */
+  travel_total?: number;
+  /** 칸끼리 맞춰 본 결과 (금액·적요·명세서) */
+  checks: Array<{ label: string; ok: boolean; detail: string }>;
 }
 
 const KIND = /(지출\s*원인\s*행위서|원인\s*행위서|지출\s*결의서|수입\s*결의서|결의서)/;
@@ -102,6 +110,15 @@ export function extractVoucher(md: string): Voucher | null {
   const total = Number.isFinite(money(totalCell)) && money(totalCell) > 0 ? money(totalCell) : sum || undefined;
   // 결의서 낱말만 있고 칸이 하나도 없으면 결의서로 보지 않는다 (공문 본문에 "지출결의서를 제출" 같은 말)
   if (!lines.length && !title) return null;
+  const memo = after(tables, /^적요$/);
+  const related = memo?.match(/관련\s*[:：]\s*([^\s,]+?-\d+\s*\(\s*\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?\s*\))/)?.[1]?.replace(/\s+/g, '');
+  const memoAmount = money(memo?.match(/지급\s*금액\s*[:：]\s*금?\s*([\d,]+)\s*원/)?.[1]);
+  const travel = travelTotal(tables);
+  const checks: Voucher['checks'] = [];
+  const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
+  if (total && lines.length) checks.push({ label: '금액 칸 = 예산 줄 합계', ok: total === sum, detail: `${won(total)} / ${won(sum)}` });
+  if (total && Number.isFinite(memoAmount)) checks.push({ label: '금액 칸 = 적요의 지급금액', ok: total === memoAmount, detail: `${won(total)} / ${won(memoAmount)}` });
+  if (total && travel !== undefined) checks.push({ label: '금액 칸 = 여비명세서 합계', ok: total === travel, detail: `${won(total)} / ${won(travel)}` });
   return {
     kind: squash(k[1]),
     ...(fy ? { fiscal_year: Number(fy[1]) } : {}),
@@ -111,5 +128,20 @@ export function extractVoucher(md: string): Voucher | null {
     ...(dept ? { dept: dept[1] } : {}),
     ...(total ? { total } : {}),
     lines,
+    ...(memo ? { memo } : {}),
+    ...(related ? { related } : {}),
+    ...(travel !== undefined ? { travel_total: travel } : {}),
+    checks,
   };
+}
+
+/** 여비명세서 표(일비·식비 칸이 있는 표)의 합계 줄 금액 */
+function travelTotal(tables: string[][][]): number | undefined {
+  for (const t of tables) {
+    if (!t.some((row) => row.some((c) => /^일비/.test(squash(c))) && row.some((c) => /^식비/.test(squash(c))))) continue;
+    const sumRow = t.find((row) => /^합계$/.test(squash(row[0] ?? '')));
+    const v = money(sumRow?.[sumRow.length - 1]);
+    if (Number.isFinite(v)) return v;
+  }
+  return undefined;
 }

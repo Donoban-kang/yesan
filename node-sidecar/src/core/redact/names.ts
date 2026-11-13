@@ -99,6 +99,8 @@ function tableHits(text: string): NameHit[] {
 const LABEL_RE = new RegExp(`(?:${LABELS.join('|')})\\s*[:：]\\s*([가-힣]{2,4})(?![가-힣])`, 'g');
 const NAME_POS = new RegExp(`(?<![가-힣])([가-힣]{2,4})\\s*(?:\\(\\s*)?(?:${POSITIONS})(?![가-힣])`, 'g');
 const POS_NAME = new RegExp(`(?<![가-힣])(?:${POSITIONS})\\s+([가-힣]{2,4})(?![가-힣])`, 'g');
+/** 이름 바로 뒤에 "(○○은행)" 같은 금융기관이 오는 꼴 (원인행위서 수령 정보 칸: "이름 (은행) 계좌 금액") */
+const NAME_BANK = /(?<![가-힣])([가-힣]{2,4})\s*\(\s*[가-힣A-Za-z]{0,12}(?:은행|금고|우체국|조합|뱅크|증권|저축)\s*\)/g;
 
 /** 글 줄의 이름 (이름 칸 뒤, 직위와 붙은 이름) */
 function inlineHits(text: string): NameHit[] {
@@ -116,6 +118,7 @@ function inlineHits(text: string): NameHit[] {
   for (const m of text.matchAll(LABEL_RE)) push(m, 1, true);
   for (const m of text.matchAll(NAME_POS)) push(m);
   for (const m of text.matchAll(POS_NAME)) push(m);
+  for (const m of text.matchAll(NAME_BANK)) push(m, 1, true);
   return out;
 }
 

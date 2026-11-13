@@ -280,6 +280,7 @@ describe('한솔 전자결재 HWX · 원인행위서 (가상 표본, 실제 문�
     });
     expect(v.lines).toEqual([{ dept: '가온혁신과', ledger: '자체수입', source: '지원금(보조금)', detail: '[국립대학육성사업]지원금', subject: '물건비-여비-국내여비 (국립대학 육성사업 국내여비)', amount: 250_000 }]);
     expect(JSON.stringify(v)).not.toContain('홍길동');
+    expect(v.checks).toEqual([{ label: '금액 칸 = 예산 줄 합계', ok: true, detail: '250,000원 / 250,000원' }]);
     // 공문 본문에 "결의서" 낱말만 있으면 결의서가 아니다
     expect(extractVoucher('제목 지출결의서 제출 안내\n\n지출결의서를 붙임과 같이 제출하여 주시기 바랍니다.')).toBeNull();
   });
@@ -333,4 +334,28 @@ describe('한솔 전자결재 HWX · 원인행위서 (가상 표본, 실제 문�
     expect(a.suggestions[0].item).toMatchObject({ account: 'growth', name: '국내여비' });
     expect(a.suggestions[0].reasons[0]).toBe('결의서 예산과목 일치');
   }, 30_000);
+});
+
+describe('원인행위서 적요·여비명세서 대조 (가상 값)', () => {
+  it('적요의 관련 문서·지급금액과 여비명세서 합계를 금액 칸과 맞춰 본다, 다르면 알린다', async () => {
+    const { extractVoucher } = await import('../src/core/budget/voucher.js');
+    const md = (memoAmount: string) => [
+      '2026회계연도 가온대학교 대학회계', '원인행위서', '예산부서 : 가온지원과 결의번호 : 20261BD0000E40000009',
+      '<table><tr><td>건 명</td><td colspan="5">출장여비 정산 결의 요청(김*온 11.06)</td><td>적 요</td><td colspan="4">1. 관련: 가온지원과-1234(2026.11.04.) 2. 내용: 착수보고회 참석 3. 일시 및 출장지: 2026.11.06. 가온캠퍼스 4. 지급금액: 금' + memoAmount + '원</td></tr>',
+      '<tr><td rowspan="4">금 액</td><td colspan="3" rowspan="2">68,900 원</td><td rowspan="7">수 령 정 보</td><td colspan="4">김가온 (가온은행) ●●●●1234 68,900원</td></tr></table>',
+      '<table><tr><th>예산부서</th><th>계정구분</th><th>재원구분</th><th>세부사업</th><th>예산과목</th><th>금액</th></tr>',
+      '<tr><td>가온지원과</td><td>자체수입</td><td>일반재원</td><td>부서운영비</td><td>물건비-여비-국내여비</td><td>68,900 원</td></tr></table>',
+      '여비명세서', '<table><tr><td>출장자</td><td>구분</td><td>일비(A)</td><td>식비(B)</td></tr><tr><td>김가온</td><td>관외</td><td>25,000 원</td><td>25,000 원</td></tr><tr><td colspan="3">합 계</td><td>68,900 원</td></tr></table>',
+    ].join('\n');
+    const ok = extractVoucher(md('68,900'))!;
+    expect(ok).toMatchObject({ related: '가온지원과-1234(2026.11.04.)', travel_total: 68_900 });
+    expect(ok.checks.map((c) => [c.label, c.ok])).toEqual([['금액 칸 = 예산 줄 합계', true], ['금액 칸 = 적요의 지급금액', true], ['금액 칸 = 여비명세서 합계', true]]);
+    const bad = extractVoucher(md('86,900'))!;
+    expect(bad.checks.find((c) => c.label.includes('적요'))).toMatchObject({ ok: false, detail: '68,900원 / 86,900원' });
+
+    const { maskNames } = await import('../src/core/redact/names.js');
+    const masked = maskNames(md('68,900')).text;
+    expect(masked).not.toContain('김가온');
+    expect(masked).toContain('김○○ (가온은행)');
+  });
 });
