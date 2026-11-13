@@ -28,6 +28,9 @@ import { HelpScreen } from "./components/help/HelpScreen";
 import { ChatProvider } from "./state/chats";
 import { SettingsScreen } from "./components/settings/SettingsScreen";
 import { ImpactScreen } from "./components/impact/ImpactScreen";
+import { SpendScreen } from "./components/budget/SpendScreen";
+import { BudgetScreen } from "./components/budget/BudgetScreen";
+import { LedgerScreen } from "./components/budget/LedgerScreen";
 import { rpc, errorText, invokeCmd } from "./lib/rpc";
 import { pickFiles, watchFileDrop } from "./lib/native";
 import { readPref, writePref } from "./lib/recent";
@@ -47,6 +50,9 @@ const SCREENS: Array<{ id: Screen; render: (active: boolean) => React.ReactNode 
   { id: "settings", render: (a) => <SettingsScreen active={a} /> },
   { id: "impact", render: (a) => <ImpactScreen active={a} /> },
   { id: "help", render: (a) => <HelpScreen active={a} /> },
+  { id: "spend", render: (a) => <SpendScreen active={a} /> },
+  { id: "budget", render: (a) => <BudgetScreen active={a} /> },
+  { id: "ledger", render: (a) => <LedgerScreen active={a} /> },
 ];
 
 export default function App() {

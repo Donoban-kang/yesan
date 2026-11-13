@@ -1,7 +1,7 @@
 /** 받은 공문 한 줄 + 펼친 자세히 보기 (요청 전체·문서 정보·기한 고치기·메모·열기·회신·빼기) */
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, ExternalLink, Reply, Scale, Trash2 } from "lucide-react";
+import { Check, ChevronRight, ExternalLink, Reply, Scale, Trash2, Wallet } from "lucide-react";
 import { useFileMenu } from "../common/file-menu";
 import { useApp } from "../../state/app";
 import { stem } from "../../lib/format";
@@ -107,7 +107,7 @@ export function InboxRow({ item, open, today, onToggle, onUpdate, onRemove }: Pr
 function InboxDetail({ item, today, done, onUpdate, onRemove, onReply, replyLabel, replyTip, askRemove }: {
   item: InboxItem; today: string; done: boolean; onUpdate: (p: InboxPatch) => void; onRemove: () => void; onReply: () => void; replyLabel: string; replyTip: string; askRemove: number;
 }) {
-  const { openDocs } = useApp();
+  const { openDocs, startSpend } = useApp();
   const auto = autoDue(item);
   const manual = (item.due ?? "") !== (auto ?? "");
   const [due, setDue] = useState(item.due ?? "");
@@ -182,6 +182,7 @@ function InboxDetail({ item, today, done, onUpdate, onRemove, onReply, replyLabe
       <div className="kd-inbox-acts">
         <Button variant="secondary" size="sm" onClick={() => openDocs([item.path])} data-tip="문서 화면에서 본문을 읽고 검토·내보내기를 합니다."><ExternalLink size={13} /> 열기</Button>
         <Button size="sm" onClick={onReply} data-tip={replyTip}><Reply size={13} /> {replyLabel}</Button>
+        <Button variant="secondary" size="sm" onClick={() => startSpend({ path: item.path })} data-tip="이 공문의 금액을 읽어 예산 과목을 추천하고 남은 예산을 봅니다."><Wallet size={13} /> 지출 도우미로</Button>
         <Button variant="secondary" size="sm" onClick={() => onUpdate({ status: done ? "todo" : "done" })}>{done ? "할 일로 되돌리기" : "끝냄으로 표시"}</Button>
         <Button variant="secondary" size="sm" onClick={checkLaw} disabled={law.busy}
           data-tip={`공문이 인용한 법령을 법제처 원문과 맞춰 봅니다.${item.sent_date ? ` 시행일(${dueText(item.sent_date, today)}) 당시 조문과 지금 조문도 견줍니다.` : ""}`}><Scale size={13} /> 인용 법령 확인</Button>

@@ -10,5 +10,6 @@ export type {
   PdfWorkSource, PdfComposePage, PdfComposeParams, PdfComposeResult, OrgCorpusView, OrgReference,
   VersionsResult, VersionEntry,
   ReceiptRead, ReceiptRow, ReceiptValue, ReceiptFields, ReceiptItem, ReceiptColumn, ReceiptTemplateInfo,
+  BudgetItem, BudgetItemView, BudgetEntry, BudgetBookView, BudgetMapping, BudgetImportResult, BudgetAmount, BudgetSuggestion, BudgetAnalysis, BudgetApplyResult,
 } from "../../node-sidecar/src/types/rpc-contract";
 export type { Settings, AiProviderId } from "../../node-sidecar/src/types/index";

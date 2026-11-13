@@ -12,7 +12,7 @@ import { loadRecent, pushRecent, readPref, saveRecent, writePref, type RecentDoc
 import { useSidecar, type SidecarStatus } from "../hooks/useSidecar";
 import type { ToastType } from "../components/ui/Toast";
 
-export type Screen = "home" | "chat" | "inbox" | "workbench" | "create" | "pdf" | "batch" | "compare" | "assistant" | "settings" | "impact" | "help";
+export type Screen = "home" | "chat" | "inbox" | "workbench" | "create" | "pdf" | "batch" | "compare" | "assistant" | "settings" | "impact" | "help" | "spend" | "budget" | "ledger";
 export type ToolId = "info" | "export" | "ai" | "review" | "redact" | "edit" | "tables" | "seal" | "shrink";
 export type BatchTaskId =
   | "convert" | "hwpx" | "pdf" | "ocr" | "merge" | "hwpsplit" | "bundle" | "pdftools" | "collect" | "extract"
@@ -48,6 +48,8 @@ export interface CreateStart {
 export interface AssistantStart { paths: string[]; tab?: "ask" | "rewrite"; text?: string }
 /** PDF 작업에 놓을 파일 (책상을 비우고 이것만) */
 export interface PdfStart { paths: string[] }
+/** 지출 도우미에 놓을 공문 (접수함·문서 보기에서 넘김) */
+export interface SpendStart { path: string }
 
 interface AppValue {
   screen: Screen;
@@ -80,6 +82,8 @@ interface AppValue {
   startCreate: (c: CreateStart) => void;
   pdfIntent: Intent<PdfStart> | null;
   startPdf: (p: PdfStart) => void;
+  spendIntent: Intent<SpendStart> | null;
+  startSpend: (s: SpendStart) => void;
   recent: RecentDoc[];
   clearRecent: () => void;
   /** 최근 문서 목록에서 하나만 뺀다 (파일은 그대로) */
@@ -134,6 +138,7 @@ export function AppProvider({ toast, children }: { toast: (msg: string, type?: T
   const [workIntent, setWorkIntent] = useState<Intent<{ paths: string[] }> | null>(null);
   const [createIntent, setCreateIntent] = useState<Intent<CreateStart> | null>(null);
   const [pdfIntent, setPdfIntent] = useState<Intent<PdfStart> | null>(null);
+  const [spendIntent, setSpendIntent] = useState<Intent<SpendStart> | null>(null);
   const [recent, setRecent] = useState<RecentDoc[]>(loadRecent);
   const [theme, setThemeState] = useState<ThemePref>(() => readPref<ThemePref>("kordoc-theme", "system"));
   const [uiMode, setUiModeState] = useState<UiMode>(() => readPref<UiMode>("kordoc-ui-mode", "easy"));
@@ -344,6 +349,7 @@ export function AppProvider({ toast, children }: { toast: (msg: string, type?: T
     workIntent, askWork: (w) => { setWorkIntent(intent(w)); setScreen("chat"); },
     createIntent, startCreate: (c) => { setCreateIntent(intent(c)); setScreen("create"); },
     pdfIntent, startPdf: (p) => { setPdfIntent(intent(p)); setScreen("pdf"); },
+    spendIntent, startSpend: (sp) => { setSpendIntent(intent(sp)); setScreen("spend"); },
     recent, clearRecent: () => { setRecent([]); saveRecent([]); },
     removeRecent: (path) => setRecent((prev) => { const next = prev.filter((d) => d.path !== path); saveRecent(next); return next; }),
     theme, setTheme: (t) => { setThemeState(t); writePref("kordoc-theme", t); },
@@ -352,7 +358,7 @@ export function AppProvider({ toast, children }: { toast: (msg: string, type?: T
     badges, setBadge, firstRun, setFirstRun,
     settingsIntent, openSettings: (section) => { setSettingsIntent(intent(section)); go("settings"); }, setLeaveGuard, noteWatches,
   }), [screen, go, engine.status, engine.errorMessage, engine.restart, ready, settings, saveSettings, ai, refreshAi, system, toast,
-    docs, activePath, openDocs, closeDoc, updateDoc, focus, batchIntent, compareIntent, assistantIntent, workIntent, createIntent, pdfIntent, recent,
+    docs, activePath, openDocs, closeDoc, updateDoc, focus, batchIntent, compareIntent, assistantIntent, workIntent, createIntent, pdfIntent, spendIntent, recent,
     theme, uiMode, dragTarget, registerDrop, badges, setBadge, firstRun, settingsIntent, setLeaveGuard, noteWatches]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -4,6 +4,7 @@ import { useApp } from "../../state/app";
 
 export const INDEX = [
   { id: "set-org", title: "내 기관 정보" },
+  { id: "set-budget", title: "예산과 회계" },
   { id: "set-orgdocs", title: "우리 기관 문서 모음", adv: true },
   { id: "set-ai", title: "AI 연결" },
   { id: "set-sec", title: "보안" },
@@ -13,7 +14,7 @@ export const INDEX = [
   { id: "set-law", title: "법령 확인", adv: true },
 ];
 
-const LETTERS = ["가", "나", "다", "라", "마", "바", "사", "아"];
+const LETTERS = ["가", "나", "다", "라", "마", "바", "사", "아", "자"];
 
 export function sectionMark(id: string, easy: boolean): string {
   const i = (easy ? INDEX.filter((s) => !s.adv) : INDEX).findIndex((s) => s.id === id);

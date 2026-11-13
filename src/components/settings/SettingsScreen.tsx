@@ -12,6 +12,7 @@ import { AiSection } from "./AiSection";
 import { SecuritySection } from "./SecuritySection";
 import { EngineSection, StorageSection, AboutSection } from "./SystemSections";
 import { LawSection } from "./LawSection";
+import { BudgetSection } from "./BudgetSection";
 import { Modal } from "../ui/Modal";
 import { DirtyContext, type DirtyEntry } from "./dirty";
 import { INDEX, sectionMark } from "./marks";
@@ -120,7 +121,7 @@ export function SettingsScreen({ active }: { active: boolean }) {
 
   return (
     <div className="kd-screen" hidden={!active}>
-      <ScreenHeader title="설정" sub="AI를 어디서 돌릴지, 내 기관 정보, 보안 상태를 한곳에서 정합니다." />
+      <ScreenHeader title="설정" sub="AI를 어디서 돌릴지, 내 기관 정보, 예산과 회계, 보안 상태를 한곳에서 정합니다." />
       <div className="kd-settings">
         <nav className="kd-settings-index" aria-label="설정 목차">
           {INDEX.map((s) => (
@@ -165,6 +166,7 @@ export function SettingsScreen({ active }: { active: boolean }) {
             {settings && (
               <DirtyContext.Provider value={markDirty}>
                 <OrgSection />
+                <BudgetSection />
                 <OrgDocsSection />
                 <AiSection />
                 <SecuritySection active={active} />

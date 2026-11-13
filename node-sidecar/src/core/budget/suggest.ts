@@ -4,7 +4,10 @@
  */
 
 import type { BudgetEntry, BudgetItemView, BudgetSuggestion } from '../../types/rpc-contract.js';
-import type { BudgetSettings } from './settings.js';
+import type { Settings } from '../../types/index.js';
+
+/** 설정 budget 구획 (settings.ts 를 부르면 엔진 설정 모듈까지 딸려 와 화면 미리보기에서 못 쓴다) */
+type BudgetSettings = Settings['budget'];
 
 /** 과목 이름에서 흔해서 근거가 못 되는 낱말 */
 const STOP = new Set(['사업', '운영', '지원', '관리', '기타', '일반', '경비', '비용', '활동', '프로그램', '대학', '학교', '추진', '계획', '및', '등']);

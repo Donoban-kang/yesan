@@ -1,7 +1,10 @@
 /** 예산 과목표 표 → 과목 (순수 함수) — 머리 칸 알아보기, 금액·단위, 합계·소계 줄 거르기, 회계 구분 */
 
 import type { BudgetItem, BudgetMapping } from '../../types/rpc-contract.js';
-import type { BudgetSettings } from './settings.js';
+import type { Settings } from '../../types/index.js';
+
+/** 설정 budget 구획 (settings.ts 를 부르면 엔진 설정 모듈까지 딸려 와 화면 미리보기에서 못 쓴다) */
+type BudgetSettings = Settings['budget'];
 
 type Field = keyof BudgetMapping;
 

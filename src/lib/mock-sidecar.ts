@@ -7,6 +7,7 @@ import type { DeepPartial, DocFormat, DocInfo, PagePreview, RpcMethod, RpcParams
 import type { Notify } from "./rpc";
 import { baseName, dirName, formatOf, joinPath, stem } from "./format";
 import { layoutPages, markdownBlocks, pageDataUrl } from "./mock-pages";
+import { budgetHandlers, MOCK_BUDGET_SETTINGS, MOCK_LETTERS } from "./mock-budget";
 import {
   CHAT_ANSWER, COMPARE_ROWS, DOCS_DIR, DRAFT_MD, GONGMUN_META, LLM_CATALOG, SAMPLE_FILES, SUMMARY_TEXT,
   TEMPLATES, docBlocks, fakeLint, hashOf, sampleMarkdown,
@@ -82,6 +83,7 @@ const settings: Settings = {
   impact: { baselines: {} },
   law: { oc: "" },
   receipt: { template_path: "", template_name: "", columns: [] },
+  budget: structuredClone(MOCK_BUDGET_SETTINGS),
 };
 
 // ?fresh=1 이면 처음 켠 PC 처럼 (첫 실행 마법사 확인용)
@@ -164,6 +166,16 @@ let shellInstalled = false;
 
 const mockInbox: RpcResult<"inbox_list">["items"] = [
   {
+    id: "b1", path: MOCK_LETTERS[0], name: "2026 진로체험 버스 임차 협조.hwpx", added_at: "2026-11-10T09:00:00.000Z",
+    sender: "학생처", doc_number: "학생처-4021", sent_date: "2026-11-10", title: "2026 진로체험 버스 임차 협조 요청",
+    requests: [{ text: "버스 임차 계약 절차 완료", due: "2026-11-20" }], due: "2026-11-20", status: "todo",
+  },
+  {
+    id: "b2", path: MOCK_LETTERS[1], name: "글로컬 지역 협업 포럼 개최 안내.hwx", added_at: "2026-11-11T09:00:00.000Z",
+    sender: "기획처", doc_number: "기획처-77", sent_date: "2026-11-11", title: "글로컬대학 30 지역 협업 포럼 개최 안내",
+    requests: [{ text: "행사 운영 예산 집행", due: "2026-11-28" }], due: "2026-11-28", status: "todo",
+  },
+  {
     id: "m1", path: "/Users/kim/Documents/받은 공문/도민체육대회 참가 협조 요청.hwpx", name: "도민체육대회 참가 협조 요청.hwpx", added_at: "2026-10-06T09:12:00.000Z",
     sender: "가온도", doc_number: "가온도 체육진흥과-2203", sent_date: "2026-10-02", title: "2026년 가온도민 한마음 체육대회 참가 협조 요청",
     requests: [{ text: "참가 신청서와 선수 명단을 공문으로 제출", due: "2026-10-23" }], due: "2026-10-23", status: "todo",
@@ -176,6 +188,7 @@ const mockInbox: RpcResult<"inbox_list">["items"] = [
 ];
 
 const handlers: Handlers = {
+  ...(budgetHandlers as Handlers),
   ping: () => "pong",
   system_info: () => ({
     app_version: "2.1.2", kordoc_version: "4.22.18", node_version: "v24.11.0", platform: "macOS 27 (arm64)",

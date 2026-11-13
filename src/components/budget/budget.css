@@ -1,0 +1,84 @@
+/* 예산 지출 도우미·예산 현황·지출 대장 — 색은 변수만(styles/variables.css), 글자 크기는 --fs-* 일곱 단계 */
+
+.kd-budget { max-width: 1440px; padding: 18px 24px 32px; display: flex; flex-direction: column; gap: 16px; container-type: inline-size; }
+.kd-budget-drop[data-over="true"] { outline: 2px dashed var(--color-accent); outline-offset: -8px; background: var(--color-accent-subtle); }
+
+/* 지출 도우미 4단계: 공문 · 읽은 값 · 과목 · 잔액 */
+.kd-spend { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.95fr); gap: 20px; align-items: start; }
+.kd-spend-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.kd-step { display: flex; align-items: center; gap: 8px; font-size: var(--fs-caption); font-weight: 700; color: var(--color-text-muted); }
+.kd-step b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-caption); background: var(--color-bg-tertiary); color: var(--color-text-secondary); }
+.kd-step[data-on="true"] b { background: var(--color-accent); color: var(--color-accent-ink); }
+.kd-bcard { background: var(--color-bg-secondary); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.kd-docpick { display: flex; flex-direction: column; gap: 6px; }
+.kd-docopt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-secondary); text-align: left; cursor: pointer; color: var(--color-text-primary); }
+.kd-docopt:hover { border-color: var(--color-border-hover); }
+.kd-docopt[aria-pressed="true"] { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); background: var(--color-accent-subtle); }
+.kd-docopt-name { display: block; font-weight: 600; font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.kd-amount-input { height: 42px; font-size: var(--fs-h2); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.kd-amount-input[data-low="true"] { background: var(--color-warning-bg); }
+.kd-amount-alt { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.kd-sug { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; width: 100%; padding: 14px; text-align: left; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-secondary); cursor: pointer; color: var(--color-text-primary); align-items: start; }
+.kd-sug:hover { border-color: var(--color-border-hover); }
+.kd-sug[aria-checked="true"] { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.kd-sug-radio { width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; border: 1.5px solid var(--color-border-input); display: grid; place-items: center; }
+.kd-sug[aria-checked="true"] .kd-sug-radio { border-color: var(--color-accent); }
+.kd-sug[aria-checked="true"] .kd-sug-radio::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--color-accent); }
+.kd-sug-path { font-size: var(--fs-caption); color: var(--color-text-muted); }
+.kd-sug-name { font-weight: 700; margin: 2px 0 6px; }
+.kd-sug-score { text-align: right; font-size: var(--fs-caption); color: var(--color-text-muted); }
+.kd-sug-score b { display: block; font-size: var(--fs-h3); color: var(--color-accent); font-variant-numeric: tabular-nums; }
+.kd-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.kd-tree { max-height: 320px; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.kd-tree-g { position: sticky; top: 0; padding: 7px 12px 5px; font-size: var(--fs-caption); font-weight: 700; color: var(--color-text-muted); background: var(--color-bg-primary); }
+.kd-tree-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; width: 100%; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--color-border-subtle); background: none; text-align: left; font-size: var(--fs-small); cursor: pointer; color: var(--color-text-primary); }
+.kd-tree-row:hover { background: var(--color-bg-primary); }
+.kd-tree-row[aria-pressed="true"] { background: var(--color-accent-subtle); }
+
+.kd-big { font-size: var(--fs-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kd-big[data-over="true"] { color: var(--color-error); }
+.kd-big small { font-size: var(--fs-h3); font-weight: 600; }
+.kd-bar { height: 8px; border-radius: 999px; background: var(--color-bg-tertiary); overflow: hidden; display: flex; }
+.kd-bar > span { height: 100%; }
+.kd-bar .kd-bar-paid { background: var(--color-accent); }
+.kd-bar .kd-bar-commit { background: var(--color-accent); opacity: 0.45; }
+.kd-bar .kd-bar-new { background: repeating-linear-gradient(45deg, var(--color-warning) 0 4px, transparent 4px 7px); box-shadow: inset 0 0 0 1px var(--color-warning); }
+.kd-bar .kd-bar-over { background: var(--color-error); }
+.kd-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--fs-caption); color: var(--color-text-muted); }
+.kd-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border-radius: 3px; vertical-align: -1px; }
+.kd-calc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; font-size: var(--fs-small); margin: 0; }
+.kd-calc dt { color: var(--color-text-secondary); }
+.kd-calc dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kd-calc .kd-calc-sum { border-top: 1px solid var(--color-border); padding-top: 8px; font-weight: 700; color: var(--color-text-primary); }
+.kd-stage { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.kd-stage button { min-height: 52px; padding: 6px 8px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-bg-secondary); color: var(--color-text-primary); font-weight: 600; font-size: var(--fs-small); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; }
+.kd-stage button small { font-size: var(--fs-caption); font-weight: 500; color: var(--color-text-muted); }
+.kd-stage button[aria-pressed="true"] { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); background: var(--color-accent-subtle); }
+.kd-confirm { border: 1px solid var(--color-accent); border-radius: var(--radius-lg); padding: 14px; background: var(--color-accent-subtle); display: flex; flex-direction: column; gap: 10px; }
+
+/* 예산 현황 */
+.kd-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.kd-tile { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); background: var(--color-bg-secondary); text-align: left; border: 0; color: var(--color-text-primary); cursor: pointer; }
+.kd-tile[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--color-accent); }
+.kd-tile-k { font-size: var(--fs-caption); font-weight: 600; color: var(--color-text-muted); }
+.kd-tile-v { font-size: var(--fs-h1); font-weight: 700; font-variant-numeric: tabular-nums; }
+.kd-budget-table td.kd-r, .kd-budget-table th.kd-r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kd-budget-table tr.kd-group > td { background: var(--color-bg-primary); font-weight: 700; font-size: var(--fs-small); color: var(--color-text-secondary); }
+.kd-budget-table tr[data-retired="true"] td { color: var(--color-text-muted); }
+.kd-budget-table tr[data-reversed="true"] td { color: var(--color-text-muted); }
+.kd-table-wrap { overflow-x: auto; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); background: var(--color-bg-secondary); }
+.kd-mapgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 14px; }
+
+@container (max-width: 1100px) {
+  .kd-spend { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .kd-spend > .kd-spend-col:last-child { grid-column: 1 / -1; }
+}
+@container (max-width: 720px) {
+  .kd-spend { grid-template-columns: minmax(0, 1fr); }
+}
+.kd-budget .kd-dropzone { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 18px; cursor: pointer; color: var(--color-text-muted); text-align: center; }
+.kd-budget .kd-dropzone:hover { border-color: var(--color-accent); }
