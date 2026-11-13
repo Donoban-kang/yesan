@@ -25,7 +25,10 @@ describe('toAiError', () => {
 
   it('열려 있는 파일에 바꿔 넣기가 막히면 닫으라고 알리고, 임시 파일 이름이 아니라 그 파일 이름을 보인다', async () => {
     const { toUserError } = await import('../src/core/errors.js');
-    const err = Object.assign(new Error("EPERM: operation not permitted, rename 'D:\\a\\문서.hwpx.kordoc-tmp' -> 'D:\\a\\문서.hwpx'"), { code: 'EPERM', syscall: 'rename', path: 'D:\\a\\문서.hwpx.kordoc-tmp', dest: 'D:\\a\\문서.hwpx' });
+    // 경로는 돌리는 운영체제의 꼴로 (맥·리눅스의 basename 은 \\ 를 나누지 않는다)
+    const { join } = await import('node:path');
+    const dest = join('a', '문서.hwpx');
+    const err = Object.assign(new Error(`EPERM: operation not permitted, rename '${dest}.kordoc-tmp' -> '${dest}'`), { code: 'EPERM', syscall: 'rename', path: `${dest}.kordoc-tmp`, dest });
     const m = text(toUserError(err));
     expect(m).toMatch(/다른 프로그램.*열려 있거나 읽기 전용.*닫고 다시 저장/);
     expect(m).toMatch(/\(문서\.hwpx\)$/);

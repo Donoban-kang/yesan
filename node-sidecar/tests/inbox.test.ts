@@ -35,8 +35,9 @@ describe('예제 공문 (도민체육대회 참가 협조 요청)', () => {
       due: '2026-10-23',
       status: 'todo',
     });
-    // 행사 일시(11. 13. 개최)는 기한이 아니다
-    expect(JSON.stringify(it)).not.toContain('2026-11-13');
+    // 행사 일시(11. 13. 개최)는 기한이 아니다 (넣은 시각 added_at 은 오늘 날짜라 빼고 본다)
+    const { added_at: _added, ...rest } = it;
+    expect(JSON.stringify(rest)).not.toContain('2026-11-13');
   };
 
   it('HWPX — 보낸 곳·문서번호·시행일·제목·요청·기한', async () => {
