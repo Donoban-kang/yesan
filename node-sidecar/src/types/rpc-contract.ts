@@ -742,7 +742,10 @@ export interface BudgetAnalysis {
   memo?: string;
   /** 적요의 관련 문서번호(날짜) */
   related?: string;
-  /** 결의서 칸끼리 맞춰 본 결과 (금액 칸·예산 줄·적요·여비명세서) */
+  /** 결의서 거래처 상호·사업자번호 (증빙과 맞춰 볼 때) */
+  vendor?: string;
+  vendor_no?: string;
+  /** 결의서 칸끼리 맞춰 본 결과 (금액 칸·예산 줄·적요·여비명세서·명세서) */
   checks?: Array<{ label: string; ok: boolean; detail: string }>;
   title?: string;
   sender?: string;

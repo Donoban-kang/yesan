@@ -181,6 +181,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                     {a.doc_kind && a.doc_kind !== "공문" && <div><dt>문서</dt><dd><span className="kd-badge" data-tone="info">{a.doc_kind}</span> <span className="kd-small kd-muted">결의서 칸에서 바로 읽었습니다</span></dd></div>}
                     <div><dt>{a.doc_kind && a.doc_kind !== "공문" ? "건명" : "공문"}</dt><dd className="min-w-0">{a.title ?? a.name}{(a.doc_number || a.sender) && <span className="kd-small kd-muted block">{a.sender ? `${a.sender} · ` : ""}{a.resolution_no ? `결의번호 ${a.resolution_no}` : a.doc_number}{a.sent_date && a.resolution_no ? ` · 발의 ${a.sent_date}` : ""}</span>}</dd></div>
                     {a.fiscal_year && <div><dt>회계연도</dt><dd className="kd-num">{a.fiscal_year}</dd></div>}
+                    {a.vendor && <div><dt>거래처</dt><dd>{a.vendor}{a.vendor_no && <span className="kd-small kd-muted"> · {a.vendor_no}</span>}</dd></div>}
                     {a.nature && <div><dt>거래 성격</dt><dd><span className="kd-badge" data-tone="accent">{a.nature}</span> <span className="kd-small kd-muted">"{a.nature_words.slice(0, 3).join("·")}" 낱말로 판단</span></dd></div>}
                     {a.period && <div><dt>기간</dt><dd>{a.period}</dd></div>}
                     {a.people && <div><dt>대상</dt><dd>{a.people}</dd></div>}

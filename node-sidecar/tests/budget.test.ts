@@ -359,3 +359,24 @@ describe('원인행위서 적요·여비명세서 대조 (가상 값)', () => {
     expect(masked).toContain('김○○ (가온은행)');
   });
 });
+
+describe('물품 구매 원인행위서 (가상 값): 적요 "지출금액 … 이내", 일반명세서, 거래처', () => {
+  it('상한(이내)·명세서 합계·거래처를 읽고, 넘으면 알린다', async () => {
+    const { extractVoucher } = await import('../src/core/budget/voucher.js');
+    const md = (cap: string, item2: string) => [
+      '2026회계연도 가온대학교 대학회계', '원인행위서', '예산부서 : 가온지원과 결의번호 : 20261BD0000E10000001',
+      '<table><tr><td>건 명</td><td>부서 운영을 위한 물품 구매 결의</td><td>적 요</td><td>1. 건 명: 부서 운영을 위한 물품 구매 결의 2. 구입품목: 문구류 10개 물품 3. 지출금액: 금 ' + cap + '원 이내 4. 지출과목: 대학회계-일반수용비. 끝.</td></tr>',
+      '<tr><td rowspan="4">금 액</td><td>200,000 원</td></tr>',
+      '<tr><td rowspan="3">거 래 처</td><td>상 호</td><td>가온생활협동조합</td></tr><tr><td>사업자번호 (주민등록번호)</td><td>000-00-00000</td></tr></table>',
+      '<table><tr><th>예산부서</th><th>계정구분</th><th>재원구분</th><th>세부사업</th><th>예산과목</th><th>금액</th></tr>',
+      '<tr><td>가온지원과</td><td>자체수입</td><td>일반재원</td><td>부서운영비</td><td>물건비-운영비-일반수용비 (사무용품 구입)</td><td>100,000 원</td></tr>',
+      '<tr><td>가온지원과</td><td>자체수입</td><td>일반재원</td><td>부서운영비</td><td>물건비-운영비-일반수용비 (소모품 구입)</td><td>100,000 원</td></tr></table>',
+      '일반명세서', '<table><tr><td>순번</td><td>품명및규격</td><td>금액</td></tr><tr><td>1</td><td>물품 구매</td><td>100,000 원</td></tr><tr><td>2</td><td>물품 구매</td><td>' + item2 + ' 원</td></tr><tr><td colspan="2">합 계</td><td>' + (item2 === '100,000' ? '200,000' : '190,000') + ' 원</td></tr></table>',
+    ].join('\n');
+    const ok = extractVoucher(md('200,000', '100,000'))!;
+    expect(ok).toMatchObject({ total: 200_000, detail_total: 200_000, vendor: '가온생활협동조합', vendor_no: '000-00-00000' });
+    expect(ok.checks.map((c) => [c.label, c.ok])).toEqual([['금액 칸 = 예산 줄 합계', true], ['금액 칸 ≤ 적요의 지출금액(이내)', true], ['금액 칸 = 명세서 합계', true]]);
+    const bad = extractVoucher(md('150,000', '90,000'))!;
+    expect(bad.checks.filter((c) => !c.ok).map((c) => c.label)).toEqual(['금액 칸 ≤ 적요의 지출금액(이내)', '금액 칸 = 명세서 합계']);
+  });
+});

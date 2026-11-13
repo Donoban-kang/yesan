@@ -36,6 +36,11 @@ export interface Voucher {
   travel_total?: number;
   /** 칸끼리 맞춰 본 결과 (금액·적요·명세서) */
   checks: Array<{ label: string; ok: boolean; detail: string }>;
+  /** 거래처 상호·사업자번호 (거래처 칸이 비면 없음) */
+  vendor?: string;
+  vendor_no?: string;
+  /** 일반명세서 등 품명·금액 명세 합계 (여비명세서 제외) */
+  detail_total?: number;
 }
 
 const KIND = /(지출\s*원인\s*행위서|원인\s*행위서|지출\s*결의서|수입\s*결의서|결의서)/;
@@ -112,12 +117,23 @@ export function extractVoucher(md: string): Voucher | null {
   if (!lines.length && !title) return null;
   const memo = after(tables, /^적요$/);
   const related = memo?.match(/관련\s*[:：]\s*([^\s,]+?-\d+\s*\(\s*\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?\s*\))/)?.[1]?.replace(/\s+/g, '');
-  const memoAmount = money(memo?.match(/지급\s*금액\s*[:：]\s*금?\s*([\d,]+)\s*원/)?.[1]);
+  // 적요의 금액: "지급금액: 금68,900원" · "지출금액: 금 300,000원 이내" (이내면 상한)
+  const mm = memo?.match(/(지급|지출|집행|구매|계약)\s*금액\s*[:：]\s*금?\s*([\d,]+)\s*원\s*(이내)?/);
+  const memoAmount = money(mm?.[2]);
+  const memoCap = !!mm?.[3];
   const travel = travelTotal(tables);
+  const detailTotal = itemListTotal(tables);
+  const vendor = after(tables, /^상호$/);
+  const vendorNo = after(tables, /^사업자번호/);
   const checks: Voucher['checks'] = [];
   const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
   if (total && lines.length) checks.push({ label: '금액 칸 = 예산 줄 합계', ok: total === sum, detail: `${won(total)} / ${won(sum)}` });
-  if (total && Number.isFinite(memoAmount)) checks.push({ label: '금액 칸 = 적요의 지급금액', ok: total === memoAmount, detail: `${won(total)} / ${won(memoAmount)}` });
+  if (total && Number.isFinite(memoAmount)) {
+    checks.push(memoCap
+      ? { label: `금액 칸 ≤ 적요의 ${mm![1]}금액(이내)`, ok: total <= memoAmount, detail: `${won(total)} / ${won(memoAmount)} 이내` }
+      : { label: `금액 칸 = 적요의 ${mm![1]}금액`, ok: total === memoAmount, detail: `${won(total)} / ${won(memoAmount)}` });
+  }
+  if (total && detailTotal !== undefined) checks.push({ label: '금액 칸 = 명세서 합계', ok: total === detailTotal, detail: `${won(total)} / ${won(detailTotal)}` });
   if (total && travel !== undefined) checks.push({ label: '금액 칸 = 여비명세서 합계', ok: total === travel, detail: `${won(total)} / ${won(travel)}` });
   return {
     kind: squash(k[1]),
@@ -131,8 +147,23 @@ export function extractVoucher(md: string): Voucher | null {
     ...(memo ? { memo } : {}),
     ...(related ? { related } : {}),
     ...(travel !== undefined ? { travel_total: travel } : {}),
+    ...(detailTotal !== undefined ? { detail_total: detailTotal } : {}),
+    ...(vendor ? { vendor } : {}),
+    ...(vendorNo && /\d/.test(vendorNo) ? { vendor_no: vendorNo } : {}),
     checks,
   };
+}
+
+/** 품명·금액 명세 표(일반명세서 등: "품명" 칸과 "금액" 칸이 있는 표)의 합계 줄 금액 */
+function itemListTotal(tables: string[][][]): number | undefined {
+  for (const t of tables) {
+    const hi = t.findIndex((row) => row.some((c) => /^품명/.test(squash(c))) && row.some((c) => squash(c) === '금액'));
+    if (hi < 0) continue;
+    const sumRow = t.slice(hi + 1).find((row) => /^합계$/.test(squash(row[0] ?? '')));
+    const v = money(sumRow?.[sumRow.length - 1]);
+    if (Number.isFinite(v)) return v;
+  }
+  return undefined;
 }
 
 /** 여비명세서 표(일비·식비 칸이 있는 표)의 합계 줄 금액 */

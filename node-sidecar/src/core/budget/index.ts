@@ -241,6 +241,8 @@ export async function budgetAnalyze(p: { path: string; year?: number }, signal?:
       ...(v.memo ? { memo: v.memo.slice(0, 600) } : {}),
       ...(v.related ? { related: v.related } : {}),
       checks: v.checks,
+      ...(v.vendor ? { vendor: v.vendor } : {}),
+      ...(v.vendor_no ? { vendor_no: v.vendor_no } : {}),
       basis,
       subjects,
       suggestions: suggestItems(items, book.entries, s, { text: basis, nature: nat.nature, account, amount: v.total, sender: v.dept, subjects }),
