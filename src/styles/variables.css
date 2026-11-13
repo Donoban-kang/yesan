@@ -1,0 +1,286 @@
+/* ============================================
+   KorDoc AI 디자인 토큰 (v3)
+   흰 작업 면 + 옅은 회색 탐색 + 로고 초록 한 가지 강조색. 글자 위계는 --fs-* 일곱 단계
+   ============================================ */
+
+/* Pretendard 폰트 번들링 (400·500·600·700. 800 은 쓰지 않는다) */
+@font-face {
+  font-family: 'Pretendard';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/Pretendard-Regular.otf') format('opentype');
+}
+@font-face {
+  font-family: 'Pretendard';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/Pretendard-Medium.otf') format('opentype');
+}
+@font-face {
+  font-family: 'Pretendard';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/Pretendard-SemiBold.otf') format('opentype');
+}
+@font-face {
+  font-family: 'Pretendard';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/Pretendard-Bold.otf') format('opentype');
+}
+
+@theme {
+  --font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --font-mono: 'D2Coding', 'Consolas', 'SF Mono', 'Menlo', monospace;
+  --font-display: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+}
+
+:root {
+  color-scheme: light;
+
+  /* 면: 흰 작업 면 + 아주 옅은 회색 탐색·안쪽 면. 색은 브랜드 초록 하나 */
+  --color-spine: #F5F6F8;          /* 왼쪽 탐색 */
+  --color-bg-primary: #F5F6F8;     /* 안쪽 면·목록 칸 */
+  --color-bg-secondary: #FFFFFF;   /* 화면 바탕·카드 */
+  --color-bg-tertiary: #EDEFF2;    /* 올려 놓기·선택 */
+  --color-bg-subtle: #E4E7EB;
+  --color-desk: #EBEDF0;           /* 쪽 미리보기 책상 */
+  --color-paper: #FFFFFF;          /* 문서 쪽 */
+  --color-input: #FFFFFF;
+
+  /* 글자 (흰 면 대비: 기본 16.9 · 둘째 10.4 · 흐림 4.9 : 1, 옅은 회색 면에서도 흐림 4.6:1 이상) */
+  --color-text-primary: #16191D;
+  --color-text-secondary: #39414B;
+  --color-text-muted: #636C77;
+  --color-text-disabled: #8C949D;  /* 사용 불가 컨트롤 안 글자 전용 (3.2:1). 이유 설명 글은 muted */
+  --color-text-inverse: #FFFFFF;
+
+  /* 선 */
+  --color-border: #E1E4E8;
+  --color-border-subtle: #ECEEF1;
+  --color-border-hover: #C9CED4;
+  /* 입력칸·스위치 테두리: 칸 자리가 보이게 흰 면 대비 3:1 (공공 디자인 시스템 입력칸 회색과 같은 값) */
+  --color-border-input: #8A949E;
+  --color-border-input-hover: #636C77;
+  --color-rule-strong: #E1E4E8;
+
+  /* 강조: 로고 초록. 흰 면 위 글자 5.6:1 */
+  --color-accent: #08775A;
+  --color-accent-hover: #06664D;
+  --color-accent-active: #05553F;
+  --color-accent-ink: #FFFFFF;
+  --color-accent-subtle: rgba(8, 119, 90, 0.08);
+  --color-accent-light: rgba(8, 119, 90, 0.14);
+  --color-accent-glow: rgba(8, 119, 90, 0.20);
+  --color-accent-bg: var(--color-accent-subtle);
+
+  /* 상태 (색만으로 알리지 않는다: 늘 글로도 쓴다) */
+  --color-success: #1C7036;
+  --color-warning: #8A5300;
+  --color-error: #C0261A;
+  --color-error-hover: #9E1F15;
+  --color-info: #2457A6;
+  --color-seal: #C0261A;           /* 인주 */
+  --color-success-bg: rgba(28, 112, 54, 0.10);
+  --color-warning-bg: rgba(196, 122, 0, 0.13);
+  --color-danger-bg: rgba(192, 38, 26, 0.09);
+  --color-error-bg: rgba(192, 38, 26, 0.08);
+  --color-info-bg: rgba(36, 87, 166, 0.09);
+  --color-success-subtle: rgba(28, 112, 54, 0.06);
+  --color-warning-subtle: rgba(196, 122, 0, 0.08);
+  --color-error-subtle: rgba(192, 38, 26, 0.06);
+
+  --color-backdrop: rgba(16, 20, 26, 0.45);
+  /* 말풍선(툴팁) 면: 밝은 화면에선 먹색, 어두운 화면에선 바탕보다 한 단 밝게 (같은 색이면 바탕에 묻힌다) */
+  --color-tip-bg: #1F242B;
+  --color-tip-text: #F3F5F7;
+  /* 알림(어두운 말풍선 면) 위 아이콘: 두 테마 모두 면이 어두워 밝은 색 하나로 */
+  --color-on-tip-ok: #5EE39A;
+  --color-on-tip-err: #FF8A80;
+  --color-on-tip-busy: #6EE7C0;
+  --color-on-tip-info: #8FC3FF;
+  --color-tip-border: transparent;
+  /* 문서 쪽(종이) 위 글자·괘선: 종이는 어두운 화면에서도 흰색이라 화면 밝기와 무관하게 고정 (옛 미색 회색 #8b8f86·#f4f2ec 대신) */
+  --color-paper-muted: #636C77;
+  --color-paper-line: #ECEEF1;
+  /* 종이(흰 면) 위 인주색: 어두운 화면의 밝은 인주색은 흰 종이에서 2.7:1 이라 고정 */
+  --color-paper-seal: #C0261A;
+  --color-primary-rgb: 8, 119, 90;
+  --color-primary-light: #12936F;
+
+  /* 형식 표시 (연 문서 목록의 고른 줄(선택 면) 위 10.5px 배지도 4.6:1 이상) */
+  --color-file-hwp: #23588C;
+  --color-file-pdf: #A8261C;
+  --color-file-xlsx: #296A34;
+  --color-file-doc: #2F55A4;
+  --color-file-ppt: #97451C;
+  --color-file-img: #6B5B43;
+  --color-file-txt: #5A5E56;
+  --color-file-hwp-bg: rgba(35, 88, 140, 0.09);
+  --color-file-pdf-bg: rgba(168, 38, 28, 0.08);
+  --color-file-xlsx-bg: rgba(43, 110, 54, 0.09);
+  --color-file-doc-bg: rgba(47, 85, 164, 0.09);
+  --color-file-ppt-bg: rgba(162, 74, 30, 0.09);
+  --color-file-img-bg: rgba(107, 91, 67, 0.10);
+  --color-file-txt-bg: rgba(94, 98, 90, 0.10);
+
+  /* 그림자: 떠 있는 카드·판은 옅게 두 겹 */
+  --shadow-sm: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 1px 3px 0 rgba(16, 24, 40, 0.08), 0 1px 2px -1px rgba(16, 24, 40, 0.06);
+  --shadow-lg: 0 8px 20px -6px rgba(16, 24, 40, 0.14), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
+  --shadow-xl: 0 20px 44px -12px rgba(16, 24, 40, 0.22), 0 4px 10px -4px rgba(16, 24, 40, 0.08);
+  --shadow-card: 0 0 0 1px var(--color-border), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-card-hover: 0 0 0 1px var(--color-border-hover), 0 4px 12px -4px rgba(16, 24, 40, 0.10);
+  --shadow-inner: inset 0 1px 1px 0 rgba(16, 24, 40, 0.04);
+  --shadow-page: 0 1px 2px rgba(16, 24, 40, 0.08), 0 8px 24px -10px rgba(16, 24, 40, 0.25);
+  --shadow-focus: 0 0 0 3px var(--color-accent-glow);
+
+  /* 모서리 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+
+  /* 글자 크기: Tailwind text-* 가 이 값을 그대로 쓴다(대화상자 제목 text-lg 등) → 아래 --fs-* 일곱 단계에 맞춘다 */
+  --text-2xs: 0.75rem;     /* 12 caption */
+  --text-xs: 0.8125rem;    /* 13 small */
+  --text-sm: 0.875rem;     /* 14 body */
+  --text-base: 1rem;       /* 16 h3 */
+  --text-md: 1rem;         /* 16 h3 */
+  --text-lg: 1.125rem;     /* 18 h2 (대화상자 제목) */
+  --text-xl: 1.375rem;     /* 22 h1 */
+  --text-2xl: 1.75rem;     /* 28 display */
+  --text-hero: 1.75rem;    /* 28 display */
+
+  /* 겹 순서 */
+  --z-sticky: 10;
+  --z-float: 40;
+  --z-modal: 50;
+  --z-overlay: 60;   /* 대화상자 위 온 화면 판 (첫 실행 안내·끌어 옮기는 꼬리표) */
+  --z-viewer: 70;    /* 크게 보기 */
+  --z-menu: 150;     /* 우클릭 메뉴: 알림 위, 말풍선 아래 */
+  --z-toast: 100;
+  --z-tooltip: 200;
+
+  /* 글 한 줄 너비 (설명 문단) */
+  --measure: 62ch;
+
+  /* 글자 위계 (화면 글은 이 일곱 단계만. 12px 미만 금지. 굵기 400 본문 · 500 목록·탐색 · 600 단추·이름 · 700 제목) */
+  --fs-display: 28px;   /* 홈·빈 대화 큰 물음 */
+  --fs-h1: 22px;        /* 화면 제목 */
+  --fs-h2: 18px;        /* 구획 제목 */
+  --fs-h3: 16px;        /* 카드·소제목 */
+  --fs-body: 14px;      /* 본문·단추·입력 */
+  --fs-small: 13px;     /* 설명·보조 */
+  --fs-caption: 12px;   /* 묶음 이름·시각·배지 */
+
+  /* 배치 */
+  --nav-width: 232px;
+  --nav-width-collapsed: 80px;
+
+  /* 움직임 */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-sine: cubic-bezier(0.37, 0, 0.63, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 120ms var(--ease-out-expo);
+  --transition-normal: 200ms var(--ease-out-expo);
+  --transition-spring: 400ms var(--ease-spring);
+}
+
+/* 어두운 화면: 먹 바탕. 문서 쪽은 흰 종이 그대로 둔다 */
+.dark {
+  color-scheme: dark;
+
+  --color-spine: #111316;
+  --color-bg-primary: #15181C;
+  --color-bg-secondary: #1B1E23;
+  --color-bg-tertiary: #262A30;
+  --color-bg-subtle: #30353C;
+  --color-desk: #101215;
+  --color-paper: #FFFFFF;
+
+  --color-text-primary: #ECEEF1;
+  --color-text-secondary: #C3C8CF;
+  --color-text-muted: #969DA6;
+  --color-text-disabled: #5A6068;
+  --color-text-inverse: #111316;
+
+  --color-border: rgba(236, 238, 241, 0.12);
+  --color-border-subtle: rgba(236, 238, 241, 0.07);
+  --color-border-hover: rgba(236, 238, 241, 0.22);
+  --color-border-input: rgba(236, 238, 241, 0.34);
+  --color-border-input-hover: rgba(236, 238, 241, 0.5);
+  --color-rule-strong: rgba(236, 238, 241, 0.12);
+  --color-input: #15181C;
+
+  --color-accent: #3FCF98;
+  --color-accent-hover: #6BDDB1;
+  --color-accent-active: #2BB27F;
+  --color-accent-ink: #062B1E;
+  --color-accent-subtle: rgba(63, 207, 152, 0.10);
+  --color-accent-light: rgba(63, 207, 152, 0.10);
+  --color-accent-glow: rgba(63, 207, 152, 0.25);
+
+  --color-success: #6CC97A;
+  --color-warning: #E3B35A;
+  --color-error: #F07A6E;
+  --color-error-hover: #F49A90;
+  --color-info: #86B6E6;
+  --color-seal: #F07A6E;
+  --color-success-bg: rgba(108, 201, 122, 0.16);
+  --color-warning-bg: rgba(227, 179, 90, 0.16);
+  --color-danger-bg: rgba(240, 122, 110, 0.16);
+  --color-error-bg: rgba(240, 122, 110, 0.13);
+  --color-info-bg: rgba(134, 182, 230, 0.14);
+  --color-success-subtle: rgba(108, 201, 122, 0.10);
+  --color-warning-subtle: rgba(227, 179, 90, 0.10);
+  --color-error-subtle: rgba(240, 122, 110, 0.10);
+
+  --color-backdrop: rgba(5, 7, 5, 0.62);
+  --color-tip-bg: #343A42;
+  --color-tip-text: #F3F5F7;
+  --color-tip-border: rgba(236, 238, 241, 0.10);
+  --color-primary-rgb: 63, 207, 152;
+
+  --color-file-hwp: #8FB8E3;
+  --color-file-pdf: #F09A90;
+  --color-file-xlsx: #8DD39A;
+  --color-file-doc: #9DB4EC;
+  --color-file-ppt: #EDA57E;
+  --color-file-img: #CDBB9C;
+  --color-file-txt: #B3B7AD;
+  --color-file-hwp-bg: rgba(143, 184, 227, 0.12);
+  --color-file-pdf-bg: rgba(240, 154, 144, 0.12);
+  --color-file-xlsx-bg: rgba(141, 211, 154, 0.12);
+  --color-file-doc-bg: rgba(157, 180, 236, 0.12);
+  --color-file-ppt-bg: rgba(237, 165, 126, 0.12);
+  --color-file-img-bg: rgba(205, 187, 156, 0.12);
+  --color-file-txt-bg: rgba(179, 183, 173, 0.12);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 6px -1px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 22px -6px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 44px -12px rgba(0, 0, 0, 0.7);
+  --shadow-inner: inset 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-page: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 26px -10px rgba(0, 0, 0, 0.8);
+}
+
+/* 전역 바탕 */
+html, body, #root {
+  height: 100%;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  letter-spacing: -0.005em;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  font-synthesis: none;
+}

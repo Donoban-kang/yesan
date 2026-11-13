@@ -1,0 +1,68 @@
+# Claude Code 개인 설정 (.claude/) — 단, .claude/memory/는 세션 컨텍스트 인계용으로 추적
+.claude/*
+!.claude/memory/
+
+# 빌드
+dist/
+build/
+*.exe
+# PyInstaller
+!python-sidecar/sidecar.spec
+python-sidecar/dist/
+python-sidecar/build/
+
+# v1 레거시 PyInstaller spec
+mvp_tool_gui.spec
+
+# v1 레거시 (python-sidecar로 이전됨)
+src/mvp1_converter/
+src/mvp2_extractor/
+src/mvp3_analyzer/
+src/shared/
+src/cli.py
+src/gui*.py
+src/web.py
+config/settings.yaml
+config/ocr-rules.yaml
+node-sidecar/config/settings.yaml
+
+# 출력 (레포 루트의 결과 폴더만. node-sidecar/src/core/output 은 소스)
+/output/
+
+# 비교 측정 하네스: 비교 도구 실명·저장소 주소와 측정 PC 경로(results.json)가 들어 있어 공개하지 않음.
+# 공개는 안내(bench/compare/README.md)와 익명 요약(docs/challenge/benchmark.md)만
+bench/compare/*
+!bench/compare/README.md
+
+# Tauri
+src-tauri/target/
+
+# v2 빌드 산출물 (CI·로컬 빌드 스크립트가 만든다)
+src-tauri/resources/node/
+node-sidecar/editor/
+node-sidecar/models/
+
+# Node
+node_modules/
+
+# Python
+.env
+*.pyc
+__pycache__/
+.venv/
+uv.lock
+
+# 테스트 출력
+tests/test_data/mvp2/*/
+
+# 로그
+logs/
+tests/test_logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

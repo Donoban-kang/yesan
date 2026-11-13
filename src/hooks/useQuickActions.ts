@@ -1,0 +1,107 @@
+/**
+ * 우클릭 빠른 동작 차례대로 돌리기 — 엔진이 켜질 때까지 기다렸다가 창 없이 돌리고 알림만.
+ * 1.5초 넘게 걸리면 시작 알림을 한 번 더. 실패하면 창을 열어 서무 도구·PDF 작업에 그 파일을 놓고(공문 접수는 접수함 화면) 까닭을 알린다.
+ * 다 끝나면 shell_quick_done: 꺼진 앱이 빠른 동작으로 켜졌고 그 사이 창을 열지 않았으면 Rust 가 앱을 끈다.
+ */
+
+import { useCallback, useRef } from "react";
+import { useApp } from "../state/app";
+import { errorText, invokeCmd, isAbort } from "../lib/rpc";
+import { notifyQuick } from "../lib/native";
+import { baseName } from "../lib/format";
+import { QUICK_LABEL, quickFallback, runQuick, type QuickAction } from "../lib/quick-actions";
+import { keepFromSettings } from "../components/workbench/tools/ReviewTool";
+
+/** 넘겨받는 중인 우클릭 동작 수 — 여러 파일 동작은 목록 파일을 읽은 뒤에야 차례에 들어온다.
+ *  그 사이 앞 동작이 끝나 "다 끝났다"고 알리면 Rust 가 막 시작하려는 다음 동작과 함께 앱을 끈다 */
+let arriving = 0;
+let settle: (() => void) | null = null;
+/** 동작을 넘겨받기 시작할 때 부르고, 차례에 넣었으면(또는 못 읽었으면) 돌려받은 함수를 부른다 */
+export function quickArriving(): () => void {
+  arriving++;
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    arriving--;
+    settle?.();
+  };
+}
+
+export function useQuickActions() {
+  const app = useApp();
+  const appRef = useRef(app);
+  appRef.current = app;
+  const queue = useRef<Array<{ action: QuickAction; paths: string[] }>>([]);
+  const running = useRef(false);
+  // 도는 것도, 기다리는 것도, 넘겨받는 것도 없을 때만 다 끝났다고 알린다
+  settle = () => {
+    if (!running.current && !queue.current.length && arriving === 0) void invokeCmd("shell_quick_done").catch(() => undefined);
+  };
+
+  // 엔진과 설정까지 (꺼진 앱이 켜질 때 설정을 읽기 전에 돌면 남길 연락처·저장 폴더가 빠진다)
+  const waitReady = async () => {
+    const ok = () => appRef.current.ready && !!appRef.current.settings;
+    for (let i = 0; i < 450 && !ok(); i++) await new Promise((r) => setTimeout(r, 200));
+    if (!ok()) throw new Error("문서 엔진이 켜지지 않았습니다. 앱을 다시 켜 보세요.");
+  };
+
+  const pump = useCallback(async () => {
+    if (running.current) return;
+    running.current = true;
+    try {
+      while (queue.current.length) {
+        const { action, paths } = queue.current.shift()!;
+        const label = QUICK_LABEL[action];
+        const back = quickFallback(action, paths);
+        const openInApp = async (why: string) => {
+          await invokeCmd("shell_show").catch(() => undefined);
+          const { startPdf, startBatch, go, toast } = appRef.current;
+          if (back.screen === "pdf") startPdf({ paths });
+          else if (back.screen === "inbox") go("inbox");
+          else startBatch({ paths, task: back.task });
+          if (why) toast(why, "error");
+        };
+        const slow = setTimeout(() => void notifyQuick(`KorDoc AI: ${label}`, `${paths.length > 1 ? `${paths.length}개를 ` : ""}처리하는 중입니다. 끝나면 다시 알립니다.`), 1500);
+        try {
+          await waitReady();
+          const { settings } = appRef.current;
+          const r = await runQuick(action, paths, { signal: new AbortController().signal, keep: keepFromSettings(settings?.org), outDir: settings?.convert.output_dir ?? "" });
+          clearTimeout(slow);
+          if (r.open === "pdf") { await openInApp(""); continue; }
+          if (r.failed.length) {
+            const first = r.failed[0];
+            // 된 것의 결과(합본 이름·엔진 안내)와 "확인 필요"도 함께 알린다. 실패만 알리면 덜 가려진 사본에 대한 경고가 어디에도 없다
+            // (목록 화면용 안내 "(목록의 경고 줄)"은 뺀다: 이어 열리는 화면에는 그 목록이 없다)
+            const done = r.ok && r.message ? ` 된 것: ${r.message.replace("(목록의 경고 줄)", "")}.` : "";
+            if (r.review) void notifyQuick(`KorDoc AI: ${label} 확인 필요`, r.review);
+            await openInApp(`${label}: ${r.ok ? `${r.ok}개는 했고 ` : ""}${r.failed.length}개는 못 했습니다. ${baseName(first.path)}: ${first.error}.${done}${r.review ? ` ${r.review}` : ""}`);
+            continue;
+          }
+          if (r.review) {
+            // 확인할 것이 남았다: 알림과 함께 창에도 남긴다 (알림은 놓치기 쉽다)
+            void notifyQuick(`KorDoc AI: ${label} 확인 필요`, r.review);
+            await invokeCmd("shell_show").catch(() => undefined);
+            appRef.current.toast(`${label}: ${r.review}`, "error");
+            continue;
+          }
+          if (!(await notifyQuick(`KorDoc AI: ${label} 끝`, r.message))) {
+            await invokeCmd("shell_show").catch(() => undefined);
+            appRef.current.toast(`${label} 끝: ${r.message}`, "success");
+          }
+        } catch (e) {
+          clearTimeout(slow);
+          if (!isAbort(e)) await openInApp(`${label}: ${errorText(e)}`);
+        }
+      }
+    } finally {
+      running.current = false;
+      settle?.();
+    }
+  }, []);
+
+  return useCallback((action: QuickAction, paths: string[]) => {
+    queue.current.push({ action, paths });
+    void pump();
+  }, [pump]);
+}

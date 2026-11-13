@@ -1,0 +1,212 @@
+/* ============================================
+   KorDoc AI Component Styles
+   ============================================ */
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Focus Indicator - keyboard navigation only */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+input:focus-visible, select:focus-visible {
+  outline-offset: -1px;
+}
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  padding: 0.5rem 1rem;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* Lucide Icons */
+.lucide { stroke-width: 1.75 !important; }
+
+/* Typography */
+.ts-lg { letter-spacing: -0.02em; }
+.text-mono { font-family: var(--font-mono); }
+
+/* 옛 크기 클래스: 새 글자 단계(--fs-*)로 이어 둔다 */
+.ts-2xs { font-size: var(--fs-caption); }
+.ts-xs { font-size: var(--fs-small); }
+.ts-sm { font-size: var(--fs-body); }
+.ts-lg { font-size: var(--fs-h2); }
+
+/* Buttons */
+.hover-btn-primary:hover { background-color: var(--color-accent-hover) !important; }
+.hover-btn-secondary:hover { background-color: var(--color-bg-tertiary) !important; }
+.hover-btn-ghost:hover { background-color: var(--color-bg-tertiary) !important; }
+.hover-btn-danger:hover { background-color: var(--color-error-hover) !important; }
+
+/* Card */
+.card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-fast);
+}
+.card:hover { box-shadow: var(--shadow-card-hover); }
+
+/* Hover background helpers */
+.hover-bg-tertiary:hover { background-color: var(--color-bg-tertiary); }
+.btn-icon-hover { transition: background-color var(--transition-fast); }
+.btn-icon-hover:hover { background-color: var(--color-bg-tertiary); }
+
+/* ============================================
+   Tooltip
+   ============================================ */
+.kd-tooltip {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  max-width: 280px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-tip-bg);
+  border: 1px solid var(--color-tip-border);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-tip-text);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  line-height: 1.45;
+  pointer-events: none;
+  animation: scaleIn 0.12s var(--ease-out-expo) both;
+}
+.kd-tooltip-arrow {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: var(--color-tip-bg);
+  border-radius: 1px;
+}
+.kd-tooltip-arrow[data-position="top"]    { bottom: -4px; left: 50%; transform: translateX(-50%) rotate(45deg); border-top: none; border-left: none; }
+.kd-tooltip-arrow[data-position="bottom"] { top: -4px;    left: 50%; transform: translateX(-50%) rotate(45deg); border-bottom: none; border-right: none; }
+.kd-tooltip-arrow[data-position="left"]   { right: -4px;  top: 50%;  transform: translateY(-50%) rotate(45deg); border-left: none; border-bottom: none; }
+.kd-tooltip-arrow[data-position="right"]  { left: -4px;   top: 50%;  transform: translateY(-50%) rotate(45deg); border-right: none; border-top: none; }
+
+/* ============================================
+   Context Menu
+   ============================================ */
+.kd-context-menu {
+  position: fixed;
+  z-index: var(--z-menu);
+  min-width: 180px;
+  max-width: 300px;
+  /* 항목이 많아도 화면을 넘지 않게 — 넘치면 메뉴 안에서 굴린다 */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 4px 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
+  outline: none;
+  user-select: none;
+}
+/* 메뉴 틀은 키를 받으려고 초점을 가질 뿐이다 — 테두리는 고른 항목에만 */
+.kd-context-menu:focus, .kd-context-menu:focus-visible { outline: none; border-radius: var(--radius-lg); }
+.kd-ctx-item:focus-visible { outline: none; border-radius: 0; }
+.kd-ctx-header {
+  padding: 6px 12px 4px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kd-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  font-size: var(--fs-small);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.1s;
+}
+/* 마우스를 올린 항목과 키보드로 고른 항목은 같은 바탕, 키보드일 때만 테두리를 더한다 (초점이 곧 고른 항목이라 둘이 따로 놀지 않는다) */
+.kd-ctx-item:hover, .kd-ctx-item:focus {
+  background: var(--color-bg-tertiary);
+  outline: none;
+}
+.kd-ctx-item:focus-visible { box-shadow: inset 0 0 0 2px var(--color-accent); }
+.kd-ctx-item[aria-disabled="true"] {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+.kd-ctx-item[aria-disabled="true"]:hover, .kd-ctx-item[aria-disabled="true"]:focus { background: none; }
+.kd-ctx-item[aria-disabled="true"] .kd-ctx-icon { color: var(--color-text-disabled); }
+.kd-ctx-danger { color: var(--color-error); }
+.kd-ctx-danger:hover, .kd-ctx-danger:focus {
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+}
+/* 아이콘 칸은 메뉴 안에서 폭이 같다 — 아이콘 없는 항목도 글 머리가 맞는다 */
+.kd-ctx-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 16px; color: var(--color-text-muted); }
+.kd-ctx-danger .kd-ctx-icon { color: var(--color-error); }
+.kd-ctx-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.kd-ctx-hint { display: block; margin-top: 1px; font-size: var(--fs-caption); color: var(--color-text-muted); line-height: 1.35; }
+.kd-ctx-shortcut { font-size: var(--fs-caption); color: var(--color-text-muted); margin-left: auto; padding-left: 12px; white-space: nowrap; }
+.kd-ctx-separator { height: 1px; margin: 4px 0; background: var(--color-border); }
+
+/* ============================================
+   FillWizard — rhwp SVG preview (KorDoc Studio)
+   ============================================ */
+.kd-preview svg { max-width: 100%; height: auto; display: block; }
+.kd-preview text[data-kd-label] { cursor: pointer; }
+.kd-preview text[data-kd-label]:hover { fill: var(--color-accent); }
+
+/* DocEditor — 클릭-편집 (KorDoc Studio Phase C) */
+.kd-editor text[data-kd-block] { cursor: pointer; }
+.kd-editor text[data-kd-locked] { cursor: not-allowed; }
+
+/* 앱 전체 툴팁 (ui/TipLayer): 단추 위 가운데, 위가 모자라면 아래 */
+.kd-tip {
+  position: fixed; z-index: var(--z-tooltip); max-width: 280px; padding: 7px 10px;
+  border-radius: var(--radius-md); background: var(--color-tip-bg); color: var(--color-tip-text); border: 1px solid var(--color-tip-border); box-shadow: var(--shadow-lg);
+  font-size: var(--fs-small); font-weight: 500; line-height: 1.45; text-wrap: pretty; word-break: keep-all;
+  pointer-events: none; transform: translate(-50%, -100%); animation: kd-tip-in 0.14s var(--ease-out-expo) both;
+}
+.kd-tip[data-below="true"] { transform: translate(-50%, 0); }
+@keyframes kd-tip-in { from { opacity: 0; } to { opacity: 1; } }

@@ -1,0 +1,62 @@
+#!/bin/bash
+# 화면 E2E 전부 — 스크립트마다 새 데이터 폴더로 중계기를 띄우고 끝나면 내린다.
+#   앞서 필요: node scripts/build-sidecar.mjs, 화면 서버(node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort)
+#   사용: bash scripts/e2e-ui/run-all.sh [작업 폴더]   (기본: 임시 폴더)
+cd "$(dirname "$0")/../.." || exit 1
+# 시험 중 엔진이 사용자 화면에 한글·탐색기 창을 띄우지 않게 (open_file·reveal_file)
+export KORDOC_AI_NO_LAUNCH=1
+W=${1:-$(mktemp -d -t kordoc-e2e)}
+mkdir -p "$W"
+fail=0
+run() { # 이름 포트 환경변수 명령…
+  local name=$1 port=$2 envs=$3; shift 3
+  local data="$W/data-$name"; rm -rf "$data"; mkdir -p "$data" "$W/out-$name"
+  env $envs node scripts/dev-relay.mjs --port "$port" --data "$data" > "$W/relay-$name.log" 2>&1 &
+  local rp=$!
+  sleep 5
+  KORDOC_DATA="$data" "$@" > "$W/$name.log" 2>&1 || fail=1
+  echo "== $name $(grep -E '통과' "$W/$name.log" | tail -1)"
+  grep -E '^FAIL' "$W/$name.log" | head -8
+  kill $rp 2>/dev/null; wait $rp 2>/dev/null; sleep 1  # 중계기가 포트를 놓을 때까지
+}
+run a-shell 7721 "" node scripts/e2e-ui/a-shell.mjs --relay http://127.0.0.1:7721 --out "$W/out-a-shell"
+run a-workbench 7721 "" node scripts/e2e-ui/a-workbench.mjs --relay http://127.0.0.1:7721 --out "$W/out-a-workbench"
+run b-create 7722 "" node scripts/e2e-ui/b-create-output.mjs "$W/out-b-create" http://127.0.0.1:7722
+run b-fill 7722 "" node scripts/e2e-ui/b-fill-wizard.mjs "$W/out-b-fill" http://127.0.0.1:7722
+run b-mail 7722 "" node scripts/e2e-ui/b-mailmerge.mjs "$W/out-b-mail" http://127.0.0.1:7722
+run c-precheck 7723 "" node scripts/e2e-ui/c-precheck.mjs --relay http://127.0.0.1:7723 --out "$W/out-c-precheck"
+run d-gather 7724 "" node scripts/e2e-ui/d-gather.mjs --relay http://127.0.0.1:7724 --out "$W/out-d-gather"
+run e-style 7725 "" node scripts/e2e-ui/e-style-copy.mjs "$W/out-e-style" http://127.0.0.1:7725
+run f-law 7726 "KORDOC_LAW_BASE=http://127.0.0.1:7736/DRF/" node scripts/e2e-ui/f-law.mjs --relay http://127.0.0.1:7726 --drf-port 7736 --out "$W/out-f-law"
+run g-shrink 7727 "" node scripts/e2e-ui/g-shrink.mjs --relay http://127.0.0.1:7727 --out "$W/out-g-shrink"
+# 편집기 AI 대화: 가짜 AI 서버와 중계기를 스스로 띄운다
+mkdir -p "$W/out-i-agent"
+KORDOC_DATA="$W/data-i-agent" node scripts/e2e-ui/i-agent.mjs --port 7729 --out "$W/out-i-agent" > "$W/i-agent.log" 2>&1 || fail=1
+echo "== i-agent $(grep -E '통과' "$W/i-agent.log" | tail -1)"
+grep -E '^FAIL' "$W/i-agent.log" | head -8
+# 결재 전 점검 → 편집기에서 AI로 고치기: 가짜 AI 서버와 중계기를 스스로 띄운다
+mkdir -p "$W/out-k-precheck-agent"
+KORDOC_DATA="$W/data-k-precheck-agent" node scripts/e2e-ui/k-precheck-agent.mjs --port 7732 --out "$W/out-k-precheck-agent" > "$W/k-precheck-agent.log" 2>&1 || fail=1
+echo "== k-precheck-agent $(grep -E '통과' "$W/k-precheck-agent.log" | tail -1)"
+grep -E '^FAIL' "$W/k-precheck-agent.log" | head -8
+# 한글 편집기 표 단축키: 중계기를 스스로 띄운다
+mkdir -p "$W/out-j-table"
+KORDOC_DATA="$W/data-j-table" node scripts/e2e-ui/j-table-keys.mjs --port 7730 --out "$W/out-j-table" > "$W/j-table.log" 2>&1 || fail=1
+echo "== j-table $(grep -E '통과' "$W/j-table.log" | tail -1)"
+grep -E '^FAIL' "$W/j-table.log" | head -8
+# PDF 작업 화면·우클릭 빠른 동작·우리 기관 문서 모음(가짜 AI 서버도)·영수증으로 지출조서: 중계기를 스스로 띄운다
+# AI 배선 끝에서 끝까지(초안 → 편집기 → 저장 → 편집기 AI → 출력, 가짜 AI 서버)·PDF 를 편집기로 바로 열기도 여기서
+for t in l-pdf-work:7733 m-quick-actions:7734 n-org-corpus:7741 o-home-agent:7742 p-receipt:7750 q-ai-wiring:7751 r-pdf-import:7752 s-context-menu:7753; do
+  n=${t%%:*}; p=${t##*:}
+  mkdir -p "$W/out-$n"
+  KORDOC_DATA="$W/data-$n" node "scripts/e2e-ui/$n.mjs" --port "$p" --out "$W/out-$n" > "$W/$n.log" 2>&1 || fail=1
+  echo "== $n $(grep -E '통과' "$W/$n.log" | tail -1)"
+  grep -E '^FAIL' "$W/$n.log" | head -8
+done
+# 한글 편집기: 중계기를 스스로 두 번 띄운다(앱이 꺼졌다 다시 켜짐)
+mkdir -p "$W/out-h-editor"
+KORDOC_DATA="$W/data-h-editor" node scripts/e2e-ui/h-editor.mjs --port 7728 --out "$W/out-h-editor" > "$W/h-editor.log" 2>&1 || fail=1
+echo "== h-editor $(grep -E '통과' "$W/h-editor.log" | tail -1)"
+grep -E '^FAIL' "$W/h-editor.log" | head -8
+echo "결과·스크린샷: $W"
+exit $fail

@@ -1,0 +1,359 @@
+import { useState, useCallback, useEffect, useId, useRef } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  GripVertical, ChevronUp, ChevronDown, X,
+  Merge, FileOutput, FileText, FolderOpen,
+} from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { Button } from "../ui/Button";
+import { Badge, getFileTypeBadgeVariant } from "../ui/Badge";
+import { useDialogKeys } from "../ui/useDialogKeys";
+import type { ImportedFile, MergeMode } from "../../types/pipeline";
+
+/** Tab 으로 갈 수 있는 것 — 열 때 이 중 첫째로 포커스를 옮기고, 닫을 때 원래 자리로 돌린다 */
+const TABBABLE = 'button:not([tabindex="-1"]):not(:disabled), [href], input:not(:disabled), select, textarea, [tabindex]:not([tabindex="-1"])';
+
+// ── Sortable item ──
+
+function SortableFileItem({
+  file, index, total, onMoveUp, onMoveDown, onRemove,
+}: {
+  file: ImportedFile;
+  index: number;
+  total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
+  } = useSortable({ id: file.path });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    opacity: isDragging ? 0.85 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex items-center gap-2 px-3 py-2 rounded-lg transition-shadow"
+      {...attributes}
+      style={{
+        ...style,
+        backgroundColor: isDragging ? "var(--color-bg-secondary)" : "var(--color-bg-tertiary)",
+        boxShadow: isDragging ? "var(--shadow-lg)" : undefined,
+      }}
+    >
+      {/* 드래그 핸들 */}
+      <button
+        {...listeners}
+        className="kd-icon-btn cursor-grab active:cursor-grabbing shrink-0"
+        tabIndex={-1}
+        aria-label="끌어서 순서 바꾸기"
+      >
+        <GripVertical size={16} />
+      </button>
+
+      {/* 번호 */}
+      <span
+        className="w-6 h-6 rounded-md flex items-center justify-center kd-small kd-num font-bold shrink-0"
+        style={{ backgroundColor: "var(--color-accent-subtle)", color: "var(--color-accent)" }}
+      >
+        {index + 1}
+      </span>
+
+      {/* 파일 타입 뱃지 */}
+      <Badge variant={getFileTypeBadgeVariant(file.name)}>{file.type.toUpperCase()}</Badge>
+
+      {/* 파일명 */}
+      <span className="kd-small flex-1 truncate" style={{ color: "var(--color-text-primary)" }}>
+        {file.name}
+      </span>
+
+      {/* 수동 이동 버튼 */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <button
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="kd-icon-btn"
+          aria-label="위로 옮기기"
+        >
+          <ChevronUp size={14} />
+        </button>
+        <button
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          className="kd-icon-btn"
+          aria-label="아래로 옮기기"
+        >
+          <ChevronDown size={14} />
+        </button>
+      </div>
+
+      {/* 제거 */}
+      <button
+        onClick={onRemove}
+        disabled={total <= 2}
+        className="kd-icon-btn shrink-0"
+        aria-label={`${file.name} 빼기`}
+      >
+        <X size={13} />
+      </button>
+    </div>
+  );
+}
+
+// ── Dialog ──
+
+interface MergeOrderDialogProps {
+  files: ImportedFile[];
+  uniformType: string | null;
+  outputDir: string;
+  onConfirm: (orderedFiles: ImportedFile[], mergeMode: MergeMode, outputDir?: string) => void;
+  onCancel: () => void;
+}
+
+export function MergeOrderDialog({ files, uniformType, outputDir: globalOutputDir, onConfirm, onCancel }: MergeOrderDialogProps) {
+  const [items, setItems] = useState<ImportedFile[]>(() => [...files]);
+  const [mergeMode, setMergeMode] = useState<MergeMode>(uniformType ? "native" : "markdown");
+  const [localOutputDir, setLocalOutputDir] = useState("");
+  const boxRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  // 키보드로 끄는 중에 누른 Esc 는 끌기만 취소한다 (상자는 닫지 않는다)
+  const dragging = useRef(false);
+  useDialogKeys(boxRef, true, () => { if (!dragging.current) onCancel(); });
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    boxRef.current?.querySelector<HTMLElement>(TABBABLE)?.focus();
+    return () => prev?.focus?.();
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setItems((prev) => {
+        const oldIndex = prev.findIndex((f) => f.path === active.id);
+        const newIndex = prev.findIndex((f) => f.path === over.id);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  }, []);
+
+  const moveUp = (idx: number) => {
+    if (idx <= 0) return;
+    setItems((prev) => arrayMove(prev, idx, idx - 1));
+  };
+
+  const moveDown = (idx: number) => {
+    setItems((prev) => {
+      if (idx >= prev.length - 1) return prev;
+      return arrayMove(prev, idx, idx + 1);
+    });
+  };
+
+  const removeItem = (idx: number) => {
+    setItems((prev) => {
+      if (prev.length <= 2) return prev;
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const handleBrowseOutputDir = useCallback(async () => {
+    try {
+      const selected = await open({ directory: true, multiple: false });
+      if (!selected) return;
+      setLocalOutputDir(Array.isArray(selected) ? selected[0] : selected);
+    } catch { /* 취소 */ }
+  }, []);
+
+  const effectiveDir = localOutputDir || globalOutputDir;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: "var(--color-backdrop)" }}
+      onClick={onCancel}
+    >
+      <div
+        ref={boxRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="p-6 mx-4 space-y-5 rounded-2xl animate-modal-enter"
+        style={{ maxWidth: "28rem", width: "100%", backgroundColor: "var(--color-bg-secondary)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-xl)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 헤더 */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: "var(--color-accent-subtle)" }}
+          >
+            <Merge size={20} style={{ color: "var(--color-accent)" }} />
+          </div>
+          <div>
+            <h3 id={titleId} className="kd-h2" style={{ color: "var(--color-text-primary)" }}>
+              합치기
+            </h3>
+            <p className="kd-small" style={{ color: "var(--color-text-muted)" }}>
+              끌어서 순서를 정하세요 · {items.length}개 파일
+            </p>
+          </div>
+          {/* 다른 대화상자처럼 오른쪽 위 닫기 */}
+          <button type="button" className="kd-icon-btn ml-auto self-start -mr-2 -mt-2" onClick={onCancel} aria-label="닫기"><X size={16} /></button>
+        </div>
+
+        {/* 파일 순서 리스트 */}
+        <div
+          className="space-y-1.5 overflow-y-auto pr-1"
+          style={{ maxHeight: "280px" }}
+        >
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={() => { dragging.current = true; }}
+            onDragEnd={(e) => { handleDragEnd(e); setTimeout(() => { dragging.current = false; }, 0); }}
+            onDragCancel={() => setTimeout(() => { dragging.current = false; }, 0)}
+          >
+            <SortableContext
+              items={items.map((f) => f.path)}
+              strategy={verticalListSortingStrategy}
+            >
+              {items.map((file, idx) => (
+                <SortableFileItem
+                  key={file.path}
+                  file={file}
+                  index={idx}
+                  total={items.length}
+                  onMoveUp={() => moveUp(idx)}
+                  onMoveDown={() => moveDown(idx)}
+                  onRemove={() => removeItem(idx)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
+
+        {/* 병합 방식 선택 — 동일 네이티브 포맷일 때만 */}
+        {uniformType && (
+          <div className="space-y-2">
+            <p className="kd-label">
+              합칠 방식
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                className="flex items-center gap-2 p-2.5 rounded-lg text-left transition-colors"
+                style={{
+                  backgroundColor: mergeMode === "native" ? "var(--color-accent-subtle)" : "var(--color-bg-tertiary)",
+                  border: `1.5px solid ${mergeMode === "native" ? "var(--color-accent)" : "var(--color-border-subtle)"}`,
+                }}
+                onClick={() => setMergeMode("native")}
+              >
+                <FileOutput size={15} style={{ color: mergeMode === "native" ? "var(--color-accent)" : "var(--color-text-muted)" }} />
+                <div>
+                  <div className="kd-small font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                    서식 유지
+                  </div>
+                  <div className="kd-small" style={{ color: "var(--color-text-muted)" }}>
+                    {uniformType.toUpperCase()} 그대로
+                  </div>
+                </div>
+              </button>
+              <button
+                className="flex items-center gap-2 p-2.5 rounded-lg text-left transition-colors"
+                style={{
+                  backgroundColor: mergeMode === "markdown" ? "var(--color-accent-subtle)" : "var(--color-bg-tertiary)",
+                  border: `1.5px solid ${mergeMode === "markdown" ? "var(--color-accent)" : "var(--color-border-subtle)"}`,
+                }}
+                onClick={() => setMergeMode("markdown")}
+              >
+                <FileText size={15} style={{ color: mergeMode === "markdown" ? "var(--color-accent)" : "var(--color-text-muted)" }} />
+                <div>
+                  <div className="kd-small font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                    글(마크다운)
+                  </div>
+                  <div className="kd-small" style={{ color: "var(--color-text-muted)" }}>
+                    글로 바꿈
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 내보내기 폴더 */}
+        <div className="space-y-1.5">
+          <p className="kd-label">저장할 곳</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBrowseOutputDir}
+              className="group flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors cursor-pointer"
+              style={{ backgroundColor: "var(--color-bg-tertiary)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-secondary)"; e.currentTarget.style.boxShadow = "0 0 0 1px var(--color-accent)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)"; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <FolderOpen size={13} style={{ color: effectiveDir ? "var(--color-accent)" : "var(--color-text-muted)" }} />
+              <span className="kd-small truncate" style={{ color: effectiveDir ? "var(--color-text-primary)" : "var(--color-text-muted)" }}>
+                {effectiveDir
+                  ? `${effectiveDir.split(/[/\\]/).slice(-2).join("\\")}${!localOutputDir && globalOutputDir ? " (설정의 저장 폴더)" : ""}`
+                  : "원본 파일 옆"
+                }
+              </span>
+              <span className="kd-small font-semibold ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--color-accent)" }}>
+                바꾸기
+              </span>
+            </button>
+            {localOutputDir && (
+              <button
+                onClick={() => setLocalOutputDir("")}
+                className="kd-icon-btn shrink-0"
+                aria-label="저장할 곳 원래대로"
+                data-tip="고른 폴더를 버리고 원래 저장할 곳으로 되돌립니다"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 버튼 */}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="ghost" size="sm" onClick={onCancel}>취소</Button>
+          <Button
+            size="sm"
+            onClick={() => onConfirm(items, mergeMode, localOutputDir || undefined)}
+            disabled={items.length < 2}
+          >
+            <span className="flex items-center gap-1.5">
+              <Merge size={14} /> 합치기
+            </span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

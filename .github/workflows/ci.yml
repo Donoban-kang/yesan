@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # 문서 엔진: 테스트 + 설치본 조건 셀프테스트 (Windows·macOS 각각 — 네이티브 모듈이 OS 마다 다르다)
+  engine:
+    name: Engine (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: 동봉 Node 런타임 받기
+        run: node scripts/fetch-node.mjs
+
+      - name: 사이드카 빌드 (설치 → tsc → 번들 → 네이티브 스테이징 → OCR 모델)
+        run: node scripts/build-sidecar.mjs
+
+      - name: 사이드카 테스트
+        working-directory: node-sidecar
+        run: node node_modules/vitest/vitest.mjs run
+
+      - name: 내장 한글 편집기 빌드 (rhwp-studio)
+        run: node scripts/build-rhwp-studio.mjs
+
+      # 설치본엔 레포 node_modules 가 없다. dist + models + editor 만 임시 폴더로 옮겨
+      # 동봉 Node 로 띄우고 HWPX 왕복·PDF·렌더·OCR·llama·편집기 서버까지 실제로 돌린다.
+      # (v1.5.0 은 ping 만 봐서 기능이 죽은 번들이 배포됐다)
+      - name: 번들 스모크 (설치본 조건 셀프테스트)
+        working-directory: node-sidecar
+        run: node scripts/smoke-bundle.mjs
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc --noEmit
+      # 화면 쪽 순수 로직 시험 (src/**/*.test.ts)
+      - run: pnpm exec vitest run
+      - run: pnpm exec vite build
+      # Rust 허용 목록이 RPC 계약과 어긋나면 실패 (정본: node-sidecar/src/types/rpc-contract.ts)
+      - run: node scripts/sync-rpc-whitelist.mjs --check
+
+  rust:
+    name: Rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: 빌드 산출물 자리표시 (tauri 설정의 리소스 경로 확인용)
+        shell: bash
+        run: |
+          mkdir -p dist node-sidecar/dist node-sidecar/models node-sidecar/editor src-tauri/resources/node
+          echo "<!doctype html>" > dist/index.html
+      - name: cargo check · test
+        working-directory: src-tauri
+        run: |
+          cargo check --lib
+          cargo test --lib

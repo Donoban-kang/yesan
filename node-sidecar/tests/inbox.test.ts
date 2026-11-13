@@ -1,0 +1,318 @@
+/** 받은 공문 — 예제 공문(HWPX·PDF) 뽑기, 여러 날짜 꼴, 기한 아닌 날짜(행사 일시), 저장·다시 넣기·상태 유지·정렬·실패 */
+
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { call, corpus, hasCorpus, sample, setupEnv } from './doc-helpers.js';
+import { extractInbox } from '../src/core/inbox/extract.js';
+import { inboxId } from '../src/core/inbox/index.js';
+import { ocrModelsReady } from '../src/core/system/index.js';
+import { markdownToHwpx, parse } from 'kordoc';
+
+vi.mock('../src/infra/progress.js', async (orig) => ({ ...(await orig<typeof import('../src/infra/progress.js')>()), sendProgress: vi.fn(), sendNotification: vi.fn() }));
+
+const LETTER_HWPX = sample('1-받은공문_도민체육대회 참가 협조 요청.hwpx');
+const LETTER_PDF = sample('1-받은공문_도민체육대회 참가 협조 요청.pdf');
+const TODAY = '2026-10-10';
+let env: ReturnType<typeof setupEnv>;
+
+beforeAll(() => {
+  env = setupEnv();
+});
+
+/** 합성 공문: 두문 + 본문 + 발신명의 + 시행 줄 */
+const letter = (body: string, sent = '2026. 10. 2.') => ['가온도', '수신 가온시장(행정지원과장)', '(경유)', '제목 시험 공문', body, '가온도지사', `시행 총무과-100 (${sent}) 접수 ( )`].join('\n\n');
+const reqs = (body: string, sent?: string) => extractInbox(letter(body, sent), TODAY).requests;
+
+describe('예제 공문 (도민체육대회 참가 협조 요청)', () => {
+  const expectLetter = (it: Record<string, unknown>) => {
+    expect(it).toMatchObject({
+      sender: '가온도',
+      doc_number: '가온도 체육진흥과-2203',
+      sent_date: '2026-10-02',
+      title: '2026년 가온도민 한마음 체육대회 참가 협조 요청',
+      requests: [{ text: '참가 신청서와 선수 명단을 공문으로 제출', due: '2026-10-23' }],
+      due: '2026-10-23',
+      status: 'todo',
+    });
+    // 행사 일시(11. 13. 개최)는 기한이 아니다
+    expect(JSON.stringify(it)).not.toContain('2026-11-13');
+  };
+
+  it('HWPX — 보낸 곳·문서번호·시행일·제목·요청·기한', async () => {
+    const r = await call('inbox_add', { paths: [LETTER_HWPX] });
+    expect(r.failed).toEqual([]);
+    expect(r.items).toHaveLength(1);
+    expectLetter(r.items[0]);
+    expect(r.items[0].name).toBe('1-받은공문_도민체육대회 참가 협조 요청.hwpx');
+  }, 30_000);
+
+  it('같은 공문 PDF 도 같은 값', async () => {
+    const r = await call('inbox_add', { paths: [LETTER_PDF] });
+    expect(r.failed).toEqual([]);
+    expectLetter(r.items[0]);
+    await call('inbox_remove', { id: r.items[0].id });
+    await call('inbox_remove', { id: inboxId(LETTER_HWPX) });
+  }, 30_000);
+});
+
+describe('날짜 꼴', () => {
+  it.each([
+    ['2026. 10. 23.(금)까지', '2026-10-23'],
+    ['10. 23.(금)까지', '2026-10-23'],
+    ['10월 23일까지', '2026-10-23'],
+    ['10. 23.까지', '2026-10-23'],
+    ["'26.10.23.(금)까지", '2026-10-23'],
+    ['2026년 10월 23일(금) 18:00까지', '2026-10-23'],
+    ['2026. 10. 23.(월)까지', '2026-10-23'], // 요일이 틀려도 날짜를 믿는다
+  ])('%s → %s', (when, due) => {
+    expect(reqs(`1. 신청서를 ${when} 제출하여 주시기 바랍니다.`)).toEqual([{ text: '신청서를 제출', due }]);
+  });
+
+  it('연도 없는 날짜가 시행일보다 이른 달이면 다음 해', () => {
+    expect(reqs('1. 결과를 1. 5.(화)까지 보고하여 주시기 바랍니다.', '2026. 12. 20.')).toEqual([{ text: '결과를 보고', due: '2027-01-05' }]);
+  });
+
+  it('연도 없는 날짜가 기준일보다 조금 앞이면 같은 해 (반년 넘게 앞일 때만 다음 해)', () => {
+    // 11. 4. 시행 공문의 "10. 30.까지"는 지난 기한이지 내년이 아니다
+    expect(reqs('1. 결과를 10. 30.까지 보고하여 주시기 바랍니다.', '2026. 11. 4.')).toEqual([{ text: '결과를 보고', due: '2026-10-30' }]);
+    expect(reqs('1. 결과를 9. 1.까지 보고하여 주시기 바랍니다.', '2026. 11. 4.')).toEqual([{ text: '결과를 보고', due: '2026-09-01' }]);
+    expect(reqs('1. 결과를 3. 2.까지 보고하여 주시기 바랍니다.', '2026. 11. 4.')).toEqual([{ text: '결과를 보고', due: '2027-03-02' }]);
+  });
+
+  it('연도 없이 요일이 있으면 요일이 맞는 해 (2026-10-30 금, 2027-10-30 토)', () => {
+    expect(reqs('1. 결과를 10. 30.(금)까지 보고하여 주시기 바랍니다.', '2026. 11. 4.')).toEqual([{ text: '결과를 보고', due: '2026-10-30' }]);
+    expect(reqs('1. 결과를 10. 30.(토)까지 보고하여 주시기 바랍니다.', '2026. 11. 4.')).toEqual([{ text: '결과를 보고', due: '2027-10-30' }]);
+    expect(reqs('1. 다음과 같이 자료를 제출하여 주시기 바랍니다.\n 가. 제출기한: 10. 30.(토)', '2026. 11. 4.')).toEqual([{ text: '자료를 제출', due: '2027-10-30' }]);
+  });
+
+  it('시행일이 없으면 오늘 기준 연도', () => {
+    const ex = extractInbox('신청서를 1. 5.까지 제출하여 주시기 바랍니다.', TODAY);
+    expect(ex.requests).toEqual([{ text: '신청서를 제출', due: '2027-01-05' }]);
+    expect(ex.sent_date).toBeUndefined();
+  });
+
+  it('"기한:" 줄은 같은 항목의 요청에 붙는다', () => {
+    expect(reqs('1. 다음과 같이 자료를 제출하여 주시기 바랍니다.\n 가. 제출기한: 2026. 10. 23.(금)\n 나. 제출방법: 공문')).toEqual([{ text: '자료를 제출', due: '2026-10-23' }]);
+    expect(reqs('1. 수요조사서를 작성하여 제출하여 주시기 바랍니다.\n ㅇ 기한 : 10. 30.')).toEqual([{ text: '수요조사서를 작성하여 제출', due: '2026-10-30' }]);
+  });
+
+  it('표의 기한 칸', () => {
+    expect(reqs('1. 아래 서류를 제출하여 주시기 바랍니다.\n\n| 구분 | 제출기한 |\n| --- | --- |\n| 신청서 | 2026. 10. 30.(금) |')).toEqual([{ text: '아래 서류를 제출', due: '2026-10-30' }]);
+  });
+
+  it('표에 서류마다 기한이 다르면 하나도 빠지지 않고, 가장 이른 기한이 맨 앞에 온다', () => {
+    const r = reqs('1. 아래 서류를 제출하여 주시기 바랍니다.\n\n| 서류 | 제출기한 |\n| --- | --- |\n| 결과보고서 | 2026. 12. 10. |\n| 사업계획서 | 2026. 11. 20. |\n| 신청서 | 2026. 11. 13. |', '2026. 11. 2.');
+    expect(r.map((x) => x.due)).toEqual(['2026-11-13', '2026-11-20', '2026-12-10']);
+    expect(r[0].text).toBe('신청서 제출기한');
+    expect(r[1].text).toBe('사업계획서 제출기한');
+    expect(r[2].text).toBe('아래 서류를 제출');
+  });
+
+  it('범위 "9월 28일~10월 23일까지 신청" → 끝 날짜, 개조식 줄도 요청', () => {
+    expect(reqs('- 9월 28일~10월 23일까지 전국 농·축협으로 신청', '2026. 9. 15.')).toEqual([{ text: '전국 농·축협으로 신청', due: '2026-10-23' }]);
+    expect(reqs('나. 2026. 6. 16. (화)까지 인수증 변환(PDF) 첨부하여 공문 제출', '2026. 6. 9.')).toEqual([{ text: '인수증 변환(PDF) 첨부하여 공문 제출', due: '2026-06-16' }]);
+  });
+
+  it('강조·밑줄이 감싼 날짜, 배경 절·주어 걷기', () => {
+    const body = '2. 의안에 대한 의견을 청취하고자 하니, 소관 부서에서는 붙임 내용을 검토하여 <u>**2026. 6. 10.(수)**</u>까지 의견을 제출하여 주시기 바랍니다.';
+    expect(reqs(body, '2026. 6. 9.')).toEqual([{ text: '붙임 내용을 검토하여 의견을 제출', due: '2026-06-10' }]);
+  });
+});
+
+describe('기한이 아닌 것', () => {
+  it('행사 일시는 기한이 아니고, 요청 기한만 잡는다', () => {
+    const body = '1. 체육대회를 다음과 같이 개최합니다.\n 가. 일시: 2026. 11. 13.(금) 10:00~17:00\n2. 참가 신청서를 10. 23.(금)까지 제출하여 주시기 바랍니다.';
+    expect(reqs(body)).toEqual([{ text: '참가 신청서를 제출', due: '2026-10-23' }]);
+  });
+
+  it('참석 요청에 일시만 있으면 기한 없음', () => {
+    const ex = extractInbox(letter('1. 아래와 같이 설명회를 개최하오니 참석하여 주시기 바랍니다.\n 가. 일시: 2026. 11. 13.(금) 14:00'), TODAY);
+    expect(ex.requests).toEqual([{ text: '설명회 참석' }]);
+  });
+
+  it('참고하시기 바랍니다는 할 일이 아니다, 다른 요청이 없으면 협조 요청을 쓴다', () => {
+    expect(reqs('1. 자세한 내용은 붙임을 참고하시기 바랍니다.')).toEqual([]);
+    expect(reqs('1. 행사가 원활히 진행되도록 협조하여 주시기 바랍니다.')).toEqual([{ text: '행사가 원활히 진행되도록 협조' }]);
+  });
+
+  it('요청이 여럿이면 기한 이른 것부터, 문서 기한은 가장 이른 것', async () => {
+    const body = '1. 신청서를 10. 30.(금)까지 제출하여 주시기 바랍니다.\n2. 명단은 10. 20.(화)까지 회신하여 주시기 바랍니다.\n3. 결과를 알려 주시기 바랍니다.';
+    expect(reqs(body)).toEqual([{ text: '명단 회신', due: '2026-10-20' }, { text: '신청서를 제출', due: '2026-10-30' }, { text: '결과를 알려 주기' }]);
+    const p = join(env.work, '여러 요청.txt');
+    writeFileSync(p, letter(body));
+    const r = await call('inbox_add', { paths: [p] });
+    expect(r.items[0].due).toBe('2026-10-20');
+    await call('inbox_remove', { id: r.items[0].id });
+  });
+});
+
+describe('저장·다시 넣기·상태 유지', () => {
+  const write = (name: string, body: string) => {
+    const p = join(env.work, name);
+    writeFileSync(p, letter(body));
+    return p;
+  };
+
+  it('고친 기한·상태·메모는 다시 넣어도 그대로, 뽑은 값만 갱신', async () => {
+    const a = write('가.txt', '1. 신청서를 10. 23.(금)까지 제출하여 주시기 바랍니다.');
+    const first = (await call('inbox_add', { paths: [a] })).items[0];
+    expect(first).toMatchObject({ id: inboxId(a), due: '2026-10-23', status: 'todo', sender: '가온도' });
+
+    const upd = await call('inbox_update', { id: first.id, status: 'done', note: ' 담당 김가온 ', due: '2026-10-20' });
+    expect(upd).toMatchObject({ status: 'done', note: '담당 김가온', due: '2026-10-20' });
+
+    write('가.txt', '1. 신청서를 10. 27.(화)까지 제출하여 주시기 바랍니다.');
+    const again = (await call('inbox_add', { paths: [a] })).items[0];
+    expect(again).toMatchObject({ id: first.id, added_at: first.added_at, status: 'done', note: '담당 김가온', due: '2026-10-20' });
+    expect(again.requests).toEqual([{ text: '신청서를 제출', due: '2026-10-27' }]);
+
+    expect((await call('inbox_update', { id: first.id, due: null })).due).toBe('2026-10-27');
+    expect((await call('inbox_update', { id: first.id, due: '' })).due).toBeUndefined();
+    expect((await call('inbox_update', { id: first.id, note: '' })).note).toBeUndefined();
+
+    const saved = JSON.parse(readFileSync(join(env.data, 'inbox.json'), 'utf-8'));
+    expect(saved.version).toBe(1);
+    expect(saved.items.find((x: { id: string }) => x.id === first.id)).toMatchObject({ manual_due: '', status: 'done' });
+    // 화면으로는 manual_due 가 나가지 않는다
+    expect((await call('inbox_list')).items[0]).not.toHaveProperty('manual_due');
+
+    await expect(call('inbox_update', { id: first.id, due: '10월 23일' })).rejects.toThrow(/연-월-일/);
+    await expect(call('inbox_update', { id: 'nope', status: 'done' })).rejects.toThrow(/목록에 없는 공문/);
+  });
+
+  it('할 일 먼저 기한 순(기한 없는 것 뒤), 끝난 것은 아래 · 빼기', async () => {
+    const b = write('나.txt', '1. 명단을 10. 15.(목)까지 회신하여 주시기 바랍니다.');
+    const c = write('다.txt', '1. 행사가 원활히 진행되도록 협조하여 주시기 바랍니다.');
+    const d = write('라.txt', '1. 자료를 10. 12.(월)까지 제출하여 주시기 바랍니다.');
+    await call('inbox_add', { paths: [b, c, d] });
+    await call('inbox_update', { id: inboxId(d), status: 'done' });
+    const names = (await call('inbox_list')).items.map((x: { name: string }) => x.name);
+    expect(names).toEqual(['나.txt', '다.txt', '라.txt', '가.txt']);
+
+    expect(await call('inbox_remove', { id: inboxId(b) })).toBe(true);
+    expect(await call('inbox_remove', { id: inboxId(b) })).toBe(false);
+    expect((await call('inbox_list')).items).toHaveLength(3);
+  });
+
+  it('맥 경로의 자소 분리(NFD)·완성형(NFC)은 같은 공문', () => {
+    const p = join(env.work, '받은 공문.txt');
+    expect(inboxId(p.normalize('NFD'))).toBe(inboxId(p.normalize('NFC')));
+  });
+
+  it('못 읽는 파일은 failed 에 할 일까지 적는다', async () => {
+    const empty = join(env.work, '빈 공문.txt');
+    writeFileSync(empty, '   ');
+    const sheet = join(env.work, '명부.xlsx');
+    writeFileSync(sheet, 'x');
+    const r = await call('inbox_add', { paths: [join(env.work, '없는 파일.hwpx'), sheet, empty] });
+    expect(r.items).toEqual([]);
+    expect(r.failed.map((f: { error: string }) => f.error)).toEqual([
+      expect.stringMatching(/찾을 수 없습니다/),
+      expect.stringMatching(/읽을 수 없는 형식입니다.*넣으세요/),
+      expect.stringMatching(/글자를 읽지 못했습니다.*켜고 다시 넣으세요/),
+    ]);
+    await expect(call('inbox_add', { paths: [] })).rejects.toThrow(/하나 이상/);
+  });
+});
+
+describe('실문서 (kordoc 코퍼스, 읽기만)', () => {
+  const MOLIT = 'seoul2/36266437_1.+관련+공문.hwpx';
+  const KICKOFF = 'seoul2/36268270_결재문서본문_착수보고회(자문회의)+참석+요청.hwpx';
+  it.skipIf(!hasCorpus(MOLIT, KICKOFF))('국토교통부 설명회 참석 요청 · 서울시 착수보고회 참석 요청', async () => {
+    const r = await call('inbox_add', { paths: [corpus(MOLIT), corpus(KICKOFF)] });
+    expect(r.failed).toEqual([]);
+    const [molit, kickoff] = r.items;
+    expect(molit).toMatchObject({ sender: '국토교통부', doc_number: '국토교통부 지하안전팀-1420', sent_date: '2026-06-04', due: '2026-06-18' });
+    expect(molit.requests[0]).toEqual({ text: '붙임 양식을 작성하여 교육담당자에게 제출', due: '2026-06-18' });
+    // 회의 일시(6. 16. 16:00)는 기한이 아니다
+    expect(kickoff).toMatchObject({ sender: '서울특별시', title: '착수보고회(자문회의) 참석 요청', requests: [{ text: '착수보고회(자문회의) 참석' }] });
+    expect(kickoff.due).toBeUndefined();
+    expect(existsSync(corpus(MOLIT))).toBe(true);
+  }, 30_000);
+});
+
+describe('접수대장 엑셀 (inbox_export)', () => {
+  it('열 10개, 할 일 먼저 기한 순, 상태·메모·요청 기한', async () => {
+    const a = join(env.work, '대장_가.txt');
+    const b = join(env.work, '대장_나.txt');
+    writeFileSync(a, letter('2. 결과를 2026. 10. 30.까지 제출하여 주시기 바랍니다.'));
+    writeFileSync(b, letter('2. 명단을 2026. 10. 15.까지 회신하여 주시기 바랍니다.'));
+    const r = await call('inbox_add', { paths: [a, b] });
+    await call('inbox_update', { id: r.items[0].id, note: '팀장 확인' });
+    const x = await call('inbox_export', {});
+    expect(x.count).toBeGreaterThanOrEqual(2);
+    const back = await parse(readFileSync(x.output_path));
+    if (!back.success) throw new Error(back.error);
+    const table = back.blocks.find((bl) => bl.type === 'table')!.table!;
+    const grid = table.cells.map((row) => row.map((c) => c.text));
+    expect(grid[0]).toEqual(['접수일', '보낸 곳', '문서번호', '시행일', '제목', '요청 사항', '기한', '상태', '메모', '파일']);
+    const ia = grid.findIndex((row) => row[9] === '대장_가.txt');
+    const ib = grid.findIndex((row) => row[9] === '대장_나.txt');
+    expect(ib).toBeLessThan(ia);
+    expect(grid[ia].slice(1, 9)).toEqual(['가온도', '가온도 총무과-100', '2026-10-02', '시험 공문', '결과를 제출 (2026-10-30까지)', '2026-10-30', '할 일', '팀장 확인']);
+    expect(grid[ia][0]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    for (const it of r.items) await call('inbox_remove', { id: it.id });
+  }, 30_000);
+});
+
+describe('한글 공문 속 그림 글자 (OCR 모델이 있을 때)', () => {
+  it.skipIf(!ocrModelsReady())('그림으로 넣은 기한 안내까지 읽는다, 그림 없는 공문은 그대로', async () => {
+    const sharp = (await import('sharp')).default;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="160"><rect width="100%" height="100%" fill="#fff"/><text x="20" y="100" font-size="44" font-family="Apple SD Gothic Neo, Malgun Gothic, NanumGothic, sans-serif">회신 기한 2026. 10. 30.까지 제출</text></svg>';
+    const png = await sharp(Buffer.from(svg)).png().toBuffer();
+    const md = ['가온도', '수신 가온시장(총무과장)', '제목 그림 속 기한 시험', '1. 붙임 안내를 참고하여 주시기 바랍니다.', `![안내](data:image/png;base64,${png.toString('base64')})`, '가온도지사', '시행 총무과-100 (2026. 10. 2.)'].join('\n\n');
+    const p = join(env.work, '그림 공문.hwpx');
+    writeFileSync(p, Buffer.from(await markdownToHwpx(md)));
+    const r = await call('inbox_add', { paths: [p] });
+    expect(r.failed).toEqual([]);
+    expect(r.items[0].due).toBe('2026-10-30');
+    await call('inbox_remove', { id: r.items[0].id });
+  }, 60_000);
+});
+
+describe('기한 날짜 읽기', () => {
+  it('연도 없는 줄표 숫자는 날짜가 아니다 (서식 번호를 기한으로 읽지 않는다). 연도가 있으면 줄표 날짜도 읽는다', async () => {
+    const { untilDates } = await import('../src/core/inbox/dates.js');
+    expect(untilDates('서식 2-1부터 2-3까지 작성하여 제출', '2026-10-01')).toEqual([]);
+    expect(untilDates('2026-10-23까지 제출', '2026-10-01')).toEqual(['2026-10-23']);
+    expect(untilDates('10. 23.까지 제출', '2026-10-01')).toEqual(['2026-10-23']);
+    expect(untilDates('10월 23일까지 제출', '2026-10-01')).toEqual(['2026-10-23']);
+  });
+
+  it('작은따옴표 없는 두 자리 연도(25.10.23.)도 읽고, 소수(4.5)는 날짜로 읽지 않는다', async () => {
+    const { untilDates, labeledDue } = await import('../src/core/inbox/dates.js');
+    expect(untilDates('25.10.23.까지 제출', '2025-10-01')).toEqual(['2025-10-23']);
+    expect(labeledDue('제출기한: 25.10.23.', '2025-10-01')?.due).toBe('2025-10-23');
+    expect(untilDates("'25.10.23.까지 제출", '2025-10-01')).toEqual(['2025-10-23']);
+    expect(untilDates('평점 4.5까지 인정', '2025-10-01')).toEqual([]);
+    expect(untilDates('최대 1.5까지 가산', '2025-10-01')).toEqual([]);
+    // 날짜로 적은 한 자리 월·일은 그대로 읽는다 (끝 점·요일·"일"·연도가 있을 때)
+    expect(untilDates('4. 5.까지 제출', '2025-03-01')).toEqual(['2025-04-05']);
+    expect(untilDates('4.5(토)까지 제출', '2025-03-01')).toEqual(['2025-04-05']);
+    expect(untilDates('2025.4.5까지 제출', '2025-03-01')).toEqual(['2025-04-05']);
+    expect(untilDates('10.23까지 제출', '2025-10-01')).toEqual(['2025-10-23']);
+    expect(untilDates('10. 23. 14시까지 제출', '2025-10-01')).toEqual(['2025-10-23']);
+    // 한 자리 월·일을 끝 점 없이 써도, 요청하는 말이 이어지거나 기간·이름표가 있으면 기한이다
+    expect(untilDates('5.9까지 제출하여 주시기 바랍니다', '2025-03-01')).toEqual(['2025-05-09']);
+    expect(untilDates('5.1~5.9까지', '2025-03-01')).toEqual(['2025-05-09']);
+    expect(untilDates('설문조사는 ~5.9 진행', '2025-03-01')).toEqual(['2025-05-09']);
+    expect(labeledDue('제출기한: 3.5', '2025-03-01')?.due).toBe('2025-03-05');
+    expect(labeledDue('제출기한: 5.9까지', '2025-03-01')?.due).toBe('2025-05-09');
+    expect(labeledDue('신청기간: 5.1~5.9', '2025-03-01')?.due).toBe('2025-05-09');
+  });
+
+  it('요일을 틀리게 적은 날짜의 기한을 지난해로 잡지 않는다', async () => {
+    const { untilDates } = await import('../src/core/inbox/dates.js');
+    // 2026-11-20 은 금요일이다
+    expect(untilDates('11. 20.(목)까지 제출', '2026-11-02')).toEqual(['2026-11-20']);
+    expect(untilDates('12. 1.(월)까지 제출', '2026-11-02')).toEqual(['2026-12-01']);
+    expect(untilDates('11. 20.(금)까지 제출', '2026-11-02')).toEqual(['2026-11-20']);
+    // 요일을 하루 뒤로 틀려도 다음 해로 보내지 않는다 (2026-11-19 는 목요일, 2027-11-19 가 금요일)
+    expect(untilDates('11. 19.(금)까지 제출', '2026-11-04')).toEqual(['2026-11-19']);
+    expect(untilDates('11. 27.(토)까지 제출', '2026-11-04')).toEqual(['2026-11-27']);
+    expect(untilDates('12. 4.(토)까지 제출', '2026-11-04')).toEqual(['2026-12-04']);
+    // 해를 넘기는 기한은 요일이 맞는 다음 해로
+    expect(untilDates('1. 5.(화)까지 제출', '2026-12-20')).toEqual(['2027-01-05']);
+  });
+});

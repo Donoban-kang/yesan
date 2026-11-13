@@ -1,0 +1,426 @@
+/**
+ * AI 초안 — 지시·참고 문서로 초안(ai_draft, 토큰 실시간) → 글 편집기에서 손보기 →
+ * (초안이 끝나면 따로 한 줄 맞춤: 마지막 줄이 몇 글자 넘친 문단만 줄여 씀, 되돌리기·멈추기 가능. 맞추는 사이 고친 글이 우선)
+ * 입력을 멈추고 600ms 뒤 실시간 미리보기(generate_hwpx preview_only + preview_hwpx → 화면 안 rhwp 로 전 쪽, 안 되면 엔진의 앞쪽 PNG)
+ * + 표기법 결과(누르면 그 줄로) →
+ * 한글 문서로 만들어 편집 단계로.
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, FileUp, Plus, Sparkles, Square, Undo2, X, FilePen } from "lucide-react";
+import type { LintFinding, OrgReference, PagePreview } from "../../lib/contract";
+import { useApp, type DraftKind } from "../../state/app";
+import { useCreate, workingFile } from "./session";
+import { rpc, errorText, isAbort } from "../../lib/rpc";
+import { pickFiles } from "../../lib/native";
+import { baseName, gongmunDate } from "../../lib/format";
+import { useTask } from "../../hooks/useTask";
+import { useGongmunMeta } from "../../hooks/useGongmunMeta";
+import { useOrgReference } from "../../hooks/useOrgCorpus";
+import { Button } from "../ui/Button";
+import { Modal } from "../ui/Modal";
+import { Check, Field, Seg, SelectField } from "../common/Field";
+import { AiWhere } from "../common/AiGate";
+import { ErrorLine, StatusLine, Working } from "../common/Status";
+import { PageStack } from "../common/PageStack";
+import { useRhwpPages } from "../common/useRhwpPages";
+import { b64ToBytes } from "../../lib/rhwp";
+import { LintList } from "../workbench/tools/ReviewTool";
+import { FormatOptions, type FormatOpts } from "./FormatOptions";
+import { ActionBar } from "./ActionBar";
+import { AiOffNote } from "./AiOffNote";
+
+export interface DraftSeed { kind?: DraftKind; references?: string[]; levelsFrom?: string; markdown?: string; preset?: string; nonce: number }
+
+const KINDS: Array<{ value: DraftKind | "general"; label: string; hint: string; ref?: string }> = [
+  { value: "general", label: "일반 초안", hint: "예: 10월 24일 14시 3층 대회의실에서 전 직원 안전교육을 한다는 계획 보고서" },
+  { value: "reply", label: "회신", hint: "회신할 내용을 짧게 적으세요. 예: 요청한 자료를 10월 20일까지 보내겠다", ref: "받은 공문" },
+  { value: "complaint", label: "민원 답변", hint: "민원 내용과 답할 방향을 적으세요", ref: "민원 서류" },
+  { value: "minutes", label: "회의록", hint: "회의 메모를 그대로 붙여 넣으세요" },
+  { value: "onepage", label: "한 장 보고", hint: "강조할 점을 적으세요. 줄일 문서는 위에서 붙이세요", ref: "줄일 문서" },
+  { value: "press", label: "보도자료", hint: "알릴 소식을 적으세요. 예: 청년 창업 지원 공모 시작" },
+  { value: "memo", label: "메모 정리", hint: "두서없이 적은 메모를 그대로 붙여 넣으세요. 회의·전화·현장 메모를 개조식 보고서로 정리합니다" },
+];
+
+interface Fit { before: string; changes: Array<{ before: string; after: string }>; remaining: number }
+
+/** 받는 중인 초안을 기호 없이 — 제목 #, 항목 -, 표 칸 | 를 걷는다 */
+const plainDraft = (md: string) => md
+  .replace(/^#+\s*/gm, "").replace(/^(\s*)- /gm, "$1")
+  .replace(/^\|[\s:|-]*-[\s:|-]*\|\n?/gm, "")
+  .replace(/^\|(.*)\|$/gm, (_, row: string) => row.split("|").map((c) => c.trim()).join("   "));
+
+const firstTitle = (md: string) => /^#\s+(.+)$/m.exec(md)?.[1]?.trim() ?? "새 공문서";
+
+/** 우리 기관 서식 줄 — 이 갈래 문서가 있으면 켜고 끄기, 없으면 넣는 곳 안내 */
+function OrgLine({ kind, refInfo, loaded, on, onChange, onManage, noAi, ownSample }: {
+  kind: string; refInfo: OrgReference | null; loaded: boolean; on: boolean; onChange: (v: boolean) => void; onManage: () => void; noAi?: boolean; ownSample?: boolean;
+}) {
+  if (!loaded) return null;
+  if (!refInfo) {
+    return (
+      <p className="kd-small kd-muted">
+        우리 기관 {kind} 문서를 넣어 두면 그 구성과 서식으로 씁니다. <button type="button" className="kd-link" onClick={onManage}>문서 넣기</button>
+      </p>
+    );
+  }
+  const a = refInfo.apply;
+  const form = ownSample ? "서식은 고른 견본의 글꼴 단계대로 만듭니다"
+    : a.template_path ? `「${refInfo.exemplar.title}」 서식(쪽·글꼴·표) 그대로 만듭니다`
+    : `두문·결문은 공문 규격대로${a.levels_from && a.slogan ? ", 글꼴 단계와 표어는 우리 문서대로" : a.levels_from ? ", 글꼴 단계는 우리 문서대로" : a.slogan ? ", 표어는 우리 문서대로" : ""} 만듭니다`;
+  return (
+    <div className="kd-inset kd-orgline">
+      <Check label={<>우리 기관 서식으로 <span className="kd-muted kd-small">({refInfo.label} {refInfo.count}건)</span></>} checked={on} onChange={onChange}
+        desc={on ? (noAi ? form : `구성과 자주 쓰는 표현을 따르고, ${form}`) : noAi ? "켜면 우리 기관 문서의 서식을 따릅니다" : "켜면 우리 기관 문서의 구성과 서식을 따릅니다"} />
+      <button type="button" className="kd-link kd-small flex-none" onClick={onManage}>문서 모음</button>
+    </div>
+  );
+}
+
+export function DraftComposer({ seed, onRoute }: { seed: DraftSeed | null; onRoute?: (r: "library" | "blank") => void }) {
+  const { ai, settings, docs, openSettings, toast } = useApp();
+  const { openInEditor } = useCreate();
+  const meta = useGongmunMeta();
+  // 갈래를 고르면 문서 갈래도 맞춘다 (대응표는 엔진 gongmun_meta 가 정본)
+  const kindPreset = (kd: DraftKind) => meta?.kind_presets[kd] ?? preset;
+  const [kind, setKind] = useState<DraftKind | "general">("general");
+  const [refs, setRefs] = useState<string[]>([]);
+  const [instruction, setInstruction] = useState("");
+  const [preset, setPreset] = useState("official");
+  const [length, setLength] = useState<"short" | "medium" | "long">("medium");
+  const [markdown, setMarkdown] = useState("");
+  /** 글 직접 고치기 — 초안이 있으면 미리보기가 주인공이라 접어 둔다. AI 없이 직접 쓰기는 '빈 문서로 시작' 한 곳으로 모았다 */
+  const [textOpen, setTextOpen] = useState(false);
+  /** 한 줄 맞춤 결과 — before 로 되돌린다 */
+  const [fit, setFit] = useState<Fit | null>(null);
+  const [fitOpen, setFitOpen] = useState(false);
+  /** 쓰던 초안을 덮어쓸 시작값이 왔을 때 — 고르면 이걸 부른다 */
+  const [seedAsk, setSeedAsk] = useState<(() => void) | null>(null);
+  const [optsOpen, setOptsOpen] = useState(false);
+  const [opts, setOpts] = useState<FormatOpts>(() => ({
+    agency: settings?.org.agency ?? "", cover: false, coverOrg: settings?.org.name ?? "", coverDate: gongmunDate(),
+    approval: (settings?.org.approval_line ?? []).join(", "), toc: false, pageNumbers: true, endMark: true, levelsFrom: "", profileFrom: "",
+  }));
+  /** rhwp: 만든 HWPX 를 화면 안 rhwp 로 그림 (pages 는 비어 있음) · 아니면 엔진이 그린 앞쪽 PNG */
+  const [preview, setPreview] = useState<{ pages: PagePreview[]; lint: LintFinding[]; rhwp: boolean } | null>(null);
+  const [pngOnly, setPngOnly] = useState(false);
+  const rh = useRhwpPages();
+  const [previewState, setPreviewState] = useState<"idle" | "busy" | "error">("idle");
+  const [previewError, setPreviewError] = useState("");
+  const draft = useTask<void>();
+  const make = useTask<void>();
+  const refit = useTask<void>();
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const handledSeed = useRef(0);
+  /** 지금 글 (늦게 온 한 줄 맞춤 결과가 그사이 고친 글을 덮지 않게 견준다) */
+  const mdRef = useRef(markdown);
+  useEffect(() => { mdRef.current = markdown; }, [markdown]);
+  /** 마지막으로 한글 문서로 만든 글 — 이와 같으면 덮어써도 잃는 게 없다 */
+  const made = useRef("");
+
+  /** 우리 기관 서식 묶음 — 이 갈래 문서가 있으면 초안은 그 구성·표현을, 만들 때는 그 서식을 (끌 수 있음) */
+  const orgRead = useOrgReference(preset);
+  const orgRef = orgRead && orgRead.kind === preset ? orgRead : null;
+  const [orgOn, setOrgOn] = useState(true);
+  const orgApply = orgOn && orgRef ? orgRef.apply : null;
+  /** 견본 모드: 쪽·글꼴·표가 견본 그대로라 서식 옵션은 쓰지 않는다. 서식함에서 고른 견본(글꼴 단계)이 있으면 그쪽이 앞선다 */
+  const orgTemplate = opts.levelsFrom ? "" : orgApply?.template_path ?? "";
+  /** 마지막 초안이 따른 우리 기관 문서 */
+  const [draftOrg, setDraftOrg] = useState<{ label: string; count: number } | null>(null);
+  const [draftNote, setDraftNote] = useState("");
+
+  const k = KINDS.find((x) => x.value === kind)!;
+  /** 서식 옵션만 (우리 기관 견본 없이) */
+  const baseParams = useMemo(() => ({
+    markdown, preset, ...(opts.agency ? { agency: opts.agency } : {}),
+    ...(opts.cover ? { cover: { org: opts.coverOrg, date: opts.coverDate } } : {}),
+    toc: opts.toc, page_numbers: opts.pageNumbers, end_mark: opts.endMark,
+    approval: opts.approval.split(",").map((s) => s.trim()).filter(Boolean),
+    ...(opts.levelsFrom ? { levels_from: opts.levelsFrom } : {}), ...(opts.profileFrom ? { profile_from: opts.profileFrom } : {}),
+  }), [markdown, preset, opts]);
+  const genParams = useMemo(() => (orgTemplate ? { markdown, preset, template_path: orgTemplate } : {
+    ...baseParams,
+    // 직접 고른 견본이 우리 기관 견본보다 앞선다
+    ...(!opts.levelsFrom && orgApply?.levels_from ? { levels_from: orgApply.levels_from } : {}),
+    ...(orgApply?.slogan ? { slogan: orgApply.slogan } : {}),
+  }), [markdown, preset, baseParams, opts.levelsFrom, orgTemplate, orgApply]);
+
+  const pickKind = (kd: DraftKind | "general") => {
+    setKind(kd);
+    if (kd !== "general") setPreset(kindPreset(kd));
+  };
+
+  /** 한 줄 맞춤 — 미리보기와 같은 옵션으로 재서 넘친 문단만 줄여 쓴다 */
+  const fitLines = async (md: string, signal?: AbortSignal, ps = preset) => {
+    // 갈래를 막 바꾼 자리(시작값 자동 초안)면 우리 기관 견본은 앞 갈래 것이라 서식 옵션만으로 잰다
+    const f = await rpc("ai_fit_lines", { ...(ps === preset ? genParams : baseParams), preset: ps, markdown: md }, { signal });
+    if (mdRef.current !== md) return; // 맞추는 사이 글을 고쳤으면 고친 글이 우선 (맞춘 결과는 버린다)
+    setFit(f.changes.length || f.remaining ? { before: md, changes: f.changes, remaining: f.remaining } : null);
+    setFitOpen(false);
+    if (f.changes.length) setMarkdown(f.markdown);
+  };
+
+  /** 부탁 글도 참고 문서도 없다: 보내면 AI 가 주제를 지어내 엉뚱한 문서를 쓴다 */
+  const nothingToWrite = !instruction.trim() && !refs.length;
+
+  const runDraft = (instr = instruction, kd = kind, rf = refs) => {
+    setMarkdown("");
+    setFit(null);
+    refit.cancel();
+    // 갈래를 넘겨받은 바로 그 자리(시작값)에서는 상태가 아직 안 바뀌었으니 여기서 맞춘다
+    const ps = kd !== kind && kd !== "general" ? kindPreset(kd) : preset;
+    setDraftOrg(null);
+    setDraftNote("");
+    void draft.run(async ({ signal }) => {
+      const r = await rpc("ai_draft", {
+        instruction: instr.trim() || (kd === "reply" ? "받은 공문에 협조하겠다는 회신 공문을 써 줘" : kd === "memo" ? "" : "공문서 초안을 써 줘"),
+        preset: ps, length, references: rf, ...(kd !== "general" ? { kind: kd } : {}), org: orgOn,
+      }, { signal, onToken: (t) => setMarkdown((m) => m + t) });
+      setMarkdown(r.markdown);
+      setDraftOrg(r.org ? { label: r.org.label, count: r.org.count } : null);
+      setDraftNote(r.note ?? "");
+      mdRef.current = r.markdown;
+      // 한 줄 맞춤은 초안을 먼저 보여 준 뒤 따로 (멈출 수 있고, 맞추는 동안 한글 문서로 만들어도 된다). 줄 맞춤은 덤: 안 되면 초안 그대로
+      void refit.run(({ signal: s }) => fitLines(r.markdown, s, ps));
+    });
+  };
+
+  // 홈·예제·서식함에서 넘어온 시작값 (예제 "회신"은 받은 공문을 붙인 채 바로 초안)
+  useEffect(() => {
+    if (!seed || seed.nonce === handledSeed.current) return;
+    handledSeed.current = seed.nonce;
+    const autoDraft = !!(seed.kind && seed.references?.length && ai?.configured);
+    const apply = () => {
+      // 다른 일을 시작한다: 앞 초안 때 적은 부탁 글이 남으면 "초안 쓰기"를 다시 누를 때 새 갈래에 옛 부탁이 실려 간다
+      if (seed.kind || seed.references || seed.preset) setInstruction("");
+      if (seed.kind) pickKind(seed.kind);
+      if (seed.preset) { setKind("general"); setPreset(seed.preset); setOrgOn(true); }
+      if (seed.references) setRefs(seed.references);
+      // 다른 화면이 보낸 글로 바꾸면 앞 초안에 딸린 안내("일부만 읽었습니다"·"우리 기관 … 따라 썼습니다")는 지운다
+      if (seed.markdown) { setMarkdown(seed.markdown); setFit(null); setDraftNote(""); setDraftOrg(null); }
+      // 직접 고른 견본이 우리 기관 견본 서식보다 앞선다 (구성·표현은 그대로 따른다)
+      if (seed.levelsFrom) { setOpts((o) => ({ ...o, levelsFrom: seed.levelsFrom! })); setOptsOpen(true); }
+      if (autoDraft) runDraft("", seed.kind, seed.references);
+    };
+    // 쓰던 초안을 덮어쓰는 시작값(보낸 글·회신 자동 초안)은 먼저 묻는다
+    if ((seed.markdown || autoDraft) && markdown.trim() && markdown !== made.current) setSeedAsk(() => apply);
+    else apply();
+    // 시작값마다 한 번
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed]);
+
+  // 실시간 미리보기 — 입력을 멈추고 600ms 뒤, 앞 요청은 취소
+  useEffect(() => {
+    if (!markdown.trim() || draft.busy) return;
+    const ac = new AbortController();
+    const t = setTimeout(async () => {
+      setPreviewState("busy");
+      try {
+        const r = await rpc("generate_hwpx", { ...genParams, preview_only: true, preview_pages: 3, ...(pngOnly ? {} : { preview_hwpx: true }) }, { signal: ac.signal });
+        if (r.preview_hwpx_b64) {
+          try {
+            if (!(await rh.open(b64ToBytes(r.preview_hwpx_b64))) || ac.signal.aborted) return;
+          } catch {
+            if (!ac.signal.aborted) setPngOnly(true); // rhwp 가 안 되면 엔진 PNG 로 다시
+            return;
+          }
+          setPreview({ pages: [], lint: r.lint, rhwp: true });
+        } else setPreview({ pages: r.preview ?? [], lint: r.lint, rhwp: false });
+        setPreviewState("idle");
+      } catch (e) {
+        if (isAbort(e)) return;
+        setPreviewError(errorText(e));
+        setPreviewState("error");
+      }
+    }, 600);
+    return () => { clearTimeout(t); ac.abort(); };
+  }, [genParams, draft.busy, markdown, pngOnly, rh.open]);
+
+  // rhwp 쪽 그리기가 도중에 실패하면 엔진 PNG 로
+  useEffect(() => { if (rh.error) setPngOnly(true); }, [rh.error]);
+
+  const gotoLine = (f: LintFinding) => {
+    if (!f.line) return;
+    setTextOpen(true);
+    // 펼친 뒤 다음 그림에서 그 줄을 고른다
+    requestAnimationFrame(() => selectLine(f.line!));
+  };
+
+  const selectLine = (line: number) => {
+    const ta = editorRef.current;
+    if (!ta) return;
+    const lines = markdown.split("\n");
+    const start = lines.slice(0, line - 1).reduce((a, l) => a + l.length + 1, 0);
+    ta.focus();
+    ta.setSelectionRange(start, start + (lines[line - 1]?.length ?? 0));
+    ta.scrollTop = Math.max(0, (line - 3) * 23);
+  };
+
+  /** 초안(받는 중 포함)이 있다 */
+  const writing = !!markdown.trim() || draft.busy;
+  /** AI 없이 쓸 글도 견본도 없다 — 안내만 보이고 미리보기·만들기 줄은 숨긴다 */
+  const deadEnd = !ai?.configured && !writing && !opts.levelsFrom;
+  /** 미리보기 판은 글이 생긴 뒤에만 (빈 판이 화면 절반을 차지하지 않게) */
+  const showPreview = writing;
+
+  const pagesMap = useMemo(() => Object.fromEntries((preview?.pages ?? []).map((p) => [p.page, p])), [preview]);
+
+  return (
+    <div className="kd-draft" data-solo={!showPreview || undefined}>
+      <div className="kd-draft-left">
+        <section className="kd-panel kd-draft-ai" aria-labelledby="draft-ai-t">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="draft-ai-t" className="kd-h3 flex items-center gap-1.5"><Sparkles size={15} className="kd-muted" /> AI 초안</h2>
+            <AiWhere />
+          </div>
+          {!ai?.configured ? (
+            <AiOffNote extra={<>
+              <Button size="sm" variant="secondary" onClick={() => onRoute?.("library")} data-tip="AI 없이 서식을 골라 칸을 채웁니다">서식 골라 쓰기</Button>
+              <Button size="sm" variant="ghost" onClick={() => onRoute?.("blank")} data-tip="기관 머리·끝만 채운 빈 문서를 편집기에서 엽니다">빈 문서로 시작</Button>
+            </>}>AI가 연결되어 있지 않아 초안을 쓸 수 없습니다.</AiOffNote>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="초안 갈래">
+                {KINDS.map((x) => (
+                  <button key={x.value} type="button" className="kd-chip kd-chip-lg" aria-pressed={kind === x.value} onClick={() => pickKind(x.value)}>{x.label}</button>
+                ))}
+              </div>
+              {(k.ref || refs.length > 0) && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="kd-label">{k.ref ?? "참고 문서"}</span>
+                  {refs.map((r) => (
+                    <div key={r} className="kd-inset flex items-center gap-2 px-2.5 py-1.5">
+                      <span className="kd-path flex-1">{baseName(r)}</span>
+                      <button type="button" className="kd-icon-btn" onClick={() => setRefs(refs.filter((x) => x !== r))} aria-label={`${baseName(r)} 빼기`}><X size={13} /></button>
+                    </div>
+                  ))}
+                  {/* 작업대에 열어 둔 문서는 한 번에 붙인다 */}
+                  {k.ref && docs.some((d) => !refs.includes(d.path)) && (
+                    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="지금 연 문서">
+                      <span className="kd-small kd-muted">지금 연 문서</span>
+                      {docs.filter((d) => !refs.includes(d.path)).map((d) => (
+                        <button key={d.path} type="button" className="kd-chip kd-docchip" title={d.path} onClick={() => setRefs([...refs, d.path])}>
+                          <Plus size={12} /> <span className="kd-docchip-name">{d.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div><Button variant="ghost" size="sm" onClick={() => void pickFiles().then((p) => setRefs([...new Set([...refs, ...p])]))}><FileUp size={13} /> {k.ref ? `${k.ref} 붙이기` : "참고 문서 붙이기"}</Button></div>
+                </div>
+              )}
+              <textarea className="kd-textarea" rows={kind === "memo" ? 10 : 3} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder={k.hint} aria-label="AI에게 부탁할 내용" />
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="kd-adv" style={{ minWidth: 150 }}>
+                  <SelectField label="문서 갈래" value={preset} onChange={setPreset} options={(meta?.presets ?? [{ id: "official", label: "기안문", description: "" }]).map((p) => ({ value: p.id, label: p.label }))} />
+                </div>
+                <div className="kd-adv"><Field label="분량"><Seg label="분량" value={length} onChange={setLength} options={[{ value: "short", label: "짧게" }, { value: "medium", label: "보통" }, { value: "long", label: "길게" }]} /></Field></div>
+                <div className="flex-1" />
+                {draft.busy
+                  ? <Button variant="secondary" onClick={draft.cancel}><Square size={13} /> 멈추기</Button>
+                  : <Button onClick={() => runDraft()} disabled={(!!k.ref && !refs.length) || nothingToWrite} data-tip="AI가 쓰는 글이 바로 보입니다. 다 쓰면 미리보기와 표기법 검사가 나옵니다"><Sparkles size={14} /> 초안 쓰기</Button>}
+              </div>
+              {k.ref && !refs.length && <p className="kd-small kd-muted">{k.ref} 필요</p>}
+              {!k.ref && nothingToWrite && <p className="kd-small kd-muted">무엇을 쓸지 위 칸에 적거나 참고 문서를 붙이면 켜집니다</p>}
+              <OrgLine kind={meta?.presets.find((p) => p.id === preset)?.label ?? "문서"} refInfo={orgRef} loaded={orgRead !== undefined} on={orgOn} ownSample={!!opts.levelsFrom} onChange={setOrgOn} onManage={() => openSettings("set-orgdocs")} />
+              {draftOrg && !draft.busy && markdown.trim() && <StatusLine tone="ok">우리 기관 {draftOrg.label} {draftOrg.count}건의 구성을 따라 썼습니다</StatusLine>}
+              {draftNote && !draft.busy && markdown.trim() && <StatusLine tone="warn">{draftNote}</StatusLine>}
+              <ErrorLine message={draft.error} />
+            </>
+          )}
+        </section>
+
+        {fit && (
+          <div className="kd-inset kd-fit" aria-live="polite">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {fit.changes.length > 0 && <StatusLine tone="ok">한 줄 맞춤: {fit.changes.length}곳 줄여 씀</StatusLine>}
+              {fit.remaining > 0 && <StatusLine tone="warn">아직 넘친 줄 {fit.remaining}곳</StatusLine>}
+              <div className="flex-1" />
+              {fit.changes.length > 0 && <button type="button" className="kd-link kd-small" aria-expanded={fitOpen} onClick={() => setFitOpen((o) => !o)}>{fitOpen ? "바뀐 곳 접기" : "바뀐 곳 보기"}</button>}
+              {fit.remaining > 0 && <Button variant="ghost" size="sm" disabled={refit.busy} onClick={() => void refit.run(({ signal }) => fitLines(markdown, signal))}>{refit.busy ? "맞추는 중" : "다시 맞추기"}</Button>}
+              {fit.changes.length > 0 && <Button variant="ghost" size="sm" onClick={() => { setMarkdown(fit.before); setFit(null); }}><Undo2 size={13} /> 되돌리기</Button>}
+            </div>
+            {fitOpen && (
+              <ul className="kd-fit-list">
+                {fit.changes.map((c, i) => <li key={i}><del>{c.before}</del><ins>{c.after}</ins></li>)}
+              </ul>
+            )}
+            <ErrorLine message={refit.error} />
+          </div>
+        )}
+
+        {/* 초안이 있을 때(또는 견본 모양으로 쓸 때)만 글을 고친다. 빈 글에서 직접 쓰기는 '빈 문서로 시작'으로 */}
+        {(writing || opts.levelsFrom) && (
+        <section className="kd-fold" data-open={textOpen} aria-label="글로 직접 고치기">
+          <button type="button" className="kd-fold-head" aria-expanded={textOpen} onClick={() => setTextOpen((o) => !o)}>
+            <span className="kd-h3">{writing ? "글로 직접 고치기" : "견본 모양으로 직접 쓰기"}</span>
+            <span className="kd-small kd-muted flex-1 text-left">{writing ? "미리보기의 글을 한 줄씩 고칠 때" : "쓴 글을 견본의 글꼴과 항목 기호로 짭니다"}</span>
+            <ChevronDown size={16} className="kd-fold-chev" />
+          </button>
+          <div className="kd-fold-body" hidden={!textOpen}>
+            <span className="kd-small kd-muted">{draft.busy ? "AI가 초안을 다 쓰면 고칠 수 있습니다. 바로 고치려면 위에서 멈추기를 누르세요." : "# 표시가 붙은 맨 위 줄이 제목입니다. 항목은 1. 가. 처럼 번호를 붙여 한 줄씩 쓰세요."}</span>
+            <textarea ref={editorRef} className="kd-textarea kd-mdeditor" value={markdown} readOnly={draft.busy} onChange={(e) => { setMarkdown(e.target.value); setFit(null); }}
+              placeholder={"# 직원 안전교육 실시 계획\n\n1. 목적\n  가. 재난 상황에서 직원이 스스로 대피하고 민원인을 안내하도록 교육한다."} aria-label="공문서 글" spellCheck={false} />
+          </div>
+        </section>
+        )}
+
+        {/* AI 없이 쓸 때는 우리 기관 서식 줄을 서식 옵션 위에 (AI 쪽 칸이 없어서) */}
+        {!deadEnd && !ai?.configured && orgRef && <OrgLine kind={meta?.presets.find((p) => p.id === preset)?.label ?? "문서"} refInfo={orgRef} loaded noAi on={orgOn} ownSample={!!opts.levelsFrom} onChange={setOrgOn} onManage={() => openSettings("set-orgdocs")} />}
+        {!deadEnd && <div className={opts.levelsFrom ? undefined : "kd-adv"}><FormatOptions value={opts} onChange={setOpts} open={optsOpen} onToggle={() => setOptsOpen((o) => !o)}
+          locked={orgTemplate ? `우리 기관 견본 「${orgRef?.exemplar.title}」 서식 그대로 만들어 이 옵션은 쓰지 않습니다. 옵션을 쓰려면 위에서 '우리 기관 서식으로'를 끄세요.` : undefined} /></div>}
+
+        {!deadEnd && <ActionBar error={make.error} busy={make.busy && <Working label="한글 문서로 만드는 중" />}
+          status={draft.busy ? <StatusLine tone="busy">AI가 초안을 쓰는 중</StatusLine>
+            : refit.busy ? <StatusLine tone="busy">넘친 줄을 맞추는 중 (기다리지 않고 만들어도 됩니다)</StatusLine>
+            : !markdown.trim() ? (ai?.configured ? "초안을 쓰면 미리보기가 나옵니다" : "글을 쓰면 미리보기가 나옵니다")
+            : preview ? `초안 미리보기 ${preview.rhwp ? `${rh.pageCount}쪽` : `앞 ${preview.pages.length}쪽`}${preview.lint.length ? ` · 표기법 ${preview.lint.length}건` : ""}`
+            : "미리보기를 그리는 중"}>
+          {refit.busy && <Button variant="secondary" onClick={refit.cancel}><Square size={13} /> 맞추기 멈추기</Button>}
+          <Button size="lg" disabled={!markdown.trim() || draft.busy} data-tip="미리보기 그대로 한글 문서를 만들어 편집기에서 엽니다" onClick={() => void make.run(async () => {
+            refit.cancel(); // 맞추는 중이면 멈추고 지금 글로 만든다
+            const r = await rpc("generate_hwpx", { ...genParams, output_path: await workingFile(`${firstTitle(markdown)}.hwpx`) });
+            if (!r.output_path) throw new Error("한글 문서를 만들지 못했습니다. 글을 확인하고 다시 누르세요.");
+            // 엔진이 알린 것(견본 서식을 못 따랐다 등)은 편집기로 넘어간 뒤에도 보이게 남긴다
+            for (const w of r.warnings ?? []) toast(w, "error");
+            made.current = markdown;
+            await openInEditor(r.output_path, { title: firstTitle(markdown), working: true });
+          })}><FilePen size={15} /> 한글 문서로 만들어 편집하기</Button>
+        </ActionBar>}
+      </div>
+
+      {showPreview && <aside className="kd-draft-right" aria-label="실시간 미리보기">
+        <div className="kd-draft-right-head">
+          <h2 className="kd-h3">미리보기</h2>
+          {draft.busy ? <StatusLine tone="busy">AI가 초안을 쓰는 중</StatusLine>
+            : previewState === "busy" ? <StatusLine tone="busy">그리는 중</StatusLine>
+            : previewState === "error" ? <StatusLine tone="err">{previewError}</StatusLine>
+            : preview ? <span className="kd-small kd-muted">{preview.rhwp ? `전체 ${rh.pageCount}쪽` : `앞 ${preview.pages.length}쪽`}</span>
+            : <span className="kd-small kd-muted">글을 쓰면 여기에 공문서 모양으로 보입니다</span>}
+        </div>
+        <div className="kd-draft-pages">
+          {/* 초안을 받는 동안엔 들어오는 글을 그대로 (제목·항목 기호만 걷어서) */}
+          {draft.busy && markdown ? <div className="kd-desk h-full kd-draft-stream"><p>{plainDraft(markdown)}</p></div>
+            : preview?.rhwp && rh.pageCount ? <PageStack pageCount={rh.pageCount} sizes={rh.sizes} pages={rh.pages} onNeed={rh.need} zoom="fit" maxFit={620} />
+            : preview?.pages.length ? <PageStack pageCount={preview.pages.length} pages={pagesMap} zoom="fit" maxFit={620} />
+            : <div className="kd-desk h-full" />}
+        </div>
+        {preview && (
+          <div className="kd-draft-lint">
+            <h3 className="kd-label mb-2">표기법 검사 {preview.lint.length ? `${preview.lint.length}건` : ""}</h3>
+            <LintList findings={preview.lint} onPick={gotoLine} />
+          </div>
+        )}
+      </aside>}
+
+      <Modal isOpen={!!seedAsk} title="쓰던 초안이 있습니다" closable={false} size="sm" onClose={() => setSeedAsk(null)}
+        footer={(
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" onClick={() => setSeedAsk(null)}>쓰던 초안 두기</Button>
+            <Button onClick={() => { const apply = seedAsk; setSeedAsk(null); apply?.(); }}>새 내용으로 바꾸기</Button>
+          </div>
+        )}>
+        <p className="kd-text">다른 화면에서 보낸 내용으로 바꾸면 지금 쓰던 초안은 사라집니다. 쓰던 초안을 두면 보낸 내용은 받지 않습니다.</p>
+      </Modal>
+    </div>
+  );
+}

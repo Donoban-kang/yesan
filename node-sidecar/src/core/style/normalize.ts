@@ -1,0 +1,293 @@
+/** 내용 문서의 글(kordoc 마크다운) → 서식을 입힐 수 있는 공문서 마크다운
+ *
+ * - 기안문 두문(기관 표어·기관명·수신·경유·제목)은 빼고 수신·제목만 건진다. 결문(발신명의·서명 줄·협조자·시행·접수·우편번호·전화)은 버린다.
+ * - 항목 기호(□ ○ - · / 1. 가. 1) …)는 떼고 단계(깊이)만 남겨 마크다운 목록으로 → 생성기가 대상 서식의 기호로 다시 붙인다.
+ * - 법정 번호는 목록 사이 서술 문단이 있으면 생성기가 1부터 다시 센다 → 목록 중간의 짧은 서술 문단은 앞 항목에 잇는다.
+ * - 표·그림은 그대로 둔다.
+ */
+
+import { DepthStack, LEGAL_ORDER, readMarker } from './markers.js';
+
+export interface NormalizedContent {
+  title?: string;
+  /** 기안문 수신 */
+  to?: string;
+  markdown: string;
+  /** 원문에 있던 항목 기호 갈래 (단계 차례) */
+  sourceMarkers: string[];
+  /** 원문에 끝 표시가 있었는지 */
+  hadEndMark: boolean;
+}
+
+type Block =
+  | { kind: 'heading'; level: number; text: string }
+  | { kind: 'item'; depth: number; text: string; glyph?: string }
+  | { kind: 'ref'; text: string }
+  /** 붙임 — 줄마다 (붙임  1. … / 2. …) */
+  | { kind: 'attach'; lines: string[] }
+  | { kind: 'para'; text: string }
+  | { kind: 'raw'; text: string };
+
+// 한글 뒤 \b 는 낱말 경계로 안 잡혀서("시행 " 의 행·공백 사이) 공백·줄끝으로 본다
+const FOOT_RE = /^(시\s*행(?=\s|$)|접\s*수(?=\s|[(]|$)|협\s*조\s*자|우\s*\d{3}|전\s*화\s|전\s*송\s|공개\s*구분|\/\s*(비|부분)?공개|(비|부분)공개\s*\(|공개$)/;
+const HEAD_RE = /^(수\s*신(자)?|\(?\s*경\s*유\s*\)?|제\s*목)/;
+/** 결문이 시작됐다는 표시 — 시행 번호 줄·협조자·기안자 줄 */
+const FOOT_ANCHOR = /^(시\s*행\s+(?!\d+\s?-)\S+\s?-\s?\d|협\s*조\s*자(?:\s|$)|기\s*안\s*자\s)/;
+/** 결문만큼 짧은가 — 결문은 서명 줄·시행·주소·전화 몇 줄이다(수신자 목록이 길어도 이 안).
+ *  본문 한가운데의 "시행 …"·"… 끝" 을 결문으로 잘못 보면 그 뒤 장이 통째로 사라지므로, 남은 글이 이보다 길면 결문으로 보지 않는다 */
+const footSized = (ps: string[]) => ps.length <= 25 && ps.reduce((n, p) => n + visible(p), 0) <= 1500;
+/** 서술로 끝나는 줄 ("… 적용한다" · "… 붙임과 같음") — 결문 줄이 아니라 본문 문장이다 */
+const isStatement = (t: string) => /[다음함임됨]\.?$/.test(t);
+/** 결문 서명 줄·발신명의 — 문장으로 끝나지 않는 짧은 줄("지도관 홍길동 팀장 전결 06/09" · 결재일 "2026. 6. 26." · "가온시장" · 서명 이름), 수신자 목록 */
+const isSignLine = (t: string) => /^수\s*신\s*자(?:\s|$)/.test(t)
+  || (visible(t) <= 60 && !/(?:[다요오음함임]\.?|[.?!。])$/.test(t.replace(/\s*\d{4}\.\s?\d{1,2}\.\s?\d{1,2}\.?$/, '')) && !readMarker(unescapeLead(t)) && !/^(#|붙\s*임|<table|\||!\[)/.test(t));
+/** 끝 표시 — "… 붙임과 같음.  끝." 처럼 마침표가 붙은 것, 또는 "끝" 만 적힌 줄. "14:00에 끝" 같은 문장 끝의 낱말은 아니다 */
+const END_RE = /(?:^|\s|(?<=\.))끝\s*\.\s*$|^\s*끝\s*$/;
+const isRaw = (t: string) => /^(<table|\||!\[|```|<img)/i.test(t);
+const visible = (s: string) => s.replace(/\s/g, '').length;
+
+/** 빈 줄로 나눈 덩이 — 단, HTML 표는 안에 빈 줄이 있어도(칸 안의 표 등) 닫힐 때까지 한 덩이 */
+export function mdChunks(md: string): string[] {
+  const out: string[] = [];
+  let open = 0;
+  // 글 줄 바로 아래 빈 줄 없이 붙은 표는 따로 떼어 낸다
+  const pieces = md.replace(/\r\n?/g, '\n').split(/\n{2,}/).flatMap((c) => (/^\s*<table\b/i.test(c) ? [c] : c.split(/\n(?=<table\b)/i)));
+  for (const chunk of pieces) {
+    if (open > 0) out[out.length - 1] += `\n\n${chunk}`;
+    else out.push(chunk);
+    open += (chunk.match(/<table\b/gi) ?? []).length - (chunk.match(/<\/table>/gi) ?? []).length;
+    if (open < 0) open = 0;
+  }
+  return out;
+}
+
+/** 마크다운 → 문단 줄 (빈 줄로 나누고, 한 덩어리 안에서는 기호·목록·제목으로 시작하는 줄마다 새 문단) */
+function paragraphs(md: string): string[] {
+  const out: string[] = [];
+  for (const chunk of mdChunks(md)) {
+    const c = chunk.replace(/^\n+|\n+$/g, '');
+    if (!c.trim()) continue;
+    if (isRaw(c.trim())) { out.push(c.trim()); continue; }
+    let cur = '';
+    for (const line of c.split('\n')) {
+      const starts = /^\s*(#{1,6}\s|[-*+]\s|\d{1,2}[.)]\s|>)/.test(line) || readMarker(unescapeLead(line)) !== null;
+      if (cur && starts) { out.push(cur); cur = line; }
+      else cur = cur ? `${cur} ${line.trim()}` : line;
+    }
+    if (cur.trim()) out.push(cur);
+  }
+  return out;
+}
+
+/** kordoc 이 목록 문법과 겹치지 않게 붙인 줄 앞 역슬래시(`1\.`·`\-`)를 떼어 기호로 읽는다 */
+function unescapeLead(line: string): string {
+  return line.replace(/^(\s*)\\([-*+#>※])/, '$1$2').replace(/^(\s*\d{1,2})\\([.)])/, '$1$2');
+}
+
+const HANGUL_ORDER = '가나다라마바사아자차카타파하';
+/** 법정 기호의 다음 번호 (가. → 나., 2) → 3), ① → ②). 모르면 undefined */
+export function nextGlyph(glyph?: string): string | undefined {
+  if (!glyph) return undefined;
+  const m = /^(\(?)(\d{1,2}|[가-하])([.)]?)$/.exec(glyph);
+  if (m) {
+    const at = HANGUL_ORDER.indexOf(m[2]);
+    const next = /\d/.test(m[2]) ? String(Number(m[2]) + 1) : at >= 0 && at < HANGUL_ORDER.length - 1 ? HANGUL_ORDER[at + 1] : undefined;
+    return next ? `${m[1]}${next}${m[3]}` : undefined;
+  }
+  return /^[①-⑲㉮-㉺]$/.test(glyph) ? String.fromCharCode(glyph.charCodeAt(0) + 1) : undefined;
+}
+
+export interface NormalizeOptions {
+  /** 견본 쪽 글자 크기로 찾은 제목 줄 */
+  titleHint?: string;
+  /** 마크다운·글·워드 원문 (- 목록의 들여쓰기가 단계) */
+  textSource?: boolean;
+  /** 대상 서식에 장(Ⅰ.)이 없으면 장 제목(##·Ⅰ.)을 첫 단계 항목으로 */
+  headingsAsItems?: boolean;
+  /** 대상 서식의 첫 기호가 2단계 이하(○ 로 시작하는 보고서 등)일 때 모든 항목을 그만큼 깊게 */
+  depthOffset?: number;
+  /** 기안문 서식: 끝 표시를 마지막 줄 끝에 "  끝." 으로 둔다(원문에 없으면 붙인다, 표로 끝나면 다음 줄).
+   *  생성기의 자동 끝 표시는 늘 따로 한 줄이라 쓰지 않는다 */
+  keepEndMark?: boolean;
+  /** 기안문 서식: 법정 기호(1. 가. 1) …)는 나온 차례가 아니라 기호 그대로의 단계로 (본문이 "가." 로 시작해도 "1." 로 바꾸지 않는다).
+   *  문장으로 끝난 서술 문단은 앞 항목에 잇지 않는다 (가. 나. 사이 문단 뒤에서 가. 부터 다시) */
+  legalDepth?: boolean;
+}
+
+export function normalizeContent(md: string, opts: NormalizeOptions = {}): NormalizedContent {
+  let paras = paragraphs(md);
+  let title: string | undefined;
+  let to: string | undefined;
+
+  // 기안문 두문: 앞쪽 25문단 안의 "제목 …" 줄 (앞에 "수신" 줄이 있을 때)
+  const titleAt = paras.slice(0, 25).findIndex((p) => /^\s*제\s*목\s*[:：]?\s*\S/.test(p));
+  const toAt = paras.slice(0, Math.max(titleAt, 0)).findIndex((p) => /^\s*수\s*신(자)?\s*[:：]?/.test(p));
+  if (titleAt >= 0 && toAt >= 0) {
+    title = paras[titleAt].replace(/^\s*제\s*목\s*[:：]?\s*/, '').trim();
+    const toText = paras[toAt].replace(/^\s*수\s*신(자)?\s*[:：]?\s*/, '').replace(/\(\s*경\s*유\s*\).*$/, '').trim();
+    if (toText) to = toText;
+    // 두문 자리의 짧은 줄(표어·기관명·수신·경유)·그림은 빼고, 순서가 섞여 앞에 온 본문 항목·긴 문단·표는 남긴다
+    paras = paras.filter((p, i) => {
+      if (i > titleAt) return true;
+      if (i === titleAt) return false;
+      const t = p.trim();
+      if (/^!\[/.test(t)) return false;
+      if (readMarker(unescapeLead(t)) || /^<table|^\|/.test(t)) return true;
+      return !(HEAD_RE.test(t) || visible(t) <= 40);
+    });
+  }
+
+  // 결문: 끝 표시 뒤의 시행·접수·주소·전화 줄은 버린다
+  let hadEndMark = false;
+  const endAt = paras.map((p) => END_RE.test(p) && !isRaw(p.trim())).lastIndexOf(true);
+  if (endAt >= 0) {
+    const after = paras.slice(endAt + 1);
+    if (!after.length || (footSized(after) && after.some((p) => FOOT_RE.test(p.trim())))) paras = paras.slice(0, endAt + 1);
+    hadEndMark = true;
+    paras[endAt] = paras[endAt].replace(END_RE, '').replace(/\s+$/, '');
+    if (!paras[endAt].trim()) paras.splice(endAt, 1);
+  }
+  // 결문: 끝 표시가 없는 원문도 시행 번호·협조자·기안자 줄부터 끝까지, 그 바로 앞 서명 줄·발신명의는 버린다 (생성기가 결문을 새로 그린다)
+  const anchor = paras.findIndex((p, i) => i > 0 && FOOT_ANCHOR.test(p.trim()) && !isStatement(p.trim()) && footSized(paras.slice(i)));
+  if (anchor > 0) {
+    let from = anchor;
+    while (from > 1 && !END_RE.test(paras[from - 1]) && isSignLine(paras[from - 1].trim())) from--;
+    paras = paras.slice(0, from);
+  }
+  while (paras.length && FOOT_RE.test(paras[paras.length - 1].trim())) paras.pop();
+
+  // 제목: 첫 # 줄 → 견본 쪽에서 찾은 제목 줄 → 맨 앞 짧은 줄
+  const blocks: Block[] = [];
+  for (const raw of paras) {
+    const t = raw.trim();
+    const h = /^(#{1,6})\s+(.*)$/.exec(t);
+    if (h) { blocks.push({ kind: 'heading', level: h[1].length, text: h[2].trim() }); continue; }
+    if (isRaw(t)) { blocks.push({ kind: 'raw', text: t }); continue; }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) continue;
+    // 앞 띄어쓰기는 남긴다 (마크다운 목록의 들여쓰기 = 단계)
+    blocks.push({ kind: 'para', text: raw.replace(/\s+$/, '').replace(/^(\s*)>\s?/, '$1') });
+  }
+  if (!title) {
+    const h1 = blocks.findIndex((b) => b.kind === 'heading' && b.level === 1);
+    const hint = opts.titleHint?.replace(/\s+/g, ' ').trim();
+    const hinted = hint ? blocks.findIndex((b) => b.kind === 'para' && b.text.replace(/\s+/g, ' ').trim() === hint) : -1;
+    // 앞 세 덩이 안에서 찾되 그림 덩이(맨 위 로고)는 세지 않는다
+    let pics = 0;
+    const at = h1 >= 0 ? h1 : hinted >= 0 ? hinted
+      : blocks.findIndex((b, i) => {
+        if (b.kind === 'raw' && /^(!\[|<img\b)/i.test(b.text)) { pics++; return false; }
+        return i - pics < 3 && b.kind === 'para' && visible(b.text) <= 60 && !readMarker(unescapeLead(b.text)) && !/다\.?$/.test(b.text);
+      });
+    if (at >= 0) {
+      title = (blocks[at] as { text: string }).text;
+      blocks.splice(at, 1);
+    }
+  }
+  // 제목 앞에 붙은 번호 기호("1. 추진 계획") 떼기 (제목은 기호 없이)
+  if (title) title = title.replace(/^#+\s*/, '').replace(/<\/?(u|b|i|strong|em)>/gi, '').trim();
+
+  // 항목 단계
+  const stack = new DepthStack();
+  /** legalDepth: 법정 기호의 제 단계와 쌓기 단계의 차이 — 그 아래 다른 기호(○ -)도 같이 민다 */
+  let legalShift = 0;
+  const sourceMarkers: string[] = [];
+  const out: Block[] = [];
+  // "N." 번호의 차례: "2. 15일까지 제출" 이 2번 항목인지 2월 15일인지는 앞 번호를 잇는지로 가른다 (markers.ts readMarker 의 inList)
+  const numberOf = (b: Block) => (b.kind === 'para' ? Number(/^\s*(?:[-*+]\s+)?(\d{1,2})\\?\.(?=\s)/.exec(b.text)?.[1] ?? NaN) : NaN);
+  const numbers = blocks.map(numberOf);
+  let lastNo = 0;
+  for (const [bi, b] of blocks.entries()) {
+    if (b.kind === 'heading') {
+      lastNo = 0;
+      if (b.level <= 2 && !opts.headingsAsItems) { stack.reset(); out.push({ kind: 'heading', level: 2, text: b.text }); continue; }
+      out.push({ kind: 'item', depth: stack.depthOf(`#${b.level}`), text: b.text });
+      continue;
+    }
+    if (b.kind !== 'para') { out.push(b); continue; }
+    // PDF·워드 글은 "- 가. 행사명" 처럼 목록 표시 안에 원래 기호가 든다 → 안쪽 기호로
+    const wrapped = /^\s*[-*+]\s+(.*)$/.exec(b.text);
+    const lead = wrapped && readMarker(unescapeLead(wrapped[1])) ? unescapeLead(wrapped[1]) : unescapeLead(b.text);
+    // 붙임 줄은 항목이 아니다 (생성기가 붙임 칸으로 그린다). "붙임 1. …" 다음의 "2. …" "3. …" 은 같은 붙임의 다음 줄
+    const attach = /^(?:[-*+]\s+)?붙\s*임\s*[:：]?\s*(.*)$/.exec(lead.trim());
+    if (attach) { out.push({ kind: 'attach', lines: [attach[1].trim()] }); continue; }
+    const last = out[out.length - 1];
+    if (last?.kind === 'attach') {
+      const no = /^(\d{1,2})\.\s/.exec(lead.trim());
+      const prevNo = Number(/^(\d{1,2})\.\s/.exec(last.lines[last.lines.length - 1])?.[1] ?? NaN);
+      if (no && Number(no[1]) === prevNo + 1) { last.lines.push(lead.trim()); continue; }
+    }
+    const no = numbers[bi];
+    // 앞 번호를 잇거나(… 1. → 2.), 첫 번호인데 뒤에 2. 가 이어지면 번호 목록의 한 줄이다
+    const inList = Number.isFinite(no) && (no === lastNo + 1 && (no > 1 || numbers.slice(bi + 1).includes(2)));
+    const m = readMarker(lead, { inList });
+    if (m?.key === '1.' && Number.isFinite(no)) lastNo = no;
+    if (!m) {
+      // 글 파일·마크다운의 목록(- * + 와 들여쓰기)
+      const li = /^(\s*)[-*+]\s+(.*)$/.exec(b.text);
+      if (li && opts.textSource) { out.push({ kind: 'item', depth: stack.depthOf(`md@${Math.floor(li[1].length / 2)}`), text: li[2] }); continue; }
+      out.push({ kind: 'para', text: b.text.trim().replace(/^\\(?=[-*+])/, '') });
+      continue;
+    }
+    if (m.family === 'chapter') {
+      if (opts.headingsAsItems) { out.push({ kind: 'item', depth: stack.depthOf('#2'), text: m.rest.trim() }); continue; }
+      stack.reset();
+      out.push({ kind: 'heading', level: 2, text: m.rest.trim() });
+      continue;
+    }
+    if (m.family === 'ref') { out.push({ kind: 'ref', text: m.rest.trim() }); continue; }
+    // 마크다운 원문의 "-" 목록은 들여쓰기마다 다른 단계
+    const key = m.key === '-' && opts.textSource ? `-@${Math.floor((/^\s*/.exec(b.text)?.[0].length ?? 0) / 2)}` : m.key;
+    const sd = stack.depthOf(key);
+    let depth = sd + legalShift;
+    if (opts.legalDepth && m.family === 'legal') {
+      depth = LEGAL_ORDER.indexOf(m.key);
+      legalShift = depth - sd;
+    }
+    if (!sourceMarkers.includes(m.key) && sd === sourceMarkers.length) sourceMarkers.push(m.key);
+    out.push({ kind: 'item', depth, text: m.rest.trim(), glyph: m.glyph });
+  }
+
+  // 목록 중간의 짧은 서술 문단(줄을 손으로 끊은 꼬리)은 앞 항목에 잇는다 — 법정 번호가 1부터 다시 세지 않게
+  const merged: Block[] = [];
+  for (let i = 0; i < out.length; i++) {
+    const b = out[i];
+    const prev = merged[merged.length - 1];
+    const nextItem = out.slice(i + 1).find((x) => x.kind !== 'para');
+    // legalDepth: 다음 항목이 앞 항목 번호를 잇는다면(가. → 나.) 사이 문단은 앞 항목의 설명 → 잇는다 (생성기는 문단 뒤에서 번호를 늘 다시 센다).
+    // 다음 항목이 처음 번호(가.)면 새 목록이라 잇지 않는다
+    let joins = b.kind === 'para' && visible(b.text) <= 40;
+    if (opts.legalDepth && b.kind === 'para' && nextItem?.kind === 'item') {
+      const same = [...merged].reverse().find((x): x is Extract<Block, { kind: 'item' }> => x.kind === 'item' && x.depth <= nextItem.depth);
+      joins = same?.depth === nextItem.depth && nextGlyph(same.glyph) === nextItem.glyph;
+    }
+    if (b.kind === 'para' && prev?.kind === 'item' && nextItem?.kind === 'item' && joins && !/^※/.test(b.text)) {
+      prev.text = `${prev.text} ${b.text}`;
+      continue;
+    }
+    merged.push(b);
+  }
+
+  // 기안문 서식: 끝 표시는 마지막 글 줄 끝에 두 칸 띄고. 표·그림으로 끝나면 다음 줄에
+  if (opts.keepEndMark && merged.length) {
+    const lastB = merged[merged.length - 1];
+    if (lastB.kind === 'attach') lastB.lines[lastB.lines.length - 1] += '  끝.';
+    else if (lastB.kind === 'raw' || lastB.kind === 'heading') merged.push({ kind: 'para', text: '끝.' });
+    else lastB.text += '  끝.';
+  }
+
+  const lines: string[] = [];
+  let prevItem = false;
+  for (const b of merged) {
+    const isItem = b.kind === 'item';
+    if (lines.length && !(isItem && prevItem)) lines.push('');
+    if (b.kind === 'heading') lines.push(`## ${b.text}`);
+    else if (b.kind === 'item') lines.push(`${'  '.repeat(Math.min(b.depth + (opts.depthOffset ?? 0), 7))}- ${b.text}`);
+    else if (b.kind === 'ref') lines.push(`※ ${b.text}`);
+    // 둘째 줄부터 앞 6칸(= "붙임  " 폭) 띄워 같은 문단 안 다음 줄로 → 생성기가 붙임으로 이어 그리고 번호가 줄을 맞춘다
+    else if (b.kind === 'attach') lines.push([`붙임  ${b.lines[0]}`, ...b.lines.slice(1).map((l) => `      ${l}`)].join('\n'));
+    else lines.push(b.text);
+    prevItem = isItem;
+  }
+  const body = lines.join('\n');
+  return { ...(title ? { title } : {}), ...(to ? { to } : {}), markdown: `${title ? `# ${title}\n\n` : ''}${body}\n`, sourceMarkers, hadEndMark };
+}

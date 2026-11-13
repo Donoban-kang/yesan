@@ -1,0 +1,80 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "KorDoc AI",
+  "version": "2.3.2",
+  "identifier": "com.kordoc-ai.app",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "pnpm build:all",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "KorDoc AI",
+        "visible": false,
+        "width": 1280,
+        "height": 720,
+        "resizable": true,
+        "fullscreen": false,
+        "minWidth": 960,
+        "minHeight": 680
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: asset: https://asset.localhost; connect-src ipc: http://ipc.localhost 'self'; frame-src http://127.0.0.1:*; object-src 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "한글 문서 작성·편집·검토·변환: 폐쇄망에서도 쓰는 공공 문서 도구",
+    "longDescription": "KorDoc AI는 HWP·HWPX·PDF·엑셀·워드 문서를 읽고, 기관 서식으로 공문서를 만들고, 내장 한글 편집기로 고치고, PDF로 내보내는 데스크톱 앱입니다. 문서 엔진(kordoc)과 한글 편집기(rhwp)는 이 PC 안에서 돌아 인터넷이 없는 망에서도 쓸 수 있습니다. AI는 내장 모델 파일을 따로 받아 넣거나 기관 AI 서버에 연결해서 씁니다.",
+    "copyright": "Copyright (c) 2026 chrisryugj",
+    "license": "MIT",
+    "resources": {
+      "resources/node/": "node/",
+      "../node-sidecar/dist/": "node-sidecar/dist/",
+      "../node-sidecar/models/": "node-sidecar/models/",
+      "../node-sidecar/editor/": "node-sidecar/editor/",
+      "../node-sidecar/samples/": "node-sidecar/samples/",
+      "../LICENSE": "LICENSE",
+      "../NOTICE": "NOTICE",
+      "../THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt",
+      "../licenses/": "licenses/"
+    },
+    "windows": {
+      "wix": {
+        "upgradeCode": "213AB368-C5C7-4FFC-BA1B-3B56095BD135",
+        "language": "ko-KR"
+      },
+      "nsis": {
+        "languages": [
+          "Korean"
+        ],
+        "displayLanguageSelector": false,
+        "installMode": "currentUser",
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    },
+    "publisher": "KorDoc"
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "kordoc"
+        ]
+      }
+    }
+  }
+}

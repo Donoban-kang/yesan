@@ -1,0 +1,14 @@
+/** 사이드카 RPC 계약 타입 모음. 정본은 node-sidecar/src/types/rpc-contract.ts */
+
+export type {
+  RpcMethod, RpcParams, RpcResult, DeepPartial,
+  DocFormat, FileEntry, PagePreview, LintFinding, RedactRule, ChatMessage, Citation, BatchItemResult,
+  SystemInfo, McpEnv, DocInfo, ConvertParams, ConvertResult, CompareResult, CompareVisualResult, VisualChange, VisualMark, VisualSide, TablesResult, GongmunMeta,
+  GenerateParams, RedactResult, AiStatus, LlmCatalogItem, ReviewIssue, TemplateEntry, TemplateAnalysis,
+  UsageReport, SecurityStatus, LocalModelServer, SubscriptionStatus,
+  StyleFormat, StyleEntry, PdfShrinkLevel, PdfShrinkResult, RecoveryEntry,
+  PdfWorkSource, PdfComposePage, PdfComposeParams, PdfComposeResult, OrgCorpusView, OrgReference,
+  VersionsResult, VersionEntry,
+  ReceiptRead, ReceiptRow, ReceiptValue, ReceiptFields, ReceiptItem, ReceiptColumn, ReceiptTemplateInfo,
+} from "../../node-sidecar/src/types/rpc-contract";
+export type { Settings, AiProviderId } from "../../node-sidecar/src/types/index";

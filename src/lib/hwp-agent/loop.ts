@@ -1,0 +1,118 @@
+/**
+ * 편집기 AI 루프 — 사용자 요청 하나를 끝까지: 모델 한 차례(ai_agent_step) → 요청한 도구를 편집기에서 실행 → 결과를 돌려
+ * 다음 차례 … 도구 호출 없이 답하면 끝. 마지막 답이 하지 않은 편집을 했다고 말하면 한 번만 되묻는다(skill.verifyResponse).
+ * 대화(events)는 부른 쪽이 쥐고 다음 요청에 이어 쓴다.
+ */
+
+import { rpc } from "../rpc";
+import type { RpcParams } from "../contract";
+import type { AgentSkill, ExecutedToolCall } from "./types";
+
+export type AgentEvent = RpcParams<"ai_agent_step">["events"][number];
+
+/** 요청 하나에서 모델 차례 상한 — 고장 난 모델이 도구를 끝없이 부르지 않게 */
+export const MAX_STEPS = 24;
+/** 같은 도구 호출(이름·값이 모두 같음)이 이만큼 이어지면 멈춘다 */
+export const SAME_CALLS = 3;
+/** 부른 도구가 모두 실패한 차례가 이만큼 이어지면 멈춘다 */
+export const FAILED_STEPS = 5;
+/** 이어 보내는 대화의 글자 상한 — 로컬 모델은 맥락이 짧아(4K~8K 토큰) 넘치면 지시문이 잘려 답 형식이 깨진다 */
+export const HISTORY_CHARS = 24_000;
+
+/** 지난 요청의 문서 맥락은 빼고(그새 문서가 바뀌었다), 그래도 길면 가장 오래된 요청부터 통째로 덜어낸다 */
+export function trimHistory(events: AgentEvent[], limit = HISTORY_CHARS): void {
+  for (const e of events) if (e.role === "user" && "context" in e) delete (e as { context?: string }).context;
+  const size = () => events.reduce((n, e) => n + JSON.stringify(e).length, 0);
+  while (size() > limit) {
+    const next = events.findIndex((e, i) => i > 0 && e.role === "user");
+    if (next < 0) break;
+    events.splice(0, next);
+  }
+}
+
+export interface RunHooks {
+  /** 모델이 쓴 글 (차례마다 마지막 글로 바뀐다) */
+  onText(text: string): void;
+  /** 도구 하나를 실행했다 (활동 줄) */
+  onTool(t: { name: string; summary: string; isError: boolean }): void;
+}
+
+export async function runAgent(opts: {
+  skill: AgentSkill;
+  events: AgentEvent[];
+  request: string;
+  signal: AbortSignal;
+  hooks: RunHooks;
+}): Promise<{ text: string; redacted: number }> {
+  const { skill, events, signal, hooks } = opts;
+  const context = skill.buildContext?.() ?? "";
+  trimHistory(events);
+  const mark = events.length;
+  events.push({ role: "user", text: opts.request, ...(context ? { context } : {}) });
+  const executed: ExecutedToolCall[] = [];
+  let corrected = false;
+  let text = "";
+  let redacted = 0;
+  // 헛도는 모델을 일찍 멈춘다: 같은 도구를 같은 값으로 되풀이하거나, 부르는 도구마다 실패하는 차례가 이어질 때.
+  // 차례 상한(MAX_STEPS)까지 두면 그동안 AI 사용량만 쓰고 사용자는 몇 분을 기다린다
+  let lastCalls = "";
+  let sameCalls = 0;
+  let failedSteps = 0;
+  const steps = async (): Promise<{ text: string; redacted: number }> => {
+    for (let step = 0; step < MAX_STEPS; step++) {
+      if (signal.aborted) throw new DOMException("멈췄습니다", "AbortError");
+      const turn = await rpc("ai_agent_step", { system: skill.systemPrompt, tools: skill.tools, events }, { signal });
+      redacted += turn.redacted;
+      if (turn.text) { text = turn.text; hooks.onText(text); }
+      events.push({ role: "assistant", text: turn.text, calls: turn.calls.map(({ id, name, input }) => ({ id, name, input })) });
+      if (!turn.calls.length) {
+        const fix = corrected ? null : skill.verifyResponse?.(text, executed) ?? null;
+        if (!fix) return { text, redacted };
+        corrected = true;
+        events.push({ role: "user", text: fix });
+        continue;
+      }
+      const results: Array<{ id: string; name: string; output: string; isError?: boolean }> = [];
+      let changed = false;
+      for (const call of turn.calls) {
+        if (signal.aborted) throw new DOMException("멈췄습니다", "AbortError");
+        if (call.inputError) {
+          results.push({ id: call.id, name: call.name, output: call.inputError, isError: true });
+          hooks.onTool({ name: call.name, summary: call.inputError, isError: true });
+          continue;
+        }
+        let out;
+        try {
+          out = await skill.executeTool({ id: call.id, name: call.name, input: call.input }, signal);
+        } catch (e) {
+          // 멈추기를 눌러 끊긴 도구는 실패가 아니다 (실패로 적으면 진행 줄에 가짜 실패가 뜬다)
+          if (signal.aborted) throw new DOMException("멈췄습니다", "AbortError");
+          out = { output: e instanceof Error ? e.message : String(e), isError: true, summary: `${call.name} 실패` };
+        }
+        executed.push({ name: call.name, ok: !out.isError });
+        if (out.mutated) changed = true;
+        results.push({ id: call.id, name: call.name, output: out.output, ...(out.isError ? { isError: true } : {}) });
+        hooks.onTool({ name: call.name, summary: out.summary, isError: !!out.isError });
+      }
+      events.push({ role: "tool", results });
+      // 되풀이: 같은 호출에 같은 결과가 왔고 바뀐 것도 없다 (한 곳씩 차례로 바꾸는 편집처럼 문서를 바꾼 차례는 세지 않는다)
+      const sig = changed ? "" : JSON.stringify([turn.calls.map((c) => [c.name, c.input]), results.map((r) => r.output)]);
+      sameCalls = sig && sig === lastCalls ? sameCalls + 1 : 1;
+      lastCalls = sig;
+      failedSteps = results.every((r) => r.isError) ? failedSteps + 1 : 0;
+      if (sameCalls >= SAME_CALLS) return { text: "같은 일을 되풀이해 멈췄습니다. 요청을 조금 바꾸거나 나눠서 다시 시도하세요.", redacted };
+      if (failedSteps >= FAILED_STEPS) return { text: "도구가 계속 실패해 멈췄습니다. 위 진행 줄의 실패 까닭을 확인하고 다시 시도하세요.", redacted };
+    }
+    return { text: text || "도구를 너무 여러 번 불러 멈췄습니다. 요청을 나눠 다시 시도하세요.", redacted };
+  };
+  try {
+    return await steps();
+  } catch (e) {
+    // 멈추거나 실패한 요청은 짝이 안 맞는 채로 남는다(답 없는 요청, 결과 없는 도구 호출) → 다음 요청에서 모델이 헷갈리거나
+    // 서버가 대화를 거부한다. 이 요청을 걷어 내고, 그 전에 실제로 한 일이 있으면 한 줄로만 남긴다
+    events.length = mark;
+    const did = executed.filter((x) => x.ok).map((x) => x.name);
+    if (did.length) events.push({ role: "user", text: opts.request }, { role: "assistant", text: `(중간에 멈췄습니다. 그 전에 실행한 도구: ${did.join(", ")})`, calls: [] });
+    throw e;
+  }
+}

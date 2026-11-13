@@ -1,0 +1,87 @@
+/** 서무 도구 — 결과 (폴더·파일 하나·항목 뽑기 표·찾기 결과·문서 수합) */
+
+import { FileText } from "lucide-react";
+import { useApp } from "../../state/app";
+import { baseName } from "../../lib/format";
+import { Note, SavedFile } from "../common/Status";
+import type { Outcome } from "./runners";
+import { GatherResult } from "./GatherResult";
+import { MailMergeResult } from "./MailMerge";
+import { ReceiptEditor } from "../receipt/ReceiptEditor";
+
+function mark(excerpt: string, query: string) {
+  if (!query) return excerpt;
+  const parts = excerpt.split(query);
+  return parts.flatMap((p, i) => (i === 0 ? [p] : [<mark key={i} className="kd-mark">{query}</mark>, p]));
+}
+
+/** 결과 객체마다 번호 (같은 실행의 결과는 같은 번호) */
+const ids = new WeakMap<object, number>();
+let idSeq = 0;
+const idOf = (o: object) => ids.get(o) ?? (ids.set(o, ++idSeq), idSeq);
+
+export function BatchResults({ outcome, onAddLate }: { outcome: Outcome; onAddLate: () => void }) {
+  const { openDocs } = useApp();
+  if (outcome.kind === "gather") return <GatherResult result={outcome.result} message={outcome.message} onAddLate={onAddLate} />;
+  // 다시 돌린 결과는 새로 그린다: 그대로 두면 앞 묶음으로 만든 합본·PDF·인쇄 결과가 새 묶음 옆에 남는다
+  if (outcome.kind === "mailmerge") return <MailMergeResult key={idOf(outcome)} result={outcome.result} message={outcome.message} />;
+  if (outcome.kind === "receipt") {
+    return (
+      <div className="flex flex-col gap-3">
+        <Note tone={outcome.result.receipts.some((r) => r.ok) ? "ok" : "warn"}>{outcome.message}</Note>
+        {/* 다시 읽은 결과는 새로 그린다 (경로가 같다고 옛 표를 두면, 다시 읽어 살아난 영수증이 표에도 실패 목록에도 없다) */}
+        <ReceiptEditor key={idOf(outcome)} receipts={outcome.result.receipts} aiUsed={outcome.result.ai_used} warnings={outcome.result.warnings} outputDir={outcome.outDir} />
+      </div>
+    );
+  }
+  if (outcome.kind === "files") {
+    return outcome.dir ? <SavedFile path={outcome.dir} folder label={outcome.message} /> : <Note tone="ok">{outcome.message}</Note>;
+  }
+  if (outcome.kind === "single") {
+    if (!outcome.notes?.length) return <SavedFile path={outcome.path} folder={outcome.folder} label={outcome.message} />;
+    return (
+      <div className="flex flex-col gap-3">
+        <SavedFile path={outcome.path} folder={outcome.folder} label={outcome.message} />
+        {outcome.notes.map((n) => <Note key={n} tone="warn">{n}</Note>)}
+      </div>
+    );
+  }
+  if (outcome.kind === "extract") {
+    return (
+      <div className="flex flex-col gap-3">
+        <SavedFile path={outcome.path} label={outcome.message} />
+        <div className="overflow-x-auto">
+          <table className="kd-table">
+            <thead><tr><th>문서</th>{outcome.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+            <tbody>
+              {outcome.rows.map((r, i) => (
+                <tr key={i}><td className="kd-small">{r["파일"] ?? r["문서"] ?? ""}</td>{outcome.columns.map((c) => <td key={c}>{r[c] ?? ""}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+  const found = outcome.results.filter((r) => r.hits.length);
+  return (
+    <div className="flex flex-col gap-3">
+      <Note tone={found.length ? "ok" : "info"}>{outcome.message}</Note>
+      {found.map((r) => (
+        <section key={r.path} className="kd-inset p-3">
+          <h3 className="kd-row-title flex items-center gap-1.5"><FileText size={14} className="kd-muted" /> {baseName(r.path)}</h3>
+          <ul className="mt-1.5 flex flex-col">
+            {r.hits.map((h, i) => (
+              <li key={i}>
+                <button type="button" className="kd-hit" onClick={() => openDocs([r.path], { page: h.page })}>
+                  {h.page != null && <span className="kd-small kd-muted kd-num flex-none">{h.page}쪽</span>}
+                  <span className="kd-text">{mark(h.excerpt, outcome.query)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}

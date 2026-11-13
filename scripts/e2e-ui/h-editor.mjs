@@ -1,0 +1,175 @@
+/**
+ * 한글 편집기 화면 검증 — 한컴 단축키와 복구 사본
+ *  - 메뉴에 새 명령(한 줄 지우기·날짜/시간 문자열·보통 모양)과 한컴 키 글자
+ *  - Ctrl+K,D 날짜 넣기 · Ctrl+Y 한 줄 지우기 · Ctrl+M,R 빨강 글자 · Ctrl+N,T 표 만들기 대화상자
+ *  - 고친 채 30초 안에 복구 사본이 생기고, 저장하지 않고 앱이 꺼진 뒤 홈에서 되살리면 고친 내용으로 열린다
+ *  - 되살린 문서를 저장하면 원본은 두고 저장 창으로 새 파일에 들어가고 사본은 지워진다
+ *
+ * 중계기를 스스로 두 번 띄운다(같은 데이터 폴더, 두 번째가 "다시 켠 앱").
+ * 사용: node scripts/e2e-ui/h-editor.mjs --port 7728 --out <스크린샷·작업 폴더>
+ *   앞서 필요: node scripts/build-sidecar.mjs, node scripts/build-rhwp-studio.mjs, 화면 서버(vite 5173)
+ */
+import { spawn } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { openUi, ROOT, SAMPLES, sleep } from './ui-lib.mjs';
+
+const require = createRequire(join(ROOT, 'node-sidecar', 'package.json'));
+const JSZip = require('jszip');
+
+const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
+const PORT = Number(arg('--port', '7728'));
+const RELAY = `http://127.0.0.1:${PORT}`;
+const OUT = arg('--out', join(process.cwd(), 'e2e-out'));
+const DATA = process.env.KORDOC_DATA || mkdtempSync(join(tmpdir(), 'kordoc-e2e-editor-'));
+const IN = join(OUT, 'fixtures');
+mkdirSync(IN, { recursive: true });
+const DOC = join(IN, '보고서.hwpx');
+copyFileSync(join(SAMPLES, '4-보고서_디지털 행정 혁신 추진계획.hwpx'), DOC);
+const ORIGINAL = readFileSync(DOC);
+const SAVED = join(OUT, '보고서_되살림.hwpx');
+
+const checks = [];
+const check = (name, ok, detail = '') => { checks.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` : ${detail}` : ''}`); };
+
+async function relay() {
+  const p = spawn(process.execPath, ['scripts/dev-relay.mjs', '--port', String(PORT), '--data', DATA], { cwd: ROOT, stdio: 'ignore' });
+  for (let i = 0; i < 60; i++) {
+    await sleep(500);
+    // 사이드카까지 답하면 준비 끝 (/events 는 SSE 라 답이 끝나지 않는다)
+    const ok = await fetch(`${RELAY}/invoke`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'sidecar_call', args: { method: 'ping', params: {} } }), signal: AbortSignal.timeout(3000) })
+      .then((r) => r.json()).then((r) => r.ok, () => false);
+    if (ok) break;
+  }
+  await sleep(1500);
+  return p;
+}
+const studioOf = (page) => page.frames().find((f) => f.url().includes('/studio/'));
+const waitEditor = (page) => page.waitForFunction(() => { const e = document.querySelector('.kd-edit'); return e && !e.hidden && !document.querySelector('.kd-editor-cover'); }, { timeout: 120000 });
+/** Ctrl(맥은 ⌘ 도 받는다)+첫 키, 그다음 둘째 키 */
+async function chord(page, first, second) {
+  await page.keyboard.down('Control');
+  await page.keyboard.press(first);
+  await page.keyboard.up('Control');
+  await sleep(150);
+  await page.keyboard.press(second);
+  await sleep(500);
+}
+const recoveryFiles = () => (existsSync(join(DATA, 'recovery')) ? readdirSync(join(DATA, 'recovery')).filter((f) => f.endsWith('.bin')) : []);
+
+// ── 1차: 고치고, 저장하지 않은 채 꺼짐 ──
+let rp = await relay();
+let ui = await openUi({ relay: RELAY, width: 1280, height: 860, prefs: { 'kordoc-first-run-done': true } });
+let { page } = ui;
+try {
+  await ui.emitOpen([DOC], '한글 편집기로 열기');
+  await ui.click('한글 편집기로 열기');
+  await waitEditor(page);
+  await sleep(2000);
+  const studio = studioOf(page);
+  const menu = await studio.evaluate(() => ({
+    items: ['ext:kordoc-delete-line', 'ext:kordoc-date', 'ext:kordoc-normal-shape'].map((id) => !!document.querySelector(`.md-item[data-cmd="${id}"]`)),
+    center: document.querySelector('.md-item[data-cmd="format:align-center"] .md-shortcut')?.textContent ?? '',
+  }));
+  check('메뉴에 한 줄 지우기·날짜/시간 문자열·보통 모양', menu.items.every(Boolean), JSON.stringify(menu.items));
+  // 맥에선 스튜디오가 Ctrl 을 ⌘ 기호로 보인다
+  check('가운데 정렬 키 글자가 한컴 키(Ctrl+Shift+C)', /Ctrl\+Shift\+C|⌘⇧C/.test(menu.center), menu.center);
+
+  // 문서 첫머리에 글 → Ctrl+K,D 날짜 → 새 문단 글을 Ctrl+Y 로 지움
+  const box = await studio.evaluate(() => { const r = document.querySelector('#scroll-content canvas')?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + 120 } : null; });
+  const frameBox = await (await page.$('.kd-editor-frame iframe')).boundingBox();
+  const inner = await page.frames().find((f) => f.url().includes('host.html'))?.$('iframe');
+  const innerBox = inner ? await inner.boundingBox() : { x: frameBox.x, y: frameBox.y };
+  await page.mouse.click(innerBox.x + box.x, innerBox.y + box.y);
+  await sleep(300);
+  await page.keyboard.down('Control'); await page.keyboard.press('Home'); await page.keyboard.up('Control');
+  await page.keyboard.type('KEEP-ME ');
+  await chord(page, 'KeyK', 'KeyD');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('DELETE-ME');
+  await sleep(200);
+  // 문단 수는 스튜디오 공개 자동화에 시험용 명령을 하나 걸어 읽는다
+  const paraCount = () => studio.evaluate(() => {
+    const a = window.rhwpStudio.automation;
+    if (!window.__kdSvc) { a.registerCommand({ id: 'ext:e2e-services', label: 'e2e', execute: (sv) => { window.__kdSvc = sv; } }); a.execute('ext:e2e-services'); }
+    return window.__kdSvc.wasm.getParagraphCount(0);
+  });
+  const before = await paraCount();
+  await page.keyboard.down('Control'); await page.keyboard.press('KeyY'); await page.keyboard.up('Control');
+  await sleep(500);
+  const after = await paraCount();
+  check('Ctrl+Y 는 줄과 그 문단 나눔까지 지운다 (문단 하나 줄어듦)', after === before - 1, `${before} → ${after}`);
+  // Ctrl+M,R → 이어 치는 글이 빨강
+  await chord(page, 'KeyM', 'KeyR');
+  await page.keyboard.type('RED-TEXT');
+  await sleep(300);
+  // Ctrl+N,T → 표 만들기 대화상자 (닫기)
+  await chord(page, 'KeyN', 'KeyT');
+  // 표 만들기는 줄·칸을 고르는 격자 창부터 뜬다 (body 에 붙는 맨 위 고정 층)
+  const grid = await studio.evaluate(() => [...document.body.children].some((e) => e.style.zIndex === '9998'));
+  check('Ctrl+N,T 가 표 만들기 격자 창을 연다', grid);
+  await page.keyboard.press('Escape');
+  await sleep(500);
+  await ui.shot(join(OUT, '01-edited.png'));
+
+  // 복구 사본 (편집기 입력이 멈추면 첫 사본은 몇 초 안에)
+  let copies = [];
+  for (let i = 0; i < 40 && !(copies = recoveryFiles()).length; i++) await sleep(1000);
+  check('저장 안 한 채 복구 사본이 생김', copies.length === 1, copies.join(','));
+  const home = await page.evaluate(() => { document.querySelector('.kd-nav-item[data-screen="home"]')?.click(); return true; });
+  await sleep(800);
+  check('지금 고치는 문서는 홈의 꺼진 문서 목록에 없음', home && !(await page.evaluate(() => document.body.innerText.includes('저장하지 않고 꺼진 문서'))));
+} finally {
+  // 저장하지 않고 앱이 꺼진다 (창·엔진을 그냥 내림)
+  await ui.browser.close();
+  rp.kill('SIGKILL');
+  await sleep(1500);
+}
+check('원본 파일은 그대로', !readFileSync(DOC).equals(Buffer.alloc(0)) && !existsSync(`${DOC}.bak`));
+
+// ── 2차: 다시 켜서 되살리고 저장 ──
+rp = await relay();
+ui = await openUi({ relay: RELAY, width: 1280, height: 860, prefs: { 'kordoc-first-run-done': true } });
+({ page } = ui);
+try {
+  await ui.waitText('저장하지 않고 꺼진 문서', 30000);
+  check('홈에 꺼진 문서와 이름', await page.evaluate(() => document.body.innerText.includes('보고서.hwpx')));
+  await ui.shot(join(OUT, '02-home.png'));
+  await ui.click('되살리기', { exact: true });
+  await waitEditor(page);
+  await ui.waitText('저장하지 않았던 고친 내용으로 열었습니다', 20000);
+  const bar = await page.evaluate(() => document.querySelector('.kd-edit-bar')?.innerText ?? '');
+  check('되살린 문서는 저장 안 됨 표시', bar.includes('고친 내용이 아직 저장되지 않았습니다'), bar.replace(/\n/g, ' / '));
+  // 되살린 사본은 디스크 파일과 다르다 → 원본은 두고 저장 창으로 새 파일에 (원본 보호)
+  await ui.dialog([SAVED]);
+  await ui.click('저장', { exact: true, within: '.kd-edit-bar' });
+  await ui.waitText('저장했습니다', 30000);
+  await sleep(800);
+  await ui.shot(join(OUT, '03-saved.png'));
+  check('되살린 문서 저장은 저장 창에서 고른 새 파일로', existsSync(SAVED), SAVED);
+  check('원본은 그대로 (덮어쓰지 않음)', readFileSync(DOC).equals(ORIGINAL) && !existsSync(`${DOC}.bak`));
+  const zip = await JSZip.loadAsync(readFileSync(SAVED));
+  const xml = await zip.file('Contents/section0.xml').async('string');
+  const text = xml.replace(/<[^>]+>/g, '');
+  const today = new Date();
+  check('저장한 파일에 고친 글과 Ctrl+K,D 날짜', text.includes('KEEP-ME') && text.includes(`${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`), text.slice(0, 80));
+  check('Ctrl+Y 로 지운 줄은 없음', !text.includes('DELETE-ME'));
+  const head = await zip.file('Contents/header.xml').async('string');
+  const red = [...head.matchAll(/<hh:charPr id="(\d+)"[^>]*textColor="#FF0000"/g)].map((m) => m[1]);
+  check('Ctrl+M,R 로 친 글이 빨강', red.some((id) => new RegExp(`charPrIDRef="${id}"[^>]*>\\s*<hp:t>RED-TEXT`).test(xml)), red.join(','));
+  check('저장 뒤 복구 사본 지워짐', recoveryFiles().length === 0, recoveryFiles().join(','));
+  await page.evaluate(() => document.querySelector('.kd-nav-item[data-screen="home"]')?.click());
+  await sleep(800);
+  check('홈의 꺼진 문서 목록도 사라짐', !(await page.evaluate(() => document.body.innerText.includes('저장하지 않고 꺼진 문서'))));
+  const o = await ui.orphans();
+  check('외톨이 줄 없음', o.length === 0, JSON.stringify(o));
+  check('화면 오류 없음', ui.errors.length === 0, ui.errors.slice(0, 3).join(' | '));
+} finally {
+  await ui.browser.close();
+  rp.kill();
+}
+const failed = checks.filter((c) => !c.ok).length;
+console.log(`${checks.length - failed}/${checks.length} 통과`);
+process.exit(failed ? 1 : 0);

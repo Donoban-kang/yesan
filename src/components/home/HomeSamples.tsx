@@ -1,0 +1,69 @@
+/** 예제로 해 보기 — 서무 업무 시연 흐름을 예제 문서 묶음(samples_list)으로 한 번에 */
+
+import { useEffect, useState } from "react";
+import { FlaskConical } from "lucide-react";
+import { useApp } from "../../state/app";
+import { rpc } from "../../lib/rpc";
+import type { RpcResult } from "../../lib/contract";
+import { Button } from "../ui/Button";
+import { VersionsDialog } from "../agent/VersionsDialog";
+
+type Samples = RpcResult<"samples_list">;
+type Scenario = Samples["scenarios"][number];
+
+const MARK: Record<Scenario["id"], string> = { reply: "①", collect: "②", redact: "③", summary: "④", versions: "⑤" };
+
+/** 예제 시나리오 하나 시작 — 홈 예제 목록과 첫 실행 "예제로 연습"이 같이 쓴다 */
+export function useStartSample() {
+  const { startCreate, startBatch, openDocs, toast } = useApp();
+  return (s: Scenario) => {
+    if (!s.files.length) { toast("예제 파일을 찾지 못했습니다. 앱을 다시 설치해 보세요.", "error"); return; }
+    if (s.id === "reply") startCreate({ route: "ai", kind: "reply", references: [s.files[0]] });
+    else if (s.id === "collect") startBatch({ paths: s.files, task: "collect" });
+    else if (s.id === "redact") openDocs([s.files[0]], { tool: "redact", run: "redact" });
+    else openDocs([s.files[0]], { tool: "ai", run: "summarize" });
+  };
+}
+
+export function HomeSamples() {
+  const { ready } = useApp();
+  const [samples, setSamples] = useState<Samples | null>(null);
+  const start = useStartSample();
+  // 최종본 찾기는 AI 없이 창에서 (판 계보·앞 판과 비교)
+  const [ver, setVer] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready) return;
+    rpc("samples_list", {}).then(setSamples).catch(() => setSamples(null));
+  }, [ready]);
+
+  return (
+    <section className="kd-home-block" aria-labelledby="samples-t">
+      <div className="kd-block-head">
+        <h2 id="samples-t" className="kd-h2 flex items-center gap-2"><FlaskConical size={16} className="kd-muted" /> 예제로 해 보기</h2>
+      </div>
+      {!samples ? (
+        <p className="kd-text kd-muted py-3">{ready ? "예제 문서 묶음을 찾지 못했습니다." : "문서 엔진을 켜는 중입니다."}</p>
+      ) : (
+        <>
+          <div className="kd-rows">
+            {samples.scenarios.map((s) => (
+              <div key={s.id} className="kd-row">
+                <span className="kd-sample-n" aria-hidden="true">{MARK[s.id]}</span>
+                <span className="kd-row-main">
+                  <span className="kd-row-title block">{s.title}</span>
+                  <span className="kd-row-desc block">{s.description}</span>
+                </span>
+                <span className="kd-row-aside">
+                  <Button variant="secondary" size="sm" onClick={() => (s.id === "versions" ? setVer(s.files[0] ?? null) : start(s))}>해 보기</Button>
+                </span>
+              </div>
+            ))}
+          </div>
+          {samples.note && <p className="kd-small kd-muted mt-2">{samples.note}</p>}
+          <VersionsDialog path={ver} onClose={() => setVer(null)} />
+        </>
+      )}
+    </section>
+  );
+}
