@@ -44,6 +44,28 @@ export const DEFAULT_SETTINGS: Settings = {
   impact: { baselines: {} },
   law: { oc: '' },
   receipt: { template_path: '', template_name: '', columns: [] },
+  budget: {
+    year: 0,
+    warn_at: 90,
+    over_block: true,
+    accounts: [
+      { id: 'univ', label: '대학회계', words: ['대학회계', '등록금', '교비'] },
+      { id: 'glocal', label: '글로컬', words: ['글로컬'] },
+      { id: 'growth', label: '육성사업', words: ['육성사업', '국립대학육성', '대학육성'] },
+    ],
+    rules: [
+      { nature: '임차', words: ['임차', '대절', '버스', '대여', '렌탈'], hints: ['임차', '임대'] },
+      { nature: '구입', words: ['구입', '구매', '기자재', '물품', '장비'], hints: ['구입', '자산', '기자재', '재료', '수용비', '소모품'] },
+      { nature: '여비', words: ['출장', '여비', '교통비', '숙박'], hints: ['여비'] },
+      { nature: '수당', words: ['강사', '수당', '사례비', '자문료', '심사비', '원고료'], hints: ['수당', '사례', '인건비'] },
+      { nature: '회의', words: ['회의', '간담회', '다과', '협의회', '식대'], hints: ['회의', '협의회', '업무추진'] },
+      { nature: '용역', words: ['용역', '위탁', '제작', '개발', '컨설팅'], hints: ['용역', '위탁'] },
+      { nature: '행사', words: ['행사', '포럼', '세미나', '설명회', '박람회', '캠프'], hints: ['행사', '운영비'] },
+      { nature: '인쇄', words: ['인쇄', '홍보물', '현수막', '책자', '자료집'], hints: ['인쇄', '홍보', '수용비'] },
+      { nature: '장학', words: ['장학금', '장학', '학생 지원금'], hints: ['장학'] },
+      { nature: '수선', words: ['수선', '보수', '공사', '교체', '정비'], hints: ['수선', '시설', '공사'] },
+    ],
+  },
 };
 
 /** 앱 데이터 폴더 (설정·모델·로그) */
@@ -240,7 +262,7 @@ export function getConfig<K extends keyof Settings>(section: K): Settings[K] {
   return getSettings()[section];
 }
 
-const ALLOWED_SECTIONS = new Set(['ai', 'privacy', 'org', 'convert', 'general', 'impact', 'law', 'receipt']);
+const ALLOWED_SECTIONS = new Set(['ai', 'privacy', 'org', 'convert', 'general', 'impact', 'law', 'receipt', 'budget']);
 /** 기관 배포 설정이 정할 수 있는 모양 — 허용 구획의 기본값 */
 const POLICY_SHAPE: Obj = Object.fromEntries([...ALLOWED_SECTIONS].map((k) => [k, DEFAULT_SETTINGS[k as keyof Settings]]));
 const SECRET_FIELDS = ['api_key'];
