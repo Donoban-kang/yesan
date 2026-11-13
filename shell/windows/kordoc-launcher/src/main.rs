@@ -1,4 +1,4 @@
-//! KorDoc Shell Extension launcher.
+//! KnuDoc Shell Extension launcher.
 //!
 //! 흐름:
 //!   shell 우클릭 verb → kordoc-launcher.exe <action> "<file>" [more files...]

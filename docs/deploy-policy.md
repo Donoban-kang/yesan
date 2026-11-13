@@ -119,7 +119,7 @@ JSON 문법 오류는 몇째 줄 몇째 칸 근처인지 알려 줌. 흔한 원�
 
 ## 우클릭 메뉴 (Windows 탐색기)
 
-- 메뉴는 사용자 계정마다 따로 들어감: `HKCU\Software\Classes\SystemFileAssociations\<확장자>\shell\KorDoc`. 관리자 권한은 필요 없고, 설치 파일(NSIS·MSI)은 메뉴를 넣지 않음.
+- 메뉴는 사용자 계정마다 따로 들어감: `HKCU\Software\Classes\SystemFileAssociations\<확장자>\shell\KnuDoc`. 관리자 권한은 필요 없고, 설치 파일(NSIS·MSI)은 메뉴를 넣지 않음.
 - 사용자가 직접 넣을 때: 설정 > 저장과 연결 > 탐색기 우클릭 메뉴 > 메뉴 넣기.
 - 여러 PC에 넣을 때: 사용자마다 그 사용자 계정으로 아래 명령을 실행함(로그온 스크립트 등). MSI 를 관리자 계정으로 일괄 설치해도 각 사용자의 메뉴는 이 명령을 그 사용자로 돌려야 들어감.
 
@@ -136,12 +136,12 @@ JSON 문법 오류는 몇째 줄 몇째 칸 근처인지 알려 줌. 흔한 원�
 $exe = "$env:LOCALAPPDATA\KnuDoc AI\knudoc-ai.exe"
 $p = Start-Process -FilePath $exe -ArgumentList '--shell-menu', 'install' -Wait -PassThru
 if ($p.ExitCode -ne 0) { Write-Error "우클릭 메뉴를 넣지 못했습니다(종료 코드 $($p.ExitCode)). 앱을 한 번 켜서 설정 > 저장과 연결에서 메뉴 넣기를 눌러 보세요." }
-Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.hwpx\shell\KorDoc'   # True 면 들어 있음
+Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.hwpx\shell\KnuDoc'   # True 면 들어 있음
 ```
 
 - 지울 때: 사용자 단위 설치(NSIS)의 제거 프로그램은 제거하는 사용자의 메뉴를 함께 지움. MSI 제거는 우클릭 메뉴를 지우지 않음(제거하는 사용자의 것도 남음). 남은 메뉴를 누르면 "프로그램을 찾을 수 없음"이 뜨므로, MSI 로 깔았으면 제거 전에 사용자마다 `--shell-menu uninstall` 을 실행함. 이미 제거했으면 저장소의 `docs/remove-explorer-menu.reg` 를 그 사용자로 실행함(`reg import remove-explorer-menu.reg`, 관리자 권한 필요 없음. 메뉴 키만 지움).
 - MSI 제거에 메뉴 지우기를 넣지 않은 까닭: 메뉴는 사용자마다(HKCU) 들어가는데 MSI 일괄 제거는 시스템 계정으로 돌아 사용자 메뉴에 닿지 않고, 제거 단계에 넣으면 MSI 로 판을 올릴 때마다(옛 판 제거 → 새 판 설치) 켜 둔 메뉴가 사라짐.
-- macOS 는 Finder 빠른 동작(`~/Library/Services/KorDoc - … .workflow`)으로 들어가고, 같은 명령을 `"/Applications/KnuDoc AI.app/Contents/MacOS/kordoc-ai" --shell-menu install` 로 실행함.
+- macOS 는 Finder 빠른 동작(`~/Library/Services/KnuDoc - … .workflow`)으로 들어가고, 같은 명령을 `"/Applications/KnuDoc AI.app/Contents/MacOS/kordoc-ai" --shell-menu install` 로 실행함.
 
 ## 공유 폴더 (네트워크 경로)
 

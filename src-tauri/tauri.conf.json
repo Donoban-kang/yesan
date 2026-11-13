@@ -64,7 +64,7 @@
         "installerHooks": "./windows/hooks.nsh"
       }
     },
-    "publisher": "KorDoc"
+    "publisher": "KnuDoc"
   },
   "plugins": {
     "shell": {
