@@ -59,6 +59,20 @@ const book = (): BudgetBookView => {
 
 const LETTER = `${D}/2026 진로체험 버스 임차 협조.hwpx`;
 const analysisOf = (path: string): BudgetAnalysis => {
+  if (path.includes("원인행위")) {
+    // 실제 원인행위서 짜임을 따른 가상 값 (사람·번호는 지어냄)
+    const lines = [{ dept: "교육혁신과", ledger: "자체수입", source: "지원금(보조금)", detail: "[국립대학육성사업]지원금", subject: "물건비-여비-국내여비 (국립대학 육성사업 국내여비)", amount: 412_000 }];
+    const subjects = lines.map((l) => `${l.detail} ${l.subject}`);
+    const basis = ["[육성]출장여비 정산 결의 요청", ...lines.map((l) => `${l.source} ${l.detail} ${l.subject}`)].join("\n");
+    const views = items.map((it) => viewOf(it, entries));
+    return {
+      path, name: path.split("/").pop() ?? path, format: "hwx", notes: ["HWX 파일 속 형식: 한솔 전자결재 문서", "본문 HWP을(를) 꺼내 읽었습니다"],
+      doc_kind: "원인행위서", fiscal_year: 2025, resolution_no: "20251BD0000E40000001", doc_number: "20251BD0000E40000001", title: "[육성]출장여비 정산 결의 요청(교육혁신과/김*온외 1명)",
+      sender: "교육혁신과", sent_date: "2026-01-08", purpose: "[육성]출장여비 정산 결의 요청", amount: 412_000,
+      amounts: [{ value: 412_000, source: "원인행위서 금액 칸", confidence: 0.97, form: "결의서" }], nature: "여비", nature_words: ["여비"], account_hint: "growth",
+      budget_lines: lines, basis, subjects, suggestions: suggestItems(views, entries, MOCK_BUDGET_SETTINGS, { text: basis, nature: "여비", account: "growth", amount: 412_000, subjects }),
+    };
+  }
   const forum = path.includes("포럼");
   const basis = forum
     ? "글로컬대학 30 지역 협업 포럼 개최 안내\n가. 일시: 2026. 12. 4.(금) 14:00\n나. 소요 예산: 금3,000,000원(행사 운영)"
@@ -136,4 +150,4 @@ export const budgetHandlers: H = {
   budget_export: async () => { await wait(300); return { output_path: "/Users/kim/Documents/KorDoc AI 결과/예산현황_2026_20261113.xlsx", items: items.length, entries: entries.length }; },
 };
 
-export const MOCK_LETTERS = [LETTER, `${D}/글로컬 지역 협업 포럼 개최 안내.hwx`];
+export const MOCK_LETTERS = [LETTER, `${D}/글로컬 지역 협업 포럼 개최 안내.hwx`, `${D}/[원인행위] 출장여비 정산 결의.hwx`];

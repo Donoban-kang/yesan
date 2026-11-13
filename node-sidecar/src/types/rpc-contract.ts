@@ -205,7 +205,7 @@ export interface RpcMethods {
   /** 받은 공문을 읽어 금액·목적·기간·거래 성격·회계 구분 단서를 뽑고 예산 과목을 추천 (HWP·HWPX·HWX·HML·PDF·DOCX) */
   budget_analyze: [{ path: string; year?: number }, BudgetAnalysis];
   /** 글과 금액으로 다시 추천 (회계 구분을 바꾸거나 금액을 고쳤을 때) */
-  budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number }, BudgetSuggestion[]];
+  budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }, BudgetSuggestion[]];
   /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */
   budget_apply: [{ year?: number; item_id: string; amount: number; stage: 'commit' | 'paid'; date?: string; doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string }, BudgetApplyResult];
   /** 품의 중인 기록을 지출 완료로 (실제 금액이 다르면 amount) */
@@ -728,6 +728,16 @@ export interface BudgetAnalysis {
   format: DocFormat | 'hwx';
   /** HWX 를 어떻게 읽었는지 등 */
   notes: string[];
+  /** 공문 · 원인행위서 · 지출결의서 … */
+  doc_kind?: string;
+  /** 문서에 적힌 회계연도 (예: "2023회계연도") */
+  fiscal_year?: number;
+  /** 결의번호 (결의서) */
+  resolution_no?: string;
+  /** 결의서 예산 줄: 세부사업·예산과목·금액 */
+  budget_lines?: Array<{ dept?: string; ledger?: string; source?: string; detail: string; subject: string; amount: number }>;
+  /** 결의서 예산 줄 글 (budget_suggest 로 다시 넘긴다) */
+  subjects?: string[];
   title?: string;
   sender?: string;
   doc_number?: string;

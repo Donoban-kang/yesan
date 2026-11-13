@@ -166,6 +166,10 @@ let shellInstalled = false;
 
 const mockInbox: RpcResult<"inbox_list">["items"] = [
   {
+    id: "b3", path: MOCK_LETTERS[2], name: "[원인행위] 출장여비 정산 결의.hwx", added_at: "2026-11-12T09:00:00.000Z",
+    sender: "교육혁신과", title: "[육성]출장여비 정산 결의 요청", requests: [], status: "todo",
+  },
+  {
     id: "b1", path: MOCK_LETTERS[0], name: "2026 진로체험 버스 임차 협조.hwpx", added_at: "2026-11-10T09:00:00.000Z",
     sender: "학생처", doc_number: "학생처-4021", sent_date: "2026-11-10", title: "2026 진로체험 버스 임차 협조 요청",
     requests: [{ text: "버스 임차 계약 절차 완료", due: "2026-11-20" }], due: "2026-11-20", status: "todo",

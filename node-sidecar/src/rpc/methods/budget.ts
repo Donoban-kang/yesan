@@ -37,7 +37,7 @@ export function registerBudget(router: RpcRouter): void {
   reg('budget_item_update', (p) => budgetItemUpdate({ year: year(p), id: id(p.id), keywords: strList(p.keywords), budget: num(p.budget), spent_before: num(p.spent_before) }));
   reg('budget_analyze', (p, signal) => budgetAnalyze({ path: reqPath(p.path), year: year(p) }, signal), { heavy: true });
   reg('budget_suggest', (p) => budgetSuggest({
-    year: year(p), text: str(p.text) ?? '', nature: str(p.nature), account: str(p.account), amount: num(p.amount), sender: str(p.sender), limit: num(p.limit),
+    year: year(p), text: str(p.text) ?? '', nature: str(p.nature), account: str(p.account), amount: num(p.amount), sender: str(p.sender), limit: num(p.limit), subjects: strList(p.subjects),
   }));
   reg('budget_apply', (p) => {
     const stage = oneOf(p.stage, ['commit', 'paid'] as const);

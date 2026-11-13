@@ -52,7 +52,11 @@ export interface SuggestInput {
   amount?: number;
   sender?: string;
   limit?: number;
+  /** 결의서 예산 줄 ("세부사업 예산과목") — 과목 이름이 그대로 들면 가장 믿을 만한 근거 */
+  subjects?: string[];
 }
+
+const squash = (s: string) => s.replace(/\s/g, '');
 
 export function suggestItems(items: BudgetItemView[], entries: BudgetEntry[], s: BudgetSettings, input: SuggestInput): BudgetSuggestion[] {
   const text = input.text;
@@ -83,6 +87,12 @@ export function suggestItems(items: BudgetItemView[], entries: BudgetEntry[], s:
     weigh(wordsOf(it.unit), 6);
     weigh(wordsOf(it.program), 4);
     for (const h of hits.slice(0, 3)) reasons.push(`"${h}" 일치`);
+    if (input.subjects?.length) {
+      const subj = input.subjects.map(squash);
+      if (it.name.length >= 2 && subj.some((x) => x.includes(squash(it.name)))) { score += 45; reasons.unshift('결의서 예산과목 일치'); }
+      const dw = wordsOf(`${it.detail} ${it.unit}`);
+      if (dw.length && subj.some((x) => dw.some((w) => x.includes(w)))) { score += 15; reasons.push('결의서 세부사업 일치'); }
+    }
     if (input.account) {
       if (it.account === input.account) { score += 15; reasons.push(`회계: ${label(it.account)}`); } else score -= 12;
     }
@@ -92,7 +102,7 @@ export function suggestItems(items: BudgetItemView[], entries: BudgetEntry[], s:
     return { item: it, score, reasons, enough, hits: hits.length };
   });
   return scored
-    .filter((x) => x.score > 0 && (x.hits > 0 || x.reasons.some((r) => r.startsWith('거래 성격'))))
+    .filter((x) => x.score > 0 && (x.hits > 0 || x.reasons.some((r) => r.startsWith('거래 성격') || r.startsWith('결의서'))))
     .sort((a, b) => b.score - a.score || b.item.avail - a.item.avail)
     .slice(0, Math.max(1, Math.min(20, input.limit ?? 5)))
     .map(({ item, score, reasons, enough }) => ({ item, score: Math.min(99, Math.round(score)), reasons: enough ? [...reasons, '잔액 충분'] : [...reasons, '잔액 부족'], enough }));

@@ -53,9 +53,11 @@ export function SpendScreen({ active }: { active: boolean }) {
 
   const busyRef = useRef(false);
   busyRef.current = analysis.busy;
+  // 결의서 예산 줄을 하나 골랐으면 그 줄만으로 추천
+  const subjectsRef = useRef<string[] | undefined>(undefined);
   const analyze = useCallback(async (path: string) => {
     if (busyRef.current) { toast("앞 공문을 읽는 중입니다. 다 읽은 뒤 다시 넣으세요.", "info"); return; }
-    setConfirming(false); setDone(null); setApplyError(""); setMemo(""); setAgain(false);
+    setConfirming(false); setDone(null); setApplyError(""); setMemo(""); setAgain(false); subjectsRef.current = undefined;
     const r = await analysis.run(({ signal, onProgress }) => rpc("budget_analyze", { path }, { signal, onProgress }));
     if (!r) return;
     setAmountText(r.amount ? won(r.amount) : "");
@@ -79,7 +81,7 @@ export function SpendScreen({ active }: { active: boolean }) {
   const resuggest = useCallback(async (acc: string, amt: number) => {
     if (!a) return;
     try {
-      const list = await rpc("budget_suggest", { text: a.basis, nature: a.nature, account: acc || undefined, amount: amt || undefined, sender: a.sender });
+      const list = await rpc("budget_suggest", { text: a.basis, nature: a.nature, account: acc || undefined, amount: amt || undefined, sender: a.sender, subjects: subjectsRef.current ?? a.subjects });
       setSuggestions(list);
       setItemId((cur) => (cur && list.some((s) => s.item.id === cur) ? cur : list[0]?.item.id ?? cur));
     } catch (e) {
@@ -150,7 +152,7 @@ export function SpendScreen({ active }: { active: boolean }) {
               <button type="button" className="kd-dropzone" data-over={dragTarget === "spend"} onClick={pick} disabled={analysis.busy}>
                 <FilePlus2 size={22} aria-hidden="true" />
                 <span className="kd-row-title block">공문을 끌어다 놓거나 눌러서 고르기</span>
-                <span className="kd-small kd-muted block">HWP · HWPX · HWX · HML · PDF(스캔 포함) · DOCX</span>
+                <span className="kd-small kd-muted block">공문·원인행위서·지출결의서 (HWP · HWPX · HWX · HML · PDF · DOCX)</span>
               </button>
               {inbox.length > 0 && (
                 <div className="kd-docpick" aria-label="접수함의 공문">
@@ -176,13 +178,30 @@ export function SpendScreen({ active }: { active: boolean }) {
               ) : (
                 <div className="kd-bcard">
                   <dl className="kd-dl">
-                    <div><dt>공문</dt><dd className="min-w-0">{a.title ?? a.name}{a.doc_number && <span className="kd-small kd-muted block">{a.sender ? `${a.sender} · ` : ""}{a.doc_number}</span>}</dd></div>
+                    {a.doc_kind && a.doc_kind !== "공문" && <div><dt>문서</dt><dd><span className="kd-badge" data-tone="info">{a.doc_kind}</span> <span className="kd-small kd-muted">결의서 칸에서 바로 읽었습니다</span></dd></div>}
+                    <div><dt>{a.doc_kind && a.doc_kind !== "공문" ? "건명" : "공문"}</dt><dd className="min-w-0">{a.title ?? a.name}{(a.doc_number || a.sender) && <span className="kd-small kd-muted block">{a.sender ? `${a.sender} · ` : ""}{a.resolution_no ? `결의번호 ${a.resolution_no}` : a.doc_number}{a.sent_date && a.resolution_no ? ` · 발의 ${a.sent_date}` : ""}</span>}</dd></div>
+                    {a.fiscal_year && <div><dt>회계연도</dt><dd className="kd-num">{a.fiscal_year}</dd></div>}
                     {a.nature && <div><dt>거래 성격</dt><dd><span className="kd-badge" data-tone="accent">{a.nature}</span> <span className="kd-small kd-muted">"{a.nature_words.slice(0, 3).join("·")}" 낱말로 판단</span></dd></div>}
                     {a.period && <div><dt>기간</dt><dd>{a.period}</dd></div>}
                     {a.people && <div><dt>대상</dt><dd>{a.people}</dd></div>}
                     {a.due && <div><dt>처리 기한</dt><dd className="kd-num">{a.due}까지</dd></div>}
                   </dl>
                   {a.notes.length > 0 && <Note tone="info">{a.notes.join(" · ")}</Note>}
+                  {a.fiscal_year && book && a.fiscal_year !== book.year && (
+                    <Note tone="warn">문서는 {a.fiscal_year}회계연도인데 지금 장부는 {book.year}회계연도입니다. 맞는 장부에 반영하려면 설정 › 예산과 회계에서 회계연도를 바꾸세요.</Note>
+                  )}
+                  {a.budget_lines && a.budget_lines.length > 0 && (
+                    <div className="flex flex-col gap-1.5" aria-label="결의서 예산 줄">
+                      <span className="kd-label">결의서 예산 줄{a.budget_lines.length > 1 ? ` ${a.budget_lines.length}개: 줄을 누르면 그 금액·과목으로 추천합니다` : ""}</span>
+                      {a.budget_lines.map((l, i) => (
+                        <button key={i} type="button" className="kd-docopt" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }} disabled={a.budget_lines!.length < 2}
+                          onClick={() => { subjectsRef.current = [[l.detail, l.subject].filter(Boolean).join(" ")]; setAmountText(won(l.amount)); setConfirming(false); void resuggest(account, l.amount); }}>
+                          <span className="min-w-0"><span className="kd-docopt-name">{l.subject}</span><span className="kd-small kd-muted">{[l.source, l.detail].filter(Boolean).join(" · ")}</span></span>
+                          <span className="kd-num font-semibold">{won(l.amount)}원</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <label className="kd-field">
                     <span className="kd-label">금액 (원)</span>
                     <input className="kd-input kd-amount-input" inputMode="numeric" value={amountText} data-low={!a.amounts[0] || a.amounts[0].confidence < 0.6}

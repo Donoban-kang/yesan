@@ -24,20 +24,70 @@ export interface ReadDoc {
 
 const READABLE = new Set<DocFormat>(['hwp', 'hwp3', 'hwpx', 'hwpml', 'pdf', 'docx', 'image', 'txt', 'md']);
 
-export type Sniffed = 'ole' | 'zip' | 'pdf' | 'xml' | 'hwp3' | 'unknown';
+export type Sniffed = 'ole' | 'zip' | 'pdf' | 'xml' | 'hwp3' | 'handysoft' | 'unknown';
+
+/** 한솔(Handysoft) 전자결재 문서 머리 (실제 HWX 표본에서 확인, 2026-11-13) */
+export const HANDYSOFT_MAGIC = 'Handysoft Approval Document File';
+const OLE_SIG = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+
+/** 그 자리에서 시작하는 문서 형식 (머리 바이트) */
+function sigAt(buf: Buffer, at: number): 'ole' | 'zip' | 'pdf' | 'hwp3' | null {
+  if (at < 0 || at + 8 > buf.length) return null;
+  if (buf.subarray(at, at + 8).equals(OLE_SIG)) return 'ole';
+  if (buf[at] === 0x50 && buf[at + 1] === 0x4b && buf[at + 2] === 0x03 && buf[at + 3] === 0x04) return 'zip';
+  if (buf.subarray(at, at + 5).toString('latin1') === '%PDF-') return 'pdf';
+  if (buf.subarray(at, at + 17).toString('latin1') === 'HWP Document File') return 'hwp3';
+  return null;
+}
+
+export interface Embedded { offset: number; length: number; kind: 'ole' | 'zip' | 'pdf' | 'hwp3' }
+
+/** 한솔 전자결재 HWX 안의 문서들.
+ *  표본 구조: 32바이트 머리 글 + 머리 칸(문서 관리번호 등) 안에 [길이 u32][시작 위치 u32] 짝이 있고, 그 자리에 HWP(OLE) 본문이 통째로 든다.
+ *  머리 칸 해석은 표본 하나에서 얻은 것이라, 짝을 못 찾으면 문서 머리 바이트를 훑어 찾는다 */
+export function handysoftEntries(buf: Buffer): Embedded[] {
+  const out: Embedded[] = [];
+  const seen = new Set<number>();
+  const firstSig = (() => {
+    for (let i = HANDYSOFT_MAGIC.length; i < buf.length - 8; i++) if (sigAt(buf, i)) return i;
+    return buf.length;
+  })();
+  // 1) 머리 칸의 [길이][위치] 짝
+  for (let i = HANDYSOFT_MAGIC.length; i + 8 <= Math.min(firstSig, 64 * 1024); i++) {
+    const length = buf.readUInt32LE(i);
+    const offset = buf.readUInt32LE(i + 4);
+    if (offset < HANDYSOFT_MAGIC.length || length < 512 || offset + length > buf.length || seen.has(offset)) continue;
+    const kind = sigAt(buf, offset);
+    if (!kind) continue;
+    seen.add(offset);
+    out.push({ offset, length, kind });
+  }
+  if (out.length) return out.sort((a, b) => a.offset - b.offset);
+  // 2) 짝이 없으면 문서 머리 바이트를 훑어 다음 문서 앞까지 (HWP 속 "HWP Document File" 글은 OLE 안이라 건너뜀)
+  const starts: Array<{ offset: number; kind: Embedded['kind'] }> = [];
+  for (let i = HANDYSOFT_MAGIC.length; i < buf.length - 8; i++) {
+    const kind = sigAt(buf, i);
+    if (!kind || (kind === 'hwp3' && starts.some((s) => s.kind === 'ole'))) continue;
+    starts.push({ offset: i, kind });
+    if (kind === 'ole' || kind === 'zip' || kind === 'pdf') break;
+  }
+  return starts.map((s, i) => ({ ...s, length: (starts[i + 1]?.offset ?? buf.length) - s.offset }));
+}
 
 export function sniff(buf: Uint8Array): Sniffed {
-  const head = Buffer.from(buf.subarray(0, 32));
+  const head = Buffer.from(buf.subarray(0, 40));
   if (head.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]))) return 'ole';
   if (head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04) return 'zip';
   if (head.subarray(0, 5).toString('latin1') === '%PDF-') return 'pdf';
   if (head.subarray(0, 17).toString('latin1') === 'HWP Document File') return 'hwp3';
+  if (head.subarray(0, HANDYSOFT_MAGIC.length).toString('latin1') === HANDYSOFT_MAGIC) return 'handysoft';
   const text = head.toString('utf-8').replace(/^﻿/, '').trimStart();
   if (text.startsWith('<?xml') || text.startsWith('<')) return 'xml';
   return 'unknown';
 }
 
-const SNIFF_LABEL: Record<Sniffed, string> = { ole: 'HWP', zip: 'HWPX(ZIP)', pdf: 'PDF', xml: 'XML', hwp3: 'HWP 3.0', unknown: '알 수 없음' };
+const SNIFF_LABEL: Record<Sniffed, string> = { ole: 'HWP', zip: 'HWPX(ZIP)', pdf: 'PDF', xml: 'XML', hwp3: 'HWP 3.0', handysoft: '한솔 전자결재 문서', unknown: '알 수 없음' };
+const KIND_LABEL: Record<Embedded['kind'], string> = { ole: 'HWP', zip: 'HWPX', pdf: 'PDF', hwp3: 'HWP 3.0' };
 
 /** ZIP 안 본문 후보의 차례 (앞이 우선) */
 const INNER_ORDER = ['.hwpx', '.hwp', '.pdf', '.hml', '.docx'];
@@ -56,6 +106,13 @@ export async function readHwx(path: string, signal?: AbortSignal): Promise<ReadD
   const kind = sniff(buf);
   const notes = [`HWX 파일 속 형식: ${SNIFF_LABEL[kind]}`];
   if (kind === 'ole' || kind === 'pdf' || kind === 'hwp3') return { markdown: await parseBuf(buf, path, signal), format: 'hwx', notes };
+  if (kind === 'handysoft') {
+    const docs = handysoftEntries(buf);
+    if (!docs.length) throw new Error('한솔 전자결재 HWX 안에서 본문 문서를 찾지 못했습니다. 전자결재 시스템에서 HWP·PDF 로 내려받아 넣으세요.');
+    const main = docs[0];
+    notes.push(`본문 ${KIND_LABEL[main.kind]}을(를) 꺼내 읽었습니다${docs.length > 1 ? ` (안에 문서 ${docs.length}개, 첫 문서를 본문으로)` : ''}`);
+    return { markdown: await parseBuf(buf.subarray(main.offset, main.offset + main.length), path, signal), format: 'hwx', notes };
+  }
   if (kind === 'xml') {
     const text = buf.toString('utf-8');
     if (/<HWPML\b/i.test(text)) return { markdown: await parseBuf(buf, path, signal), format: 'hwx', notes };

@@ -21,6 +21,7 @@ import { outputFile } from '../output/index.js';
 import { findAmounts } from './amount.js';
 import { detectHeader, itemKey, rowsToItems, type ParsedItem } from './mapping.js';
 import { readBudgetDoc } from './read-doc.js';
+import { extractVoucher } from './voucher.js';
 import { budgetSettings, yearOf } from './settings.js';
 import { loadBook, saveBook, serial, type BudgetFile } from './store.js';
 import { accountHintOf, natureOf, suggestItems } from './suggest.js';
@@ -207,6 +208,42 @@ export async function budgetAnalyze(p: { path: string; year?: number }, signal?:
   if (doc.markdown.replace(/\s/g, '').length < 10) throw new Error('공문 글자를 읽지 못했습니다. 스캔한 공문이면 설정 › 저장과 연결에서 스캔한 쪽 글자 읽기를 켜고 다시 넣으세요.');
   sendProgress({ current: 1, total: 2, message: '금액·과목 찾는 중' });
   const s = budgetSettings();
+  const book = await loadBook(yearOf(p.year));
+  const items = book.items.map((it) => viewOf(it, book.entries));
+  const base = { path: p.path, name: basename(p.path), format: doc.format, notes: doc.notes };
+
+  // 회계 시스템의 원인행위서·지출결의서: 칸에서 바로 읽는다
+  const v = extractVoucher(doc.markdown);
+  if (v) {
+    const subjects = v.lines.map((l) => [l.detail, l.subject].filter(Boolean).join(' '));
+    const title = v.title ?? '';
+    // 추천 글은 건명과 예산 줄만 (명세서 표의 이름·계좌는 넣지 않는다)
+    const basis = [title, ...v.lines.map((l) => [l.source, l.detail, l.subject].filter(Boolean).join(' '))].join('\n').slice(0, 4000);
+    const nat = natureOf(basis, title, s.rules);
+    const account = accountHintOf(v.lines.map((l) => `${l.source ?? ''} ${l.detail} ${l.subject}`).join('\n'), s.accounts) ?? accountHintOf(title, s.accounts);
+    const amounts = v.total ? [{ value: v.total, source: `${v.kind} 금액 칸`, confidence: 0.97, form: '결의서' }] : [];
+    for (const l of v.lines) if (l.amount !== v.total && !amounts.some((x) => x.value === l.amount)) amounts.push({ value: l.amount, source: `예산 줄: ${l.subject}`, confidence: 0.9, form: '결의서' });
+    return {
+      ...base,
+      doc_kind: v.kind,
+      ...(v.fiscal_year ? { fiscal_year: v.fiscal_year } : {}),
+      ...(v.resolution_no ? { resolution_no: v.resolution_no, doc_number: v.resolution_no } : {}),
+      ...(title ? { title } : {}),
+      ...(v.dept ? { sender: v.dept } : {}),
+      ...(v.date ? { sent_date: v.date } : {}),
+      purpose: title || undefined,
+      ...(v.total ? { amount: v.total } : {}),
+      amounts,
+      ...(nat.nature ? { nature: nat.nature } : {}),
+      nature_words: nat.words,
+      ...(account ? { account_hint: account } : {}),
+      budget_lines: v.lines,
+      basis,
+      subjects,
+      suggestions: suggestItems(items, book.entries, s, { text: basis, nature: nat.nature, account, amount: v.total, sender: v.dept, subjects }),
+    };
+  }
+
   const lines = cleanLines(doc.markdown);
   const ex = extractInbox(doc.markdown, todayIso());
   const title = ex.title ?? '';
@@ -214,17 +251,15 @@ export async function budgetAnalyze(p: { path: string; year?: number }, signal?:
   const amounts = findAmounts(lines);
   const nat = natureOf(text, title, s.rules);
   const account = accountHintOf(text, s.accounts);
-  const find = (re: RegExp) => lines.map((l) => l.match(re)?.[1]?.trim()).find((v) => v && v.length >= 2)?.slice(0, 120);
+  const find = (re: RegExp) => lines.map((l) => l.match(re)?.[1]?.trim()).find((x) => x && x.length >= 2)?.slice(0, 120);
   const basis = `${title}\n${text}`.slice(0, 4000);
   const due = ex.requests.map((r) => r.due).filter((d): d is string => Boolean(d)).sort()[0];
-  const book = await loadBook(yearOf(p.year));
-  const items = book.items.map((it) => viewOf(it, book.entries));
+  const fy = doc.markdown.slice(0, 3000).match(/(\d{4})\s*회계\s*연도/);
   const amount = amounts[0]?.value;
   return {
-    path: p.path,
-    name: basename(p.path),
-    format: doc.format,
-    notes: doc.notes,
+    ...base,
+    doc_kind: '공문',
+    ...(fy ? { fiscal_year: Number(fy[1]) } : {}),
     ...(title ? { title } : {}),
     ...(ex.sender ? { sender: ex.sender } : {}),
     ...(ex.doc_number ? { doc_number: ex.doc_number } : {}),
@@ -243,10 +278,10 @@ export async function budgetAnalyze(p: { path: string; year?: number }, signal?:
   };
 }
 
-export async function budgetSuggest(p: { year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number }): Promise<BudgetSuggestion[]> {
+export async function budgetSuggest(p: { year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }): Promise<BudgetSuggestion[]> {
   const book = await loadBook(yearOf(p.year));
   const items = book.items.map((it) => viewOf(it, book.entries));
-  return suggestItems(items, book.entries, budgetSettings(), { ...p, text: p.text.slice(0, 8000), account: p.account || undefined });
+  return suggestItems(items, book.entries, budgetSettings(), { ...p, text: p.text.slice(0, 8000), account: p.account || undefined, subjects: p.subjects?.slice(0, 20).map((x) => x.slice(0, 300)) });
 }
 
 // ── 반영·정산·취소 ──

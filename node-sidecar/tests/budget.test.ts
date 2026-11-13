@@ -254,3 +254,83 @@ describe('HWX (전자결재 공문서 파일)', () => {
     await expect(call('budget_analyze', { path: bad })).rejects.toThrow(/HWP·HWPX·PDF 로 내려받아/);
   });
 });
+
+describe('한솔 전자결재 HWX · 원인행위서 (가상 표본, 실제 문서와 같은 짜임)', () => {
+  // 실제 표본에서 확인한 칸 이름과 짜임만 따르고 값·기관·사람은 모두 지어낸 것
+  const VOUCHER_HTML = [
+    '2025회계연도 가온대학교 대학회계', '원인행위서', 'FIAEM000000000000000000000000001',
+    '[원인행위] 20250110\\_[육성]출장여비 정산 결의 요청(가온혁신과/김*온외 1명)',
+    '예산부서 : 가온혁신과 결의번호 : 20251BD0000E40000001',
+    '<table><tr><th rowspan="2">원<br>인<br>행<br>위</th><th>발의일자</th><th>발의부서</th></tr><tr><td>2025-01-10</td><td>가온혁신과</td></tr>',
+    '<tr><td>건<br><br>명</td><td colspan="7">[육성]출장여비 정산 결의 요청(가온혁신과/김*온외 1명)</td></tr>',
+    '<tr><td rowspan="4">금<br><br>액</td><td colspan="4" rowspan="2">250,000 원</td></tr></table>',
+    '예산',
+    '<table><tr><th>예산부서</th><th>계정구분</th><th>재원구분</th><th>세부사업</th><th>예산과목</th><th>금액</th></tr>',
+    '<tr><td>가온혁신과</td><td>자체수입</td><td>지원금(보조금)</td><td>[국립대학육성사업]지원금</td><td>물건비-여비-국내여비 (국립대학 육성사업 국내여비)</td><td>250,000 원</td></tr>',
+    '<tr><td colspan="5">합 계</td><td>250,000 원</td></tr></table>',
+    '여비명세서', '<table><tr><th>출장자</th><th>계좌번호</th></tr><tr><td>홍길동</td><td>(가온은행)●●●●1234</td></tr></table>',
+  ].join('\n');
+
+  it('원인행위서 칸: 회계연도·결의번호·건명·발의일자·금액·예산 줄, 명세서 표는 읽지 않는다', async () => {
+    const { extractVoucher } = await import('../src/core/budget/voucher.js');
+    const v = extractVoucher(VOUCHER_HTML)!;
+    expect(v).toMatchObject({
+      kind: '원인행위서', fiscal_year: 2025, resolution_no: '20251BD0000E40000001', date: '2025-01-10', dept: '가온혁신과', total: 250_000,
+      title: '[육성]출장여비 정산 결의 요청(가온혁신과/김*온외 1명)',
+    });
+    expect(v.lines).toEqual([{ dept: '가온혁신과', ledger: '자체수입', source: '지원금(보조금)', detail: '[국립대학육성사업]지원금', subject: '물건비-여비-국내여비 (국립대학 육성사업 국내여비)', amount: 250_000 }]);
+    expect(JSON.stringify(v)).not.toContain('홍길동');
+    // 공문 본문에 "결의서" 낱말만 있으면 결의서가 아니다
+    expect(extractVoucher('제목 지출결의서 제출 안내\n\n지출결의서를 붙임과 같이 제출하여 주시기 바랍니다.')).toBeNull();
+  });
+
+  it('머리 칸의 [길이][위치] 짝으로 본문을 찾는다', async () => {
+    const { handysoftEntries, sniff, HANDYSOFT_MAGIC } = await import('../src/core/budget/read-doc.js');
+    const body = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(1000, 7)]);
+    const head = Buffer.alloc(200);
+    head.write(HANDYSOFT_MAGIC, 0, 'latin1');
+    head.writeUInt32LE(body.length, 38);
+    head.writeUInt32LE(head.length, 42);
+    head.write('JHOMS000000000000000', 60, 'latin1');
+    const buf = Buffer.concat([head, body]);
+    expect(sniff(buf)).toBe('handysoft');
+    expect(handysoftEntries(buf)).toEqual([{ offset: 200, length: body.length, kind: 'zip' }]);
+    // 짝이 없으면 문서 머리 바이트로
+    const noPair = Buffer.from(buf);
+    noPair.fill(0, 38, 46);
+    expect(handysoftEntries(noPair)).toEqual([{ offset: 200, length: body.length, kind: 'zip' }]);
+  });
+
+  it('HWX 를 읽어 결의서 예산과목으로 회계·과목을 맞춘다', async () => {
+    const csvPath = join(env.work, '예산2025.csv');
+    writeFileSync(csvPath, [
+      '회계구분,단위사업,세부사업,과목,예산액,집행액',
+      '대학회계,교육혁신,교원 연수,국내여비,"2,400,000","100,000"',
+      '육성사업,국립대학육성사업,지원금,국내여비,"3,600,000","1,100,000"',
+      '육성사업,국립대학육성사업,지원금,외부강사 수당,"2,000,000",0',
+    ].join('\n'), 'utf-8');
+    await call('budget_import', { path: csvPath, year: 2025 });
+    const md = VOUCHER_HTML.replace(/<table>/g, '\n<table>');
+    // 엔진이 HWPX 로 다시 읽으면 표가 "| 칸 |" 꼴로 나온다: 그 꼴로 HWX 를 만든다
+    const plain = md.replace(/<table>[\s\S]*?<\/table>/g, (t) => {
+      const rows = (t.match(/<tr[\s\S]*?<\/tr>/g) ?? []).map((tr) => (tr.match(/<t[hd][^>]*>[\s\S]*?<\/t[hd]>/g) ?? []).map((c) => c.replace(/<[^>]+>/g, '').trim()));
+      const w = Math.max(...rows.map((r) => r.length));
+      const line = (r: string[]) => `| ${[...r, ...Array(w - r.length).fill('')].join(' | ')} |`;
+      return [line(rows[0]), `|${' --- |'.repeat(w)}`, ...rows.slice(1).map(line)].join('\n');
+    });
+    const hwpx = Buffer.from(await markdownToHwpx(plain));
+    const head = Buffer.alloc(429);
+    head.write('Handysoft Approval Document File', 0, 'latin1');
+    head.writeUInt32LE(hwpx.length, 38);
+    head.writeUInt32LE(429, 42);
+    const hwx = join(env.work, '원인행위서.hwx');
+    writeFileSync(hwx, Buffer.concat([head, hwpx]));
+
+    const a = await call('budget_analyze', { path: hwx, year: 2025 });
+    expect(a).toMatchObject({ format: 'hwx', doc_kind: '원인행위서', fiscal_year: 2025, amount: 250_000, account_hint: 'growth', nature: '여비' });
+    expect(a.notes.join(' ')).toContain('한솔 전자결재');
+    expect(a.basis).not.toContain('홍길동');
+    expect(a.suggestions[0].item).toMatchObject({ account: 'growth', name: '국내여비' });
+    expect(a.suggestions[0].reasons[0]).toBe('결의서 예산과목 일치');
+  }, 30_000);
+});
