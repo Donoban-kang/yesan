@@ -645,7 +645,7 @@ pub fn parse_args(args: &[String]) -> Option<(String, Vec<String>)> {
     }
     // 주소(knudoc://…)로 켜진 실행은 그 주소 하나만 다룬다. 주소 속 `|` 나 따옴표로 갈라져 나온 나머지 토큰을 파일로 보면
     // 링크 하나로 임의 파일이 "앱에서 열기"로 뜬다 (single-instance 플러그인은 인자를 `|` 로 이어 보내고 다시 `|` 로 자른다)
-    // (스킴은 대소문자를 가리지 않는다: "KORDOC://…" 도 같은 주소다)
+    // (스킴은 대소문자를 가리지 않는다: "KNUDOC://…" 도 같은 주소다)
     if rest.iter().any(|a| a.get(..7).is_some_and(|s| s.eq_ignore_ascii_case("knudoc:"))) {
         return None;
     }
@@ -1041,7 +1041,7 @@ mod tests {
         assert_eq!(parse_args(&["app".into(), me.clone()]), Some(("open".into(), vec![me.clone()])));
         assert_eq!(parse_args(&["app".into(), "knudoc://x?".into(), me.clone()]), None);
         assert_eq!(parse_args(&["app".into(), me.clone(), "knudoc://open?path=a".into()]), None);
-        assert_eq!(parse_args(&["app".into(), "KORDOC://x?".into(), me.clone()]), None);
+        assert_eq!(parse_args(&["app".into(), "KNUDOC://x?".into(), me.clone()]), None);
         // 네트워크 경로는 있는지 찔러 보지 않고 그대로 넘긴다 (엔진이 열지 않고 까닭을 알린다). 주소가 섞였으면 그것도 버린다
         for unc in ["\\\\192.0.2.1\\share\\a.hwp", "//192.0.2.1/share/a.hwp", "/\\192.0.2.1\\share\\a.hwp", "\\\\?\\UNC\\192.0.2.1\\share\\a.hwp"] {
             assert!(is_network_path(unc), "{unc}");
