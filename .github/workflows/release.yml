@@ -82,11 +82,14 @@ jobs:
         working-directory: node-sidecar
         run: node scripts/smoke-bundle.mjs
 
-      - name: 시험 (엔진·화면)
-        shell: bash
-        run: |
-          (cd node-sidecar && node node_modules/vitest/vitest.mjs run)
-          pnpm exec vitest run
+      # CI 와 같은 기본 셸로 돌린다. Windows 에서 bash(Git Bash)로 돌리면 임시 폴더가 Git 설치 폴더 쪽으로 잡혀
+      # "일반 사용자가 고칠 수 있는 정책 파일" 시험의 전제(임시 폴더는 사용자 쓰기 가능)가 깨진다
+      - name: 시험 (엔진)
+        working-directory: node-sidecar
+        run: node node_modules/vitest/vitest.mjs run
+
+      - name: 시험 (화면)
+        run: pnpm exec vitest run
 
       # 코드 서명 — 저장소 시크릿이 있을 때만. 없으면 지금처럼 서명 없이(Windows SmartScreen·macOS Gatekeeper 경고)
       #   Windows: WINDOWS_CERTIFICATE(PFX base64)·WINDOWS_CERTIFICATE_PASSWORD
