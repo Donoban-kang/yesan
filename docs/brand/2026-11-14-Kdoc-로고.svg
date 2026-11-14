@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14B886"/>
+      <stop offset="1" stop-color="#07664D"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#DDF7EC"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <!-- 문서 모양 바탕: 오른쪽 위 모서리를 접은 둥근 사각형 -->
+  <path d="M264 64 H760 L960 264 V760 Q960 960 760 960 H264 Q64 960 64 760 V264 Q64 64 264 64 Z" fill="url(#bg)"/>
+  <path d="M760 64 L960 264 H820 Q760 264 760 204 Z" fill="url(#fold)" opacity="0.92"/>
+  <!-- 글자 -->
+  <text x="512" y="640" text-anchor="middle" font-family="Pretendard" font-weight="700" font-size="300" letter-spacing="-12" fill="#FFFFFF">Kdoc</text>
+  <!-- 예산 줄: 남은 예산을 뜻하는 막대 -->
+  <rect x="232" y="720" width="560" height="36" rx="18" fill="#FFFFFF" opacity="0.28"/>
+  <rect x="232" y="720" width="372" height="36" rx="18" fill="#FFFFFF"/>
+</svg>
