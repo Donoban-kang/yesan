@@ -9,6 +9,7 @@ import { Button } from "../ui/Button";
 import { Section, Switch, TextField } from "../common/Field";
 import { Note } from "../common/Status";
 import { Advanced, UnsavedBadge, useDirtyMark } from "./dirty";
+import { GuideList } from "./GuideList";
 
 type B = Settings["budget"];
 const words = (s: string) => s.split(/[,，]+/).map((w) => w.trim()).filter(Boolean);
@@ -69,6 +70,7 @@ export function BudgetSection() {
             ))}
           </div>
         </Advanced>
+        <GuideList />
         {b.year && (b.year < 2000 || b.year > 2100) ? <Note tone="warn">회계연도는 네 자리 연도로 적으세요.</Note> : null}
         <div><Button onClick={() => void save()} disabled={saving || !changed}><Save size={14} /> {saving ? "저장하는 중" : "저장"}</Button></div>
       </div>

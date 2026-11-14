@@ -5,7 +5,10 @@ import type { BudgetMapping } from '../../types/rpc-contract.js';
 import {
   budgetAnalyze, budgetApply, budgetEvidence, budgetBook, budgetExport, budgetImport, budgetItemAdd, budgetItemUpdate, budgetReverse, budgetSettle, budgetSuggest,
 } from '../../core/budget/index.js';
-import { bool, num, oneOf, optPath, registrar, reqPath, str, strList } from './params.js';
+import { guideAdd, guideClause, guideFind, guideList, guideRemove } from '../../core/budget/guide.js';
+import { budgetSettings, yearOf } from '../../core/budget/settings.js';
+import { loadBook } from '../../core/budget/store.js';
+import { bool, num, oneOf, optPath, registrar, reqPath, reqPaths, str, strList } from './params.js';
 
 const MAP_KEYS = ['account', 'program', 'unit', 'detail', 'name', 'code', 'budget', 'spent'] as const;
 
@@ -57,4 +60,14 @@ export function registerBudget(router: RpcRouter): void {
     }, signal);
   }, { heavy: true });
   reg('budget_export', (p) => budgetExport({ year: year(p), output_path: optPath(p.output_path) }));
+  reg('budget_guide_list', () => guideList());
+  reg('budget_guide_add', (p, signal) => guideAdd(reqPaths(p.paths), signal), { heavy: true });
+  reg('budget_guide_remove', (p) => guideRemove(id(p.id)));
+  reg('budget_guide_find', async (p) => {
+    const s = budgetSettings();
+    const itemId = str(p.item_id);
+    const item = itemId ? (await loadBook(yearOf(year(p)))).items.find((x) => x.id === itemId) : undefined;
+    return guideFind({ text: (str(p.text) ?? '').slice(0, 8000), item, nature: str(p.nature), words: strList(p.words), limit: num(p.limit) }, s.rules);
+  });
+  reg('budget_guide_clause', (p) => guideClause(id(p.id), str(p.no) ?? ''));
 }

@@ -216,6 +216,15 @@ export interface RpcMethods {
   budget_evidence: [{ path: string; voucher?: BudgetVoucherFacts }, BudgetEvidenceResult];
   /** 예산 현황·지출 대장 엑셀 (시트 두 장) */
   budget_export: [{ year?: number; output_path?: string }, { output_path: string; items: number; entries: number }];
+  /** 기관 규정·지침 (조항으로 나눠 이 PC 에 둔 것) */
+  budget_guide_list: [Record<string, never>, BudgetGuide[]];
+  /** 규정 파일을 읽어 조항으로 나눠 둔다 (같은 파일은 새로 읽어 바꿈) */
+  budget_guide_add: [{ paths: string[] }, { added: BudgetGuide[]; failed: Array<{ path: string; error: string }> }];
+  budget_guide_remove: [{ id: string }, boolean];
+  /** 고른 과목·공문 글과 맞는 조항 (근거 찾기만, 회계처리 판단은 하지 않음) */
+  budget_guide_find: [{ text: string; item_id?: string; year?: number; nature?: string; words?: string[]; limit?: number }, BudgetGuideMatch[]];
+  /** 조항 하나의 전문 */
+  budget_guide_clause: [{ id: string; no: string }, { no: string; title: string; chapter?: string; text: string }];
 
   // ── 법령 근거 확인 (methods/law.ts) ──
   /** 글·문서 속 「법령명」 제N조(제N항제N호가목) 인용을 찾아 법제처 현행 법령과 대조 (인터넷·OC 필요, 폐쇄망이면 찾기만).
@@ -807,6 +816,38 @@ export interface BudgetEvidenceResult {
   /** 갈래에 비해 빠진 서류 이름 */
   missing: string[];
   ocr: boolean;
+}
+
+/** 기관 규정·지침 파일 하나 (budget_guide_*) */
+export interface BudgetGuide {
+  id: string;
+  name: string;
+  added_at: string;
+  /** 나눈 조항(또는 단락) 수 */
+  clauses: number;
+  /** 그 가운데 "제N조" 꼴 조항 수 (0 이면 단락으로 나눔) */
+  articles: number;
+  chars: number;
+  size: number;
+}
+
+/** 근거 조항 하나 */
+export interface BudgetGuideMatch {
+  guide_id: string;
+  /** 규정 파일 이름 */
+  guide: string;
+  /** "제12조" 또는 "3번째 단락" */
+  no: string;
+  title: string;
+  chapter?: string;
+  /** 맞은 낱말 둘레 글 */
+  snippet: string;
+  /** 맞은 낱말 (무게 큰 차례) */
+  terms: string[];
+  /** 조항 안 금액 기준 ("1인당 30,000원 이내") */
+  amounts: string[];
+  /** 차례 값 1~99 (확률 아님) */
+  score: number;
 }
 
 /** 합치기 결과 (merge_files) */

@@ -3,6 +3,23 @@
 import type { BudgetAnalysis, BudgetBookView, BudgetEntry, BudgetItem, RpcMethod, RpcParams, RpcResult, Settings } from "./contract";
 import { linkedDocs, linkedNumbers, reversedGroups, reversibleGroups, settledCommits, viewOf } from "../../node-sidecar/src/core/budget/tally";
 import { suggestItems } from "../../node-sidecar/src/core/budget/suggest";
+import { rankClauses, splitClauses } from "../../node-sidecar/src/core/budget/guide-match";
+import type { BudgetGuide } from "./contract";
+
+/** 미리보기용 가상 규정 (실제 규정 아님) */
+const MOCK_RULE = [
+  "제1장 총칙",
+  "제1조(목적) 이 지침은 가온대학교 예산의 집행에 필요한 사항을 정함을 목적으로 한다.",
+  "제2장 경비별 집행 기준",
+  "제10조(국내여비) ① 국내 출장 여비는 운임·일비·숙박비·식비로 나눈다. ② 숙박비는 1박당 70,000원 이내에서 실비로 지급한다.",
+  "제11조(업무추진비) ① 업무추진비는 간담회·회의 경비로 쓴다. ② 간담회 식대는 1인당 30,000원 이내로 한다.",
+  "제12조(일반수용비) 소모품·사무용품 구입과 인쇄비는 일반수용비로 집행한다. 1건당 500만원 이상은 계약 절차를 따른다.",
+  "제13조(임차료) 버스 등 차량 임차는 임차료로 집행하고, 2개 업체 이상 견적을 받는다.",
+].join("\n");
+const mockGuides: Array<{ g: BudgetGuide; clauses: ReturnType<typeof splitClauses> }> = [(() => {
+  const clauses = splitClauses(MOCK_RULE);
+  return { g: { id: "demo-guide", name: "가온대 예산집행 지침(가상).hwp", added_at: "2026-11-14T09:00:00.000Z", clauses: clauses.length, articles: clauses.length, chars: MOCK_RULE.length, size: 48_000 }, clauses };
+})()];
 
 export const MOCK_BUDGET_SETTINGS: Settings["budget"] = {
   year: 2026,
@@ -163,6 +180,33 @@ export const budgetHandlers: H = {
         { label: "교통비 영수증 합계 = 정산서 운임", ok: true, detail: "52,000원 / 52,000원" },
       ],
     };
+  },
+  budget_guide_list: () => mockGuides.map((x) => x.g),
+  budget_guide_add: async (p) => {
+    await wait(500);
+    const added = p.paths.map((path, i) => {
+      const clauses = splitClauses(MOCK_RULE);
+      const g: BudgetGuide = { id: `guide-${Date.now()}-${i}`, name: path.split(/[\\/]/).pop() ?? path, added_at: new Date().toISOString(), clauses: clauses.length, articles: clauses.length, chars: MOCK_RULE.length, size: 1000 };
+      mockGuides.push({ g, clauses });
+      return g;
+    });
+    return { added, failed: [] };
+  },
+  budget_guide_remove: (p) => {
+    const i = mockGuides.findIndex((x) => x.g.id === p.id);
+    if (i < 0) return false;
+    mockGuides.splice(i, 1);
+    return true;
+  },
+  budget_guide_find: (p) => {
+    const it = p.item_id ? items.find((x) => x.id === p.item_id) : undefined;
+    const all = mockGuides.flatMap((x) => x.clauses.map((c) => ({ g: x.g, c })));
+    return rankClauses(all, { text: p.text, item: it, nature: p.nature, words: p.words }, MOCK_BUDGET_SETTINGS.rules).slice(0, p.limit ?? 5);
+  },
+  budget_guide_clause: (p) => {
+    const c = mockGuides.find((x) => x.g.id === p.id)?.clauses.find((x) => x.no === p.no);
+    if (!c) throw new Error("조항을 찾지 못했습니다.");
+    return c;
   },
   budget_export: async () => { await wait(300); return { output_path: "/Users/kim/Documents/KnuDoc AI 결과/예산현황_2026_20261113.xlsx", items: items.length, entries: entries.length }; },
 };

@@ -16,6 +16,7 @@ import { Empty, ErrorLine, Note, Working } from "../common/Status";
 import { budgetChanged, itemPath, LETTER_FILTER, parseWon, useBudgetBook, won } from "./useBudget";
 import { VoucherDraft } from "./VoucherDraft";
 import { EvidenceCheck } from "./EvidenceCheck";
+import { GuideRefs } from "./GuideRefs";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -296,6 +297,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   </div>
                 </div>
               )}
+              <GuideRefs analysis={a ?? null} item={item} year={book?.year} />
             </div>
 
             {/* ④ 잔액 */}
