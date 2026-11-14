@@ -68,14 +68,14 @@
   --color-border-input-hover: #636C77;
   --color-rule-strong: #E1E4E8;
 
-  /* 강조: 로고 초록. 흰 면 위 글자 5.6:1 */
-  --color-accent: #08775A;
-  --color-accent-hover: #06664D;
-  --color-accent-active: #05553F;
+  /* 강조: 로고 파랑. 흰 면 위 글자 5.4:1 */
+  --color-accent: #1B64DA;
+  --color-accent-hover: #1757C2;
+  --color-accent-active: #134AA6;
   --color-accent-ink: #FFFFFF;
-  --color-accent-subtle: rgba(8, 119, 90, 0.08);
-  --color-accent-light: rgba(8, 119, 90, 0.14);
-  --color-accent-glow: rgba(8, 119, 90, 0.20);
+  --color-accent-subtle: rgba(27, 100, 218, 0.08);
+  --color-accent-light: rgba(27, 100, 218, 0.14);
+  --color-accent-glow: rgba(27, 100, 218, 0.20);
   --color-accent-bg: var(--color-accent-subtle);
 
   /* 상태 (색만으로 알리지 않는다: 늘 글로도 쓴다) */
@@ -101,7 +101,7 @@
   /* 알림(어두운 말풍선 면) 위 아이콘: 두 테마 모두 면이 어두워 밝은 색 하나로 */
   --color-on-tip-ok: #5EE39A;
   --color-on-tip-err: #FF8A80;
-  --color-on-tip-busy: #6EE7C0;
+  --color-on-tip-busy: #8FC3FF;
   --color-on-tip-info: #8FC3FF;
   --color-tip-border: transparent;
   /* 문서 쪽(종이) 위 글자·괘선: 종이는 어두운 화면에서도 흰색이라 화면 밝기와 무관하게 고정 (옛 미색 회색 #8b8f86·#f4f2ec 대신) */
@@ -109,8 +109,8 @@
   --color-paper-line: #ECEEF1;
   /* 종이(흰 면) 위 인주색: 어두운 화면의 밝은 인주색은 흰 종이에서 2.7:1 이라 고정 */
   --color-paper-seal: #C0261A;
-  --color-primary-rgb: 8, 119, 90;
-  --color-primary-light: #12936F;
+  --color-primary-rgb: 27, 100, 218;
+  --color-primary-light: #3182F6;
 
   /* 형식 표시 (연 문서 목록의 고른 줄(선택 면) 위 10.5px 배지도 4.6:1 이상) */
   --color-file-hwp: #23588C;
@@ -218,13 +218,13 @@
   --color-rule-strong: rgba(236, 238, 241, 0.12);
   --color-input: #15181C;
 
-  --color-accent: #3FCF98;
-  --color-accent-hover: #6BDDB1;
-  --color-accent-active: #2BB27F;
-  --color-accent-ink: #062B1E;
-  --color-accent-subtle: rgba(63, 207, 152, 0.10);
-  --color-accent-light: rgba(63, 207, 152, 0.10);
-  --color-accent-glow: rgba(63, 207, 152, 0.25);
+  --color-accent: #6AA8FF;
+  --color-accent-hover: #8EBCFF;
+  --color-accent-active: #4C95FF;
+  --color-accent-ink: #071A3A;
+  --color-accent-subtle: rgba(106, 168, 255, 0.10);
+  --color-accent-light: rgba(106, 168, 255, 0.10);
+  --color-accent-glow: rgba(106, 168, 255, 0.25);
 
   --color-success: #6CC97A;
   --color-warning: #E3B35A;
@@ -245,7 +245,7 @@
   --color-tip-bg: #343A42;
   --color-tip-text: #F3F5F7;
   --color-tip-border: rgba(236, 238, 241, 0.10);
-  --color-primary-rgb: 63, 207, 152;
+  --color-primary-rgb: 106, 168, 255;
 
   --color-file-hwp: #8FB8E3;
   --color-file-pdf: #F09A90;
