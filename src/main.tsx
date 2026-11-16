@@ -11,7 +11,7 @@ import "./index.css";
 guardNativeMenu();
 guardReloadKeys();
 
-// 탐색기 우클릭 "KorDoc AI에게 맡기기…"로 뜬 문서 카드 창 (Rust shell::open_card)
+// 탐색기 우클릭 "KnuDoc AI에게 맡기기…"로 뜬 문서 카드 창 (Rust shell::open_card)
 const card = new URLSearchParams(window.location.search).get("card");
 
 createRoot(document.getElementById("root")!).render(

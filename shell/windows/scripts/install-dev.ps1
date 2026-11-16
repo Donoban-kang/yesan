@@ -1,4 +1,4 @@
-# KorDoc Shell — 개발 환경 설치
+# KnuDoc Shell — 개발 환경 설치
 # build → sign → Add-AppxPackage 일괄 실행
 
 param(
@@ -8,9 +8,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
-$msix = Join-Path $root "build\KorDocShell.msix"
+$msix = Join-Path $root "build\KnuDocShell.msix"
 
-Write-Host "=== KorDoc Shell 개발 설치 ===" -ForegroundColor Cyan
+Write-Host "=== KnuDoc Shell 개발 설치 ===" -ForegroundColor Cyan
 
 if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot "build.ps1")
@@ -41,5 +41,5 @@ try {
     throw
 }
 
-Write-Host "`n탐색기에서 .hwp/.pdf/.xlsx 등 우클릭 → KorDoc 메뉴 확인" -ForegroundColor Cyan
+Write-Host "`n탐색기에서 .hwp/.pdf/.xlsx 등 우클릭 → KnuDoc 메뉴 확인" -ForegroundColor Cyan
 Write-Host "제거: scripts\uninstall-dev.ps1"

@@ -12,6 +12,7 @@ import { registerReview } from './review.js';
 import { registerStyle } from './style.js';
 import { registerAgent } from './agent.js';
 import { registerReceipt } from './receipt.js';
+import { registerBudget } from './budget.js';
 
 export function registerAllMethods(router: RpcRouter): void {
   registerSystem(router);
@@ -25,4 +26,5 @@ export function registerAllMethods(router: RpcRouter): void {
   registerStyle(router);
   registerAgent(router);
   registerReceipt(router);
+  registerBudget(router);
 }

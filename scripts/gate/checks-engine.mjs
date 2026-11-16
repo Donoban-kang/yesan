@@ -107,7 +107,7 @@ async function toolSweep() {
   } finally { await e.stop(); rmSync(s.base, { recursive: true, force: true }); }
 }
 
-/** 출력 폴더를 안 정한 새 설치: 결과가 원본 옆이 아니라 (임시 홈의) KorDoc AI 결과 */
+/** 출력 폴더를 안 정한 새 설치: 결과가 원본 옆이 아니라 (임시 홈의) KnuDoc AI 결과 */
 async function defaultOutput() {
   const s = sandbox(() => ({}));
   const e = startEngine({ dataDir: s.data, env: s.homeEnv });
@@ -115,8 +115,8 @@ async function defaultOutput() {
     // Chromium 을 쓰지 않는 도구로 (홈을 바꾼 채 Edge 를 띄우면 멈춘다)
     const r = await e.call('agent_tool_run', { name: 'extract_tables', input: { path: P(s, REPORT) } }, 240_000);
     const f = r.files?.[0] ?? '';
-    const ok = !!f && !f.startsWith(s.docs) && f.includes('KorDoc AI 결과');
-    record(A, '새 설치 기본 저장 위치 = KorDoc AI 결과 (원본 옆 아님)', ok ? 'PASS' : 'FAIL', f || r.output);
+    const ok = !!f && !f.startsWith(s.docs) && f.includes('KnuDoc AI 결과');
+    record(A, '새 설치 기본 저장 위치 = KnuDoc AI 결과 (원본 옆 아님)', ok ? 'PASS' : 'FAIL', f || r.output);
   } finally { await e.stop(); rmSync(s.base, { recursive: true, force: true }); }
 }
 
@@ -125,7 +125,7 @@ async function mcpChecks() {
   const e = startEngine({ dataDir: s.data, mcp: true, env: { ...s.env, KORDOC_ROOT: s.docs } });
   try {
     const init = await e.raw('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'gate', version: '1' } });
-    record(A, 'MCP initialize', init.result?.serverInfo?.name === 'kordoc-ai' ? 'PASS' : 'FAIL', JSON.stringify(init.result?.serverInfo ?? init.error));
+    record(A, 'MCP initialize', init.result?.serverInfo?.name === 'knudoc-ai' ? 'PASS' : 'FAIL', JSON.stringify(init.result?.serverInfo ?? init.error));
     e.notify('notifications/initialized', {});
     const list = await e.raw('tools/list', {});
     const names = (list.result?.tools ?? []).map((t) => t.name);

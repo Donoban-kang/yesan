@@ -18,6 +18,7 @@ import { parseCsv } from '../excel/csv.js';
 import { formatOf, TEXT_FORMATS } from '../files/format.js';
 import { outputDir, outputFile, stemOf } from '../output/index.js';
 import { markdownToPlain } from './plain.js';
+import { unwrapHwx } from '../files/hwx.js';
 
 export type OcrMode = 'auto' | 'force' | 'off';
 
@@ -97,8 +98,14 @@ export async function parseDoc(path: string, opts: ParseDocOptions = {}): Promis
     const markdown = await readTextFile(path);
     return { success: true, fileType: 'unknown', markdown, blocks: formatOf(path) === 'csv' ? csvBlocks(markdown) : [] };
   }
-  const buf = await readFile(path);
+  let buf: Buffer = await readFile(path);
   signal?.throwIfAborted();
+  // 전자결재 HWX: 머리를 벗겨 안의 문서(HWP·HWPX·PDF)를 읽는다 (core/files/hwx)
+  if (formatOf(path) === 'hwx') {
+    const u = unwrapHwx(buf);
+    if (!u) throw new Error('이 HWX 파일은 바로 읽을 수 없는 묶음입니다. 지출 도우미에 넣거나, 전자결재 시스템에서 HWP·PDF 로 내려받아 넣으세요.');
+    buf = u.bytes;
+  }
   const label = opts.progressLabel;
   const base: Omit<ParseOptions, 'onProgress'> = {
     filePath: path,

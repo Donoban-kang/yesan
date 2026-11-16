@@ -71,6 +71,19 @@ export interface Settings {
     template_name: string;
     columns: Array<{ header: string; field: string; by: string }>;
   };
+  /** 예산 지출 도우미 (core/budget) — 회계연도·회계 구분·경고 기준·거래 성격 규칙 */
+  budget: {
+    /** 회계연도 (0 이면 올해) */
+    year: number;
+    /** 집행률(품의 포함) 경고 기준 % */
+    warn_at: number;
+    /** 가용 잔액을 넘는 반영을 막는다 (false 면 경고만) */
+    over_block: boolean;
+    /** 회계 구분: id 는 바꾸지 않고 이름(label)과 공문 단서 낱말(words)만 고친다 */
+    accounts: Array<{ id: string; label: string; words: string[] }>;
+    /** 거래 성격 규칙: 공문 낱말(words)이 보이면 그 성격, 과목 이름에 hints 가 들면 먼저 추천 */
+    rules: Array<{ nature: string; words: string[]; hints: string[] }>;
+  };
   /** 기관 배포 설정(읽기 전용, get_settings 가 채움) — 파일 위치·안내·고정된 항목 경로("privacy.offline" 꼴) */
   policy?: { source: string; notice?: string; locked: string[]; error?: string };
 }

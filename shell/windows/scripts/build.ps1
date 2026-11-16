@@ -1,4 +1,4 @@
-# KorDoc Shell — 빌드 스크립트
+# KnuDoc Shell — 빌드 스크립트
 # Rust 런처 + MSIX 패키지 생성
 #
 # 사용:
@@ -19,9 +19,9 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
 $buildDir = Join-Path $root "build"
 $pkgDir = Join-Path $buildDir "package"
-$outMsix = Join-Path $buildDir "KorDocShell.msix"
+$outMsix = Join-Path $buildDir "KnuDocShell.msix"
 
-Write-Host "=== KorDoc Shell 빌드 ===" -ForegroundColor Cyan
+Write-Host "=== KnuDoc Shell 빌드 ===" -ForegroundColor Cyan
 Write-Host "root: $root"
 
 # 1. Rust 런처 빌드

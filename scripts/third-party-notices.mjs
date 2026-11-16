@@ -446,8 +446,8 @@ const sections = [
   ['rust', '3. 앱 본체 (Rust 크레이트, src-tauri/Cargo.lock 전체: 빌드 도구·다른 운영체제용 포함)'],
   ['editor', `4. 내장 한글 편집기 (rhwp ${RHWP_VERSION})`],
 ];
-out.push('KorDoc AI 제3자 고지 (THIRD_PARTY_NOTICES)', '');
-out.push('KorDoc AI 는 MIT 라이선스(LICENSE)로 배포한다. 설치본에 함께 들어 있는 제3자 저작물의 이름·버전·라이선스와');
+out.push('KnuDoc AI 제3자 고지 (THIRD_PARTY_NOTICES)', '');
+out.push('KnuDoc AI 는 MIT 라이선스(LICENSE)로 배포한다. 설치본에 함께 들어 있는 제3자 저작물의 이름·버전·라이선스와');
 out.push('라이선스 전문을 아래에 모았다. 각 저작물의 권리는 원 저작권자에게 있고 각자의 라이선스를 따른다.');
 out.push('요약과 Microsoft 구성요소(Visual C++ 런타임·WebView2 설치 파일)의 배포 조건은 NOTICE 에 있다.', '');
 out.push('패키지에 전문 파일이 없는 것은 선언한 라이선스의 표준 전문(scripts/license-texts)을 싣고, 그 줄에 패키지 정보의 저작권자를');

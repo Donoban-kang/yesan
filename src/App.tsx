@@ -1,5 +1,5 @@
 /**
- * KorDoc AI v2 셸 — 왼쪽 탐색 + 화면 7개. 화면은 처음 열 때 만들고 그 뒤로는 숨겨 둔다(상태 유지).
+ * KnuDoc AI v2 셸 — 왼쪽 탐색 + 화면 7개. 화면은 처음 열 때 만들고 그 뒤로는 숨겨 둔다(상태 유지).
  * 창 전체 끌어다 놓기·우클릭/파일 연결(deep-link·open-files)·붙여 넣기·Ctrl+O 를 여기서 받는다.
  */
 
@@ -28,6 +28,9 @@ import { HelpScreen } from "./components/help/HelpScreen";
 import { ChatProvider } from "./state/chats";
 import { SettingsScreen } from "./components/settings/SettingsScreen";
 import { ImpactScreen } from "./components/impact/ImpactScreen";
+import { SpendScreen } from "./components/budget/SpendScreen";
+import { BudgetScreen } from "./components/budget/BudgetScreen";
+import { LedgerScreen } from "./components/budget/LedgerScreen";
 import { rpc, errorText, invokeCmd } from "./lib/rpc";
 import { pickFiles, watchFileDrop } from "./lib/native";
 import { readPref, writePref } from "./lib/recent";
@@ -47,6 +50,9 @@ const SCREENS: Array<{ id: Screen; render: (active: boolean) => React.ReactNode 
   { id: "settings", render: (a) => <SettingsScreen active={a} /> },
   { id: "impact", render: (a) => <ImpactScreen active={a} /> },
   { id: "help", render: (a) => <HelpScreen active={a} /> },
+  { id: "spend", render: (a) => <SpendScreen active={a} /> },
+  { id: "budget", render: (a) => <BudgetScreen active={a} /> },
+  { id: "ledger", render: (a) => <LedgerScreen active={a} /> },
 ];
 
 export default function App() {
@@ -128,7 +134,7 @@ function Shell() {
   }, [setDragTarget, dropHandler, openDocs, toast]);
 
   // 우클릭 메뉴·파일 연결로 들어온 동작. 빠른 동작은 창 없이 돌리고 알림만(useQuickActions), 그 밖은 맞는 화면으로.
-  // kordoc:// 주소는 웹·메일 링크로도 올 수 있어서, 문서를 밖으로 보내는 일(인터넷 AI 요약)은
+  // knudoc:// 주소는 웹·메일 링크로도 올 수 있어서, 문서를 밖으로 보내는 일(인터넷 AI 요약)은
   // 자동으로 하지 않고 문서만 열어 둔다. 사용자가 요약하기를 눌러야 보낸다
   const runAction = useCallback(async (action: LinkAction, paths: string[]) => {
     if (isQuick(action)) { quick(action, paths); return; }

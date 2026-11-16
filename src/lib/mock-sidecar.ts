@@ -7,6 +7,7 @@ import type { DeepPartial, DocFormat, DocInfo, PagePreview, RpcMethod, RpcParams
 import type { Notify } from "./rpc";
 import { baseName, dirName, formatOf, joinPath, stem } from "./format";
 import { layoutPages, markdownBlocks, pageDataUrl } from "./mock-pages";
+import { budgetHandlers, MOCK_BUDGET_SETTINGS, MOCK_LETTERS } from "./mock-budget";
 import {
   CHAT_ANSWER, COMPARE_ROWS, DOCS_DIR, DRAFT_MD, GONGMUN_META, LLM_CATALOG, SAMPLE_FILES, SUMMARY_TEXT,
   TEMPLATES, docBlocks, fakeLint, hashOf, sampleMarkdown,
@@ -59,7 +60,7 @@ const settings: Settings = {
   version: 2,
   ai: {
     provider: "embedded",
-    embedded: { model_path: "/Users/kim/Library/Application Support/com.kordoc-ai.app/models/qwen3-4b-instruct-q4_k_m.gguf", context_size: 8192, gpu: "auto" },
+    embedded: { model_path: "/Users/kim/Library/Application Support/com.knudoc-ai.app/models/qwen3-4b-instruct-q4_k_m.gguf", context_size: 8192, gpu: "auto" },
     openai: { base_url: "http://127.0.0.1:11434/v1", api_key: "", model: "", vision_model: "" },
     gemini: { api_key: "", model: "gemini-3.8-flash" },
     anthropic: { api_key: "", model: "claude-opus-5-5" },
@@ -82,6 +83,7 @@ const settings: Settings = {
   impact: { baselines: {} },
   law: { oc: "" },
   receipt: { template_path: "", template_name: "", columns: [] },
+  budget: structuredClone(MOCK_BUDGET_SETTINGS),
 };
 
 // ?fresh=1 이면 처음 켠 PC 처럼 (첫 실행 마법사 확인용)
@@ -164,6 +166,20 @@ let shellInstalled = false;
 
 const mockInbox: RpcResult<"inbox_list">["items"] = [
   {
+    id: "b3", path: MOCK_LETTERS[2], name: "[원인행위] 출장여비 정산 결의.hwx", added_at: "2026-11-12T09:00:00.000Z",
+    sender: "교육혁신과", title: "[육성]출장여비 정산 결의 요청", requests: [], status: "todo",
+  },
+  {
+    id: "b1", path: MOCK_LETTERS[0], name: "2026 진로체험 버스 임차 협조.hwpx", added_at: "2026-11-10T09:00:00.000Z",
+    sender: "학생처", doc_number: "학생처-4021", sent_date: "2026-11-10", title: "2026 진로체험 버스 임차 협조 요청",
+    requests: [{ text: "버스 임차 계약 절차 완료", due: "2026-11-20" }], due: "2026-11-20", status: "todo",
+  },
+  {
+    id: "b2", path: MOCK_LETTERS[1], name: "글로컬 지역 협업 포럼 개최 안내.hwx", added_at: "2026-11-11T09:00:00.000Z",
+    sender: "기획처", doc_number: "기획처-77", sent_date: "2026-11-11", title: "글로컬대학 30 지역 협업 포럼 개최 안내",
+    requests: [{ text: "행사 운영 예산 집행", due: "2026-11-28" }], due: "2026-11-28", status: "todo",
+  },
+  {
     id: "m1", path: "/Users/kim/Documents/받은 공문/도민체육대회 참가 협조 요청.hwpx", name: "도민체육대회 참가 협조 요청.hwpx", added_at: "2026-10-06T09:12:00.000Z",
     sender: "가온도", doc_number: "가온도 체육진흥과-2203", sent_date: "2026-10-02", title: "2026년 가온도민 한마음 체육대회 참가 협조 요청",
     requests: [{ text: "참가 신청서와 선수 명단을 공문으로 제출", due: "2026-10-23" }], due: "2026-10-23", status: "todo",
@@ -176,10 +192,11 @@ const mockInbox: RpcResult<"inbox_list">["items"] = [
 ];
 
 const handlers: Handlers = {
+  ...(budgetHandlers as Handlers),
   ping: () => "pong",
   system_info: () => ({
     app_version: "2.1.2", kordoc_version: "4.22.18", node_version: "v24.11.0", platform: "macOS 27 (arm64)",
-    data_dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app", model_cache: "/Users/kim/Library/Application Support/com.kordoc-ai.app/models",
+    data_dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app", model_cache: "/Users/kim/Library/Application Support/com.knudoc-ai.app/models",
     ocr_models_ready: true, offline: settings.privacy.offline, ai_provider: settings.ai.provider,
     llm_models: [{ path: settings.ai.embedded.model_path, name: "qwen3-4b-instruct-q4_k_m.gguf", size: 2_497_000_000 }],
   }),
@@ -265,7 +282,7 @@ const handlers: Handlers = {
     ],
   }),
   install_mcp_config: async (p) => { await wait(400); return { installed: p.clients, failed: [] }; },
-  models_status: () => ({ ocr: { ready: true, dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app/models/ocr" }, formula: { ready: false, dir: "" } }),
+  models_status: () => ({ ocr: { ready: true, dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app/models/ocr" }, formula: { ready: false, dir: "" } }),
   models_import: async () => { await wait(300); return { imported: ["det.onnx", "rec_korean.onnx", "rec_korean.yml"] }; },
 
   doc_info: async (p) => { await wait(120); return infoOf(p.path); },
@@ -335,7 +352,7 @@ const handlers: Handlers = {
       rejected: [],
     };
   },
-  working_path: async (p) => ({ path: joinPath("/Users/kim/Library/Application Support/com.kordoc-ai.app/작업 사본", p.name || "새 문서.hwpx"), dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app/작업 사본" }),
+  working_path: async (p) => ({ path: joinPath("/Users/kim/Library/Application Support/com.knudoc-ai.app/작업 사본", p.name || "새 문서.hwpx"), dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app/작업 사본" }),
   lint: async (p) => {
     await wait(200);
     const findings = fakeLint(p.text ?? "2026.10.10 점검을 실시하였음\n14시 30분 회의 및 및 보고");
@@ -424,7 +441,7 @@ const handlers: Handlers = {
   llm_list: () => [{ path: settings.ai.embedded.model_path, name: "qwen3-4b-instruct-q4_k_m.gguf", size: 2_497_000_000 }],
   llm_download: async (p, emit) => {
     for (let i = 1; i <= 10; i++) { emit.progress(i, 10, `${(i * 0.73).toFixed(1)}GB / 7.3GB`); await wait(220); }
-    return { path: `/Users/kim/Library/Application Support/com.kordoc-ai.app/models/${p.id}.gguf` };
+    return { path: `/Users/kim/Library/Application Support/com.knudoc-ai.app/models/${p.id}.gguf` };
   },
   llm_import: async (p) => { await wait(400); return { path: p.path }; },
   llm_delete: () => true,
@@ -588,7 +605,7 @@ const handlers: Handlers = {
   },
   usage_reset: () => true,
   samples_list: () => {
-    const dir = "/Applications/KorDoc AI.app/Contents/Resources/samples";
+    const dir = "/Applications/KnuDoc AI.app/Contents/Resources/samples";
     return {
       dir, note: "예제 문서는 가상의 가온시와 지어낸 개인정보로 만든 합성 문서입니다.",
       scenarios: [
@@ -608,7 +625,7 @@ const handlers: Handlers = {
       { at: "2026-10-10T09:01:40", host: "127.0.0.1:11434 (Ollama)", external: false, allowed: true },
       { at: "2026-10-10T08:58:03", host: "generativelanguage.googleapis.com", external: true, allowed: false },
     ],
-    data_dir: "/Users/kim/Library/Application Support/com.kordoc-ai.app", telemetry: false,
+    data_dir: "/Users/kim/Library/Application Support/com.knudoc-ai.app", telemetry: false,
   }),
 };
 

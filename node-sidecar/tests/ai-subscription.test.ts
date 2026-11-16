@@ -374,7 +374,7 @@ describe('Antigravity CLI (agy, 예전 Gemini CLI 자리)', () => {
     expect(line.endsWith('\n')).toBe(true);
     const msg = JSON.parse(line);
     expect(msg.event).toBe('user');
-    expect(msg.message.content.startsWith('[KorDoc AI 요청]\n<instructions>\n')).toBe(true); // 슬래시 명령이 되지 않게 머리말부터
+    expect(msg.message.content.startsWith('[KnuDoc AI 요청]\n<instructions>\n')).toBe(true); // 슬래시 명령이 되지 않게 머리말부터
     expect(msg.message.content).toMatch(/도구는 없습니다/);
     expect(msg.message.content).toContain('당신은 공문 비서입니다');
     expect(msg.message.content).toContain('/model 가온시 민원');

@@ -1,5 +1,5 @@
 /**
- * KorDoc AI v2 — 사이드카 RPC 계약 (정본)
+ * KnuDoc AI v2 — 사이드카 RPC 계약 (정본)
  *
  * 프론트(src/)는 이 파일을 `import type` 으로 읽고, 사이드카 핸들러는 이 모양대로 돌려준다.
  * 메서드를 추가·변경하면 여기부터 고친다. Rust 화이트리스트(src-tauri/src/commands/sidecar_cmd.rs)도 같이.
@@ -20,7 +20,7 @@ import type { Settings } from './index.js';
 
 // ── 공통 ──
 
-export type DocFormat = 'hwp' | 'hwp3' | 'hwpx' | 'hwpml' | 'pdf' | 'xls' | 'xlsx' | 'docx' | 'pptx' | 'image' | 'md' | 'txt' | 'csv' | 'unknown';
+export type DocFormat = 'hwp' | 'hwp3' | 'hwpx' | 'hwpml' | 'hwx' | 'pdf' | 'xls' | 'xlsx' | 'docx' | 'pptx' | 'image' | 'md' | 'txt' | 'csv' | 'unknown';
 
 export interface FileEntry {
   path: string;
@@ -192,6 +192,39 @@ export interface RpcMethods {
   inbox_remove: [{ id: string }, boolean];
   /** 접수대장 엑셀 — 접수일·보낸 곳·문서번호·시행일·제목·요청 사항·기한·상태·메모·파일 (할 일 먼저 기한 순) */
   inbox_export: [{ output_path?: string }, { output_path: string; count: number }];
+
+  // ── 예산 지출 도우미 (methods/budget.ts) ──
+  /** 회계연도 예산 장부: 과목마다 예산·집행·품의 중·가용 잔액, 지출 대장, 회계 구분 (year 없으면 설정의 회계연도) */
+  budget_book: [{ year?: number }, BudgetBookView];
+  /** 예산 과목표 엑셀·CSV 불러오기. 머리 칸을 알아보고(mapping 으로 고칠 수 있음), 다시 불러오면 같은 과목은 기록을 이어 간다 */
+  budget_import: [{ path: string; year?: number; account?: string; mapping?: BudgetMapping; unit?: number; dry_run?: boolean }, BudgetImportResult];
+  /** 과목 하나를 손으로 더하기 (엑셀 없이) */
+  budget_item_add: [{ year?: number; account: string; program?: string; unit?: string; detail?: string; name: string; code?: string; budget: number; spent_before?: number; keywords?: string[] }, BudgetItemView];
+  /** 과목 고치기: 추천용 낱말·예산액·기집행액 */
+  budget_item_update: [{ year?: number; id: string; keywords?: string[]; budget?: number; spent_before?: number }, BudgetItemView];
+  /** 받은 공문을 읽어 금액·목적·기간·거래 성격·회계 구분 단서를 뽑고 예산 과목을 추천 (HWP·HWPX·HWX·HML·PDF·DOCX) */
+  budget_analyze: [{ path: string; year?: number }, BudgetAnalysis];
+  /** 글과 금액으로 다시 추천 (회계 구분을 바꾸거나 금액을 고쳤을 때) */
+  budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }, BudgetSuggestion[]];
+  /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */
+  budget_apply: [{ year?: number; item_id: string; amount: number; stage: 'commit' | 'paid'; date?: string; doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string; again?: boolean }, BudgetApplyResult];
+  /** 품의 중인 기록을 지출 완료로 (실제 금액이 다르면 amount) */
+  budget_settle: [{ year?: number; id: string; amount?: number; date?: string; memo?: string }, BudgetApplyResult];
+  /** 반영 취소: 기록을 지우지 않고 반대 기록을 남긴다 */
+  budget_reverse: [{ year?: number; id: string; reason?: string }, BudgetApplyResult];
+  /** 증빙 자동 대조: 스캔 증빙(PDF·그림)을 쪽마다 읽어 서류 종류·금액·사업자번호·날짜·수량을 뽑고 결의서 값과 맞춰 본다 */
+  budget_evidence: [{ path: string; voucher?: BudgetVoucherFacts }, BudgetEvidenceResult];
+  /** 예산 현황·지출 대장 엑셀 (시트 두 장) */
+  budget_export: [{ year?: number; output_path?: string }, { output_path: string; items: number; entries: number }];
+  /** 기관 규정·지침 (조항으로 나눠 이 PC 에 둔 것) */
+  budget_guide_list: [Record<string, never>, BudgetGuide[]];
+  /** 규정 파일을 읽어 조항으로 나눠 둔다 (같은 파일은 새로 읽어 바꿈) */
+  budget_guide_add: [{ paths: string[] }, { added: BudgetGuide[]; failed: Array<{ path: string; error: string }> }];
+  budget_guide_remove: [{ id: string }, boolean];
+  /** 고른 과목·공문 글과 맞는 조항 (근거 찾기만, 회계처리 판단은 하지 않음) */
+  budget_guide_find: [{ text: string; item_id?: string; year?: number; nature?: string; words?: string[]; limit?: number }, BudgetGuideMatch[]];
+  /** 조항 하나의 전문 */
+  budget_guide_clause: [{ id: string; no: string }, { no: string; title: string; chapter?: string; text: string }];
 
   // ── 법령 근거 확인 (methods/law.ts) ──
   /** 글·문서 속 「법령명」 제N조(제N항제N호가목) 인용을 찾아 법제처 현행 법령과 대조 (인터넷·OC 필요, 폐쇄망이면 찾기만).
@@ -570,6 +603,251 @@ export interface InboxItem {
   due?: string;
   status: 'todo' | 'done';
   note?: string;
+}
+
+/** 예산 과목 (budget_*) — 금액은 모두 원 단위 정수 */
+export interface BudgetItem {
+  id: string;
+  /** 회계 구분 id (설정 budget.accounts) */
+  account: string;
+  /** 정책사업·단위사업·세부사업 (없으면 빈 글) */
+  program: string;
+  unit: string;
+  detail: string;
+  /** 과목(지출 항목) 이름 */
+  name: string;
+  code?: string;
+  /** 예산액 */
+  budget: number;
+  /** 불러올 때의 기집행액 (공식 현황 기준) */
+  spent_before: number;
+  /** 추천에 쓰는 낱말 (사람이 더한 것) */
+  keywords: string[];
+  /** 다시 불러온 과목표에서 빠졌지만 기록이 남아 있는 과목 */
+  retired?: boolean;
+}
+
+export interface BudgetTally {
+  /** 집행액 = 기집행액 + 지출 완료 기록 */
+  paid: number;
+  /** 품의 중(집행 예정) */
+  commit: number;
+  /** 가용 잔액 = 예산액 − 집행액 − 품의 중 */
+  avail: number;
+  /** 집행률(품의 포함, %) */
+  rate: number;
+}
+
+export type BudgetItemView = BudgetItem & BudgetTally;
+
+/** 지출 대장 한 줄. 취소·정산은 지우지 않고 새 줄로 남긴다 */
+export interface BudgetEntry {
+  id: string;
+  /** 같은 동작으로 함께 생긴 줄 묶음 (정산 = 품의 닫기 + 지출) */
+  group: string;
+  /** 기록한 시각 ISO */
+  at: string;
+  /** 집행(예정)일 YYYY-MM-DD */
+  date: string;
+  item_id: string;
+  /** 음수 = 취소·정산으로 닫은 줄 */
+  amount: number;
+  stage: 'commit' | 'paid';
+  kind: 'apply' | 'settle' | 'reverse';
+  doc_path?: string;
+  doc_title?: string;
+  doc_number?: string;
+  sender?: string;
+  memo?: string;
+  /** 취소한 줄 id */
+  reverses?: string;
+  /** 정산한 품의 줄 id */
+  settles?: string;
+  by?: string;
+  /** 과목표를 다시 불러와 공식 기집행액에 들어간 지출 (잔액 계산에서 뺀다) */
+  synced_at?: string;
+}
+
+export interface BudgetAccount {
+  id: string;
+  label: string;
+}
+
+export interface BudgetBookView {
+  year: number;
+  accounts: Array<BudgetAccount & { budget: number; paid: number; commit: number; avail: number; rate: number; items: number }>;
+  items: BudgetItemView[];
+  entries: BudgetEntry[];
+  /** 취소할 수 있는 묶음 (이미 취소한 것·취소 줄은 빠짐) */
+  reversible: string[];
+  /** 반영한 공문 경로 (취소하지 않은 것) */
+  linked_docs: string[];
+  /** 반영한 결의번호·문서번호 (취소하지 않은 것) */
+  linked_numbers: string[];
+  imports: Array<{ at: string; file: string; sha256: string; items: number }>;
+  totals: { budget: number; paid: number; commit: number; avail: number; rate: number };
+}
+
+/** 과목표 머리 칸 → 열 번호 (0부터) */
+export interface BudgetMapping {
+  account?: number;
+  program?: number;
+  unit?: number;
+  detail?: number;
+  name?: number;
+  code?: number;
+  budget?: number;
+  spent?: number;
+}
+
+export interface BudgetImportResult {
+  header: string[];
+  mapping: BudgetMapping;
+  /** 금액 단위 (1 = 원, 1000 = 천원) */
+  unit: number;
+  /** 알아본 과목 (dry_run 이면 저장하지 않은 미리보기, 앞 20개) */
+  preview: Array<Pick<BudgetItem, 'account' | 'program' | 'unit' | 'detail' | 'name' | 'code' | 'budget' | 'spent_before'>>;
+  added: number;
+  updated: number;
+  retired: number;
+  /** 지출 대장에서 공식 기집행액으로 넘어간 지출 줄 수 */
+  synced: number;
+  total_budget: number;
+  warnings: string[];
+  saved: boolean;
+}
+
+export interface BudgetAmount {
+  value: number;
+  /** 근거 줄 */
+  source: string;
+  /** 0~1 */
+  confidence: number;
+  /** 읽은 꼴 (원·천원·만원·한글) */
+  form: string;
+}
+
+export interface BudgetSuggestion {
+  item: BudgetItemView;
+  score: number;
+  /** 화면에 칩으로 보일 근거 */
+  reasons: string[];
+  enough: boolean;
+}
+
+export interface BudgetAnalysis {
+  path: string;
+  name: string;
+  format: DocFormat;
+  /** HWX 를 어떻게 읽었는지 등 */
+  notes: string[];
+  /** 공문 · 원인행위서 · 지출결의서 … */
+  doc_kind?: string;
+  /** 문서에 적힌 회계연도 (예: "2023회계연도") */
+  fiscal_year?: number;
+  /** 결의번호 (결의서) */
+  resolution_no?: string;
+  /** 결의서 예산 줄: 세부사업·예산과목·금액 */
+  budget_lines?: Array<{ dept?: string; ledger?: string; source?: string; detail: string; subject: string; amount: number }>;
+  /** 결의서 예산 줄 글 (budget_suggest 로 다시 넘긴다) */
+  subjects?: string[];
+  /** 결의서 적요 칸 (관련 문서·내용·일시·지급금액) */
+  memo?: string;
+  /** 적요의 관련 문서번호(날짜) */
+  related?: string;
+  /** 결의서 거래처 상호·사업자번호 (증빙과 맞춰 볼 때) */
+  vendor?: string;
+  vendor_no?: string;
+  /** 결의서 칸끼리 맞춰 본 결과 (금액 칸·예산 줄·적요·여비명세서·명세서) */
+  checks?: Array<{ label: string; ok: boolean; detail: string }>;
+  title?: string;
+  sender?: string;
+  doc_number?: string;
+  sent_date?: string;
+  due?: string;
+  purpose?: string;
+  period?: string;
+  people?: string;
+  /** 가장 그럴듯한 금액 (없으면 사람이 적는다) */
+  amount?: number;
+  amounts: BudgetAmount[];
+  nature?: string;
+  nature_words: string[];
+  /** 글에서 찾은 회계 구분 단서 */
+  account_hint?: string;
+  /** 추천에 쓴 글 (budget_suggest 로 다시 넘긴다, 4천 자까지) */
+  basis: string;
+  suggestions: BudgetSuggestion[];
+}
+
+export interface BudgetApplyResult {
+  entries: BudgetEntry[];
+  item: BudgetItemView;
+  /** 집행률이 경고 기준을 넘었으면 그 문장 */
+  warning?: string;
+}
+
+/** 증빙 대조에 쓰는 결의서 값 (budget_analyze 결과에서) */
+export interface BudgetVoucherFacts {
+  amount?: number;
+  vendor_no?: string;
+  memo?: string;
+  related?: string;
+  date?: string;
+  kind?: 'travel' | 'purchase' | 'general';
+}
+
+export interface BudgetEvidencePage {
+  page: number;
+  kind: 'travel_claim' | 'ticket' | 'trip_request' | 'notice' | 'quote' | 'purchase_request' | 'item_list' | 'card_receipt' | 'inspection' | 'photo' | 'other';
+  label: string;
+  amount?: number;
+  fare?: number;
+  brn?: string;
+  date?: string;
+  qty?: number;
+  count?: number;
+  doc_no?: string;
+}
+
+export interface BudgetEvidenceResult {
+  pages: BudgetEvidencePage[];
+  checks: Array<{ label: string; ok: boolean; detail: string }>;
+  /** 갈래에 비해 빠진 서류 이름 */
+  missing: string[];
+  ocr: boolean;
+}
+
+/** 기관 규정·지침 파일 하나 (budget_guide_*) */
+export interface BudgetGuide {
+  id: string;
+  name: string;
+  added_at: string;
+  /** 나눈 조항(또는 단락) 수 */
+  clauses: number;
+  /** 그 가운데 "제N조" 꼴 조항 수 (0 이면 단락으로 나눔) */
+  articles: number;
+  chars: number;
+  size: number;
+}
+
+/** 근거 조항 하나 */
+export interface BudgetGuideMatch {
+  guide_id: string;
+  /** 규정 파일 이름 */
+  guide: string;
+  /** "제12조" 또는 "3번째 단락" */
+  no: string;
+  title: string;
+  chapter?: string;
+  /** 맞은 낱말 둘레 글 */
+  snippet: string;
+  /** 맞은 낱말 (무게 큰 차례) */
+  terms: string[];
+  /** 조항 안 금액 기준 ("1인당 30,000원 이내") */
+  amounts: string[];
+  /** 차례 값 1~99 (확률 아님) */
+  score: number;
 }
 
 /** 합치기 결과 (merge_files) */

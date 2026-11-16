@@ -5,7 +5,7 @@
 #[cfg(windows)]
 pub fn settings_key() -> Option<String> {
     use base64::Engine;
-    let entry = match keyring::Entry::new("KorDoc AI", "settings-key") {
+    let entry = match keyring::Entry::new("KnuDoc AI", "settings-key") {
         Ok(e) => e,
         Err(e) => {
             tracing::warn!("자격 증명 관리자를 열지 못해 설정 키를 암호화하지 않습니다: {}", e);

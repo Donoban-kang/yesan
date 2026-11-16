@@ -1,0 +1,717 @@
+<title>예산 지출 도우미</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 배치: KorDoc AI 그대로 — 옅은 회색 왼쪽 탐색(232px) + 흰 작업 면, 로고 초록 한 가지 강조색 */
+:root {
+  --spine: #F5F6F8; --bg1: #F5F6F8; --bg2: #FFFFFF; --bg3: #EDEFF2; --desk: #EBEDF0; --paper: #FFFFFF;
+  --t1: #16191D; --t2: #39414B; --tm: #636C77; --td: #8C949D; --inv: #FFFFFF;
+  --bd: #E1E4E8; --bds: #ECEEF1; --bdh: #C9CED4; --bdi: #8A949E;
+  --ac: #08775A; --ach: #06664D; --acink: #FFFFFF; --acs: rgba(8,119,90,.08); --acl: rgba(8,119,90,.14); --acg: rgba(8,119,90,.20);
+  --ok: #1C7036; --warn: #8A5300; --err: #C0261A; --info: #2457A6;
+  --okbg: rgba(28,112,54,.10); --warnbg: rgba(196,122,0,.13); --errbg: rgba(192,38,26,.08); --infobg: rgba(36,87,166,.09);
+  --hwp: #23588C; --hwpbg: rgba(35,88,140,.09); --pdf: #A8261C; --pdfbg: rgba(168,38,28,.08); --xlsx: #296A34; --xlsxbg: rgba(43,110,54,.09);
+  --tip: #1F242B; --tiptx: #F3F5F7; --backdrop: rgba(16,20,26,.45);
+  --sh-card: 0 0 0 1px var(--bd), 0 1px 2px rgba(16,24,40,.04);
+  --sh-lg: 0 8px 20px -6px rgba(16,24,40,.14), 0 2px 6px -2px rgba(16,24,40,.06);
+  --sh-page: 0 1px 2px rgba(16,24,40,.08), 0 8px 24px -10px rgba(16,24,40,.25);
+  --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-xl: 14px;
+  --fs-display: 28px; --fs-h1: 22px; --fs-h2: 18px; --fs-h3: 16px; --fs-body: 14px; --fs-small: 13px; --fs-cap: 12px;
+  --font: 'Pretendard', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --mono: 'D2Coding', 'Consolas', 'SF Mono', 'Menlo', monospace;
+  --nav: 232px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --spine: #111316; --bg1: #15181C; --bg2: #1B1E23; --bg3: #262A30; --desk: #101215; --paper: #FFFFFF;
+  --t1: #ECEEF1; --t2: #C3C8CF; --tm: #969DA6; --td: #5A6068; --inv: #111316;
+  --bd: rgba(236,238,241,.12); --bds: rgba(236,238,241,.07); --bdh: rgba(236,238,241,.22); --bdi: rgba(236,238,241,.34);
+  --ac: #3FCF98; --ach: #6BDDB1; --acink: #062B1E; --acs: rgba(63,207,152,.10); --acl: rgba(63,207,152,.14); --acg: rgba(63,207,152,.25);
+  --ok: #6CC97A; --warn: #E3B35A; --err: #F07A6E; --info: #86B6E6;
+  --okbg: rgba(108,201,122,.16); --warnbg: rgba(227,179,90,.16); --errbg: rgba(240,122,110,.13); --infobg: rgba(134,182,230,.14);
+  --hwp: #8FB8E3; --hwpbg: rgba(143,184,227,.12); --pdf: #F09A90; --pdfbg: rgba(240,154,144,.12); --xlsx: #8DD39A; --xlsxbg: rgba(141,211,154,.12);
+  --tip: #343A42; --backdrop: rgba(5,7,5,.62);
+  --sh-card: 0 0 0 1px var(--bd); --sh-lg: 0 8px 22px -6px rgba(0,0,0,.6); --sh-page: 0 1px 2px rgba(0,0,0,.5), 0 10px 26px -10px rgba(0,0,0,.8);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --spine: #111316; --bg1: #15181C; --bg2: #1B1E23; --bg3: #262A30; --desk: #101215; --paper: #FFFFFF;
+  --t1: #ECEEF1; --t2: #C3C8CF; --tm: #969DA6; --td: #5A6068; --inv: #111316;
+  --bd: rgba(236,238,241,.12); --bds: rgba(236,238,241,.07); --bdh: rgba(236,238,241,.22); --bdi: rgba(236,238,241,.34);
+  --ac: #3FCF98; --ach: #6BDDB1; --acink: #062B1E; --acs: rgba(63,207,152,.10); --acl: rgba(63,207,152,.14); --acg: rgba(63,207,152,.25);
+  --ok: #6CC97A; --warn: #E3B35A; --err: #F07A6E; --info: #86B6E6;
+  --okbg: rgba(108,201,122,.16); --warnbg: rgba(227,179,90,.16); --errbg: rgba(240,122,110,.13); --infobg: rgba(134,182,230,.14);
+  --hwp: #8FB8E3; --hwpbg: rgba(143,184,227,.12); --pdf: #F09A90; --pdfbg: rgba(240,154,144,.12); --xlsx: #8DD39A; --xlsxbg: rgba(141,211,154,.12);
+  --tip: #343A42; --backdrop: rgba(5,7,5,.62);
+  --sh-card: 0 0 0 1px var(--bd); --sh-lg: 0 8px 22px -6px rgba(0,0,0,.6); --sh-page: 0 1px 2px rgba(0,0,0,.5), 0 10px 26px -10px rgba(0,0,0,.8);
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg2); color: var(--t1); font-family: var(--font); font-size: var(--fs-body); letter-spacing: -0.005em; word-break: keep-all; overflow-wrap: break-word; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--acg); border-radius: var(--r-sm); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* 앱 틀 */
+.app { display: flex; height: 100%; min-height: 0; }
+.nav { width: var(--nav); flex: none; background: var(--spine); border-right: 1px solid var(--bd); display: flex; flex-direction: column; min-height: 0; padding-left: env(safe-area-inset-left, 0px); }
+.brand { display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 20px; flex: none; }
+.logo { width: 28px; height: 28px; border-radius: 8px; background: var(--ac); color: var(--acink); display: grid; place-items: center; font-weight: 700; font-size: 13px; letter-spacing: -.04em; }
+.brand strong { font-size: var(--fs-h2); font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+.brand small { display: block; font-size: var(--fs-cap); color: var(--tm); font-weight: 500; margin-top: -2px; }
+.nav-list { flex: 1; overflow-y: auto; padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 2px; }
+.nav-group { padding: 14px 10px 6px; font-size: var(--fs-cap); font-weight: 600; color: var(--tm); display: flex; align-items: center; gap: 6px; }
+.nav-group .new { font-size: 11px; font-weight: 700; color: var(--ac); background: var(--acs); border-radius: 999px; padding: 1px 7px; }
+.nav-sep { height: 1px; background: var(--bd); margin: 10px 8px; }
+.nav-item { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border: 0; border-radius: var(--r-md); background: transparent; color: var(--t2); text-align: left; position: relative; }
+.nav-item:hover { background: var(--bg3); color: var(--t1); }
+.nav-item[aria-current="page"] { background: var(--bg2); color: var(--t1); box-shadow: var(--sh-card); }
+.nav-item[aria-current="page"] svg { color: var(--ac); }
+.nav-item[aria-current="page"] .nt { font-weight: 600; }
+.nav-item svg { width: 20px; height: 20px; color: var(--tm); }
+.nt { font-size: var(--fs-body); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--err); color: #fff; font-size: var(--fs-cap); font-weight: 700; display: grid; place-items: center; }
+.badge.soft { background: var(--acl); color: var(--ac); }
+.nav-foot { flex: none; padding: 12px 16px 14px; border-top: 1px solid var(--bd); display: flex; flex-direction: column; gap: 4px; padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)); }
+.status { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 4px; border: 0; background: none; border-radius: var(--r-sm); font-size: var(--fs-small); color: var(--t2); text-align: left; }
+button.status:hover { background: var(--bg3); }
+.status svg { width: 16px; height: 16px; flex: none; }
+.status[data-tone="ok"] svg { color: var(--ok); }
+.mode { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 4px; border: 0; background: none; font-size: var(--fs-cap); color: var(--tm); font-weight: 600; text-align: left; border-radius: var(--r-sm); }
+.mode:hover { background: var(--bg3); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bdi); flex: none; }
+.dot[data-on="true"] { background: var(--ac); }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.screen { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.head { display: flex; align-items: flex-start; gap: 16px; padding: 22px 32px 18px; border-bottom: 1px solid var(--bds); flex: none; flex-wrap: wrap; padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+.head-title { font-size: var(--fs-h1); font-weight: 700; letter-spacing: -.02em; margin: 0; }
+.head-sub { margin: 4px 0 0; font-size: var(--fs-small); color: var(--tm); max-width: 62ch; }
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.body { flex: 1; overflow: auto; padding: 24px 32px 40px; padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+
+/* 단추·입력 */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: var(--r-md); border: 1px solid var(--bd); background: var(--bg2); color: var(--t1); font-weight: 600; font-size: var(--fs-body); white-space: nowrap; }
+.btn:hover { border-color: var(--bdh); background: var(--bg1); }
+.btn.primary { background: var(--ac); border-color: var(--ac); color: var(--acink); }
+.btn.primary:hover { background: var(--ach); border-color: var(--ach); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--t2); }
+.btn.ghost:hover { background: var(--bg3); }
+.btn.sm { height: 30px; padding: 0 10px; font-size: var(--fs-small); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn svg { width: 16px; height: 16px; }
+.input, select.input { height: 36px; border: 1px solid var(--bdi); border-radius: var(--r-md); background: var(--bg2); padding: 0 10px; min-width: 0; width: 100%; }
+.input:hover { border-color: var(--tm); }
+label.field { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-small); color: var(--t2); font-weight: 600; min-width: 0; }
+
+/* 공통 블록 */
+.card { background: var(--bg2); border-radius: var(--r-lg); box-shadow: var(--sh-card); }
+.panel { background: var(--bg1); border-radius: var(--r-lg); }
+.sec-title { font-size: var(--fs-h3); font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
+.cap { font-size: var(--fs-cap); color: var(--tm); }
+.muted { color: var(--tm); }
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: var(--fs-cap); font-weight: 600; white-space: nowrap; }
+.pill.ok { color: var(--ok); background: var(--okbg); }
+.pill.warn { color: var(--warn); background: var(--warnbg); }
+.pill.err { color: var(--err); background: var(--errbg); }
+.pill.info { color: var(--info); background: var(--infobg); }
+.pill.ac { color: var(--ac); background: var(--acs); }
+.pill.gray { color: var(--t2); background: var(--bg3); }
+.ft { display: inline-grid; place-items: center; height: 20px; padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.ft.hwpx, .ft.hwp { color: var(--hwp); background: var(--hwpbg); }
+.ft.pdf { color: var(--pdf); background: var(--pdfbg); }
+.ft.xlsx { color: var(--xlsx); background: var(--xlsxbg); }
+.note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-md); font-size: var(--fs-small); line-height: 1.55; }
+.note svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+.note.info { background: var(--infobg); color: var(--t1); } .note.info svg { color: var(--info); }
+.note.warn { background: var(--warnbg); color: var(--t1); } .note.warn svg { color: var(--warn); }
+.note.err { background: var(--errbg); color: var(--t1); } .note.err svg { color: var(--err); }
+.note.ok { background: var(--okbg); color: var(--t1); } .note.ok svg { color: var(--ok); }
+.tabs { display: flex; gap: 4px; padding: 3px; background: var(--bg1); border-radius: var(--r-md); width: fit-content; }
+.tab { height: 30px; padding: 0 12px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--t2); font-size: var(--fs-small); font-weight: 600; }
+.tab[aria-selected="true"] { background: var(--bg2); color: var(--t1); box-shadow: var(--sh-card); }
+.bar { height: 8px; border-radius: 999px; background: var(--bg3); overflow: hidden; display: flex; }
+.bar > span { display: block; height: 100%; }
+.bar .s-paid { background: var(--ac); }
+.bar .s-commit { background: var(--ac); opacity: .45; }
+.bar .s-new { background: repeating-linear-gradient(45deg, var(--warn) 0 4px, transparent 4px 7px); box-shadow: inset 0 0 0 1px var(--warn); }
+.bar .s-over { background: var(--err); }
+table.grid { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+table.grid th { text-align: left; font-size: var(--fs-cap); color: var(--tm); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--bd); white-space: nowrap; position: sticky; top: 0; background: var(--bg2); }
+table.grid td { padding: 11px 12px; border-bottom: 1px solid var(--bds); vertical-align: middle; }
+table.grid td.r, table.grid th.r { text-align: right; }
+table.grid tr.group td { background: var(--bg1); font-weight: 700; font-size: var(--fs-small); color: var(--t2); }
+table.grid tr.rev td { color: var(--tm); }
+.tbl-wrap { overflow-x: auto; }
+
+/* 지출 도우미 3단 */
+.spend { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.2fr) minmax(0, .95fr); gap: 20px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.step { display: flex; align-items: center; gap: 8px; font-size: var(--fs-cap); font-weight: 700; color: var(--tm); }
+.step b { width: 20px; height: 20px; border-radius: 50%; background: var(--bg3); color: var(--t2); display: grid; place-items: center; font-size: 11px; }
+.step.on b { background: var(--ac); color: var(--acink); }
+.drop { border: 1.5px dashed var(--bdi); border-radius: var(--r-lg); padding: 18px; text-align: center; color: var(--tm); font-size: var(--fs-small); background: var(--bg2); transition: background .12s; }
+.drop.over { background: var(--acs); border-color: var(--ac); color: var(--t1); }
+.drop strong { color: var(--t1); display: block; font-size: var(--fs-body); margin-bottom: 2px; }
+.doc-desk { background: var(--desk); border-radius: var(--r-lg); padding: 16px; }
+.paper { background: var(--paper); color: #16191D; border-radius: 2px; box-shadow: var(--sh-page); padding: 22px 22px 26px; font-size: 13px; line-height: 1.75; }
+.paper h4 { text-align: center; font-size: 17px; margin: 0 0 4px; letter-spacing: .1em; color: #16191D; }
+.paper .meta { font-size: 12px; color: #636C77; border-bottom: 2px solid #16191D; padding-bottom: 8px; margin-bottom: 10px; }
+.paper p { margin: 0 0 6px; }
+.paper mark { background: rgba(196,122,0,.22); color: inherit; padding: 0 2px; border-radius: 2px; }
+.paper mark.amt { background: rgba(8,119,90,.18); font-weight: 700; }
+.doc-pick { display: flex; flex-direction: column; gap: 6px; }
+.doc-opt { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--bd); background: var(--bg2); text-align: left; }
+.doc-opt:hover { border-color: var(--bdh); }
+.doc-opt[aria-pressed="true"] { border-color: var(--ac); box-shadow: 0 0 0 1px var(--ac); background: var(--acs); }
+.doc-opt .tt { font-weight: 600; font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kv { display: grid; grid-template-columns: 88px 1fr; gap: 8px 12px; align-items: center; font-size: var(--fs-small); }
+.kv dt { color: var(--tm); font-weight: 600; }
+.kv dd { margin: 0; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.low { background: var(--warnbg); border-radius: 4px; padding: 1px 6px; }
+.amt-input { font-size: var(--fs-h2); font-weight: 700; height: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+.sug { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; padding: 14px; border-radius: var(--r-lg); border: 1px solid var(--bd); background: var(--bg2); text-align: left; width: 100%; align-items: start; }
+.sug:hover { border-color: var(--bdh); }
+.sug[aria-checked="true"] { border-color: var(--ac); box-shadow: 0 0 0 1px var(--ac); }
+.radio { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--bdi); margin-top: 2px; display: grid; place-items: center; }
+.sug[aria-checked="true"] .radio { border-color: var(--ac); }
+.sug[aria-checked="true"] .radio::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--ac); }
+.path { font-size: var(--fs-cap); color: var(--tm); }
+.acc { font-weight: 700; font-size: var(--fs-body); margin: 2px 0 6px; }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.score { text-align: right; }
+.score b { font-size: var(--fs-h3); color: var(--ac); display: block; font-variant-numeric: tabular-nums; }
+.tree { max-height: 260px; overflow: auto; border: 1px solid var(--bd); border-radius: var(--r-md); background: var(--bg2); }
+.tree-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--bds); background: none; width: 100%; text-align: left; font-size: var(--fs-small); }
+.tree-row:hover { background: var(--bg1); }
+.tree-row[aria-pressed="true"] { background: var(--acs); }
+.tree-g { padding: 8px 12px 6px; font-size: var(--fs-cap); font-weight: 700; color: var(--tm); background: var(--bg1); position: sticky; top: 0; }
+.big-num { font-size: var(--fs-display); font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.calc { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: var(--fs-small); }
+.calc dt { color: var(--t2); } .calc dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.calc .sum { border-top: 1px solid var(--bd); padding-top: 8px; font-weight: 700; color: var(--t1); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--fs-cap); color: var(--tm); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.seg button { min-height: 52px; padding: 6px 8px; gap: 2px; text-align: center; border-radius: var(--r-md); border: 1px solid var(--bd); background: var(--bg2); font-weight: 600; font-size: var(--fs-small); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
+.seg button small { font-size: 11px; color: var(--tm); font-weight: 500; }
+.seg button[aria-pressed="true"] { border-color: var(--ac); box-shadow: 0 0 0 1px var(--ac); background: var(--acs); }
+.confirm { border: 1px solid var(--ac); border-radius: var(--r-lg); padding: 14px; background: var(--acs); display: flex; flex-direction: column; gap: 10px; }
+
+/* 접수함 */
+.inbox-row { display: grid; grid-template-columns: 76px minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) 110px auto; gap: 14px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--bds); }
+.inbox-row.headrow { font-size: var(--fs-cap); color: var(--tm); font-weight: 600; border-bottom: 1px solid var(--bd); padding-block: 8px; }
+.dday { font-weight: 700; font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.dday.red { color: var(--err); } .dday.amber { color: var(--warn); } .dday.gray { color: var(--t2); }
+.ttl { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+.ttl span { overflow: hidden; text-overflow: ellipsis; }
+
+/* 홈 */
+.home-ask { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.home-q { font-size: var(--fs-display); font-weight: 700; letter-spacing: -.02em; text-align: center; margin: 12px 0 4px; text-wrap: balance; }
+.ask-box { border: 1px solid var(--bdi); border-radius: var(--r-xl); background: var(--bg2); padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--sh-lg); }
+.ask-box textarea { border: 0; resize: none; background: transparent; min-height: 52px; outline: none; font-size: var(--fs-body); }
+.ask-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tile { padding: 16px; display: flex; flex-direction: column; gap: 6px; text-align: left; border: 0; }
+.tile:hover { box-shadow: 0 0 0 1px var(--bdh), 0 4px 12px -4px rgba(16,24,40,.10); }
+.tile .k { font-size: var(--fs-cap); color: var(--tm); font-weight: 600; }
+.tile .v { font-size: var(--fs-h1); font-weight: 700; font-variant-numeric: tabular-nums; }
+.urgent { display: flex; flex-direction: column; }
+.urgent button { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--bds); background: none; text-align: left; }
+.urgent button:hover { background: var(--bg1); }
+
+/* 설정 */
+.settings { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 28px; align-items: start; }
+.s-index { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.s-index button { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: var(--r-md); color: var(--t2); font-size: var(--fs-small); font-weight: 500; display: flex; gap: 6px; align-items: center; }
+.s-index button:hover { background: var(--bg1); }
+.s-index button[aria-current="true"] { background: var(--acs); color: var(--ac); font-weight: 700; }
+.s-index .new { margin-left: auto; font-size: 11px; color: var(--ac); font-weight: 700; }
+.s-sec { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; scroll-margin-top: 12px; }
+.s-sec h2 { margin: 0; font-size: var(--fs-h2); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.s-sec h2 .mk { color: var(--tm); font-weight: 600; }
+.s-sec.added { box-shadow: 0 0 0 1.5px var(--ac); }
+.form2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.choice { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.choice button { text-align: left; padding: 12px; border: 1px solid var(--bd); border-radius: var(--r-lg); background: var(--bg2); display: flex; flex-direction: column; gap: 4px; }
+.choice button[aria-pressed="true"] { border-color: var(--ac); box-shadow: 0 0 0 1px var(--ac); background: var(--acs); }
+.choice b { font-size: var(--fs-small); } .choice span { font-size: var(--fs-cap); color: var(--tm); line-height: 1.5; }
+.switch { width: 40px; height: 22px; border-radius: 999px; border: 1.5px solid var(--bdi); background: var(--bg2); position: relative; flex: none; padding: 0; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: var(--bdi); transition: left .15s; }
+.switch[aria-checked="true"] { background: var(--ac); border-color: var(--ac); }
+.switch[aria-checked="true"]::after { left: 20px; background: var(--acink); }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.map-tbl td { padding: 8px 10px; }
+
+/* 알림 */
+.toast { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--tip); color: var(--tiptx); border-radius: var(--r-lg); padding: 10px 16px; font-size: var(--fs-small); display: flex; gap: 10px; align-items: center; box-shadow: var(--sh-lg); z-index: 100; max-width: calc(100% - 32px); }
+.toast svg { color: #5EE39A; width: 16px; height: 16px; flex: none; }
+.sketch-tag { font-size: 11px; font-weight: 700; color: var(--warn); background: var(--warnbg); border-radius: 4px; padding: 2px 6px; }
+
+/* 좁은 창 */
+@media (max-width: 1180px) {
+  .spend { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .spend > .col:last-child { grid-column: 1 / -1; }
+}
+/* 접힌 메뉴: 아이콘 + 짧은 이름 (KorDoc AI 의 80px 폭) */
+.nav { transition: width .2s cubic-bezier(.16,1,.3,1); }
+.nav[data-collapsed="true"] { width: 80px; }
+.nav[data-collapsed="true"] .brand { padding: 0; justify-content: center; }
+.nav[data-collapsed="true"] .brand-text, .nav[data-collapsed="true"] .nav-group, .nav[data-collapsed="true"] .nt { display: none; }
+.nav[data-collapsed="true"] .nav-list { padding: 4px 8px 12px; }
+.nav[data-collapsed="true"] .nav-item { grid-template-columns: 1fr; justify-items: center; row-gap: 4px; padding: 8px 0 7px; min-height: 56px; }
+.nav[data-collapsed="true"] .badge { position: absolute; top: 3px; right: 5px; height: 18px; min-width: 18px; padding: 0 5px; }
+.nav[data-collapsed="true"] .nav-foot { padding: 10px 0; align-items: center; }
+.ns { display: none; font-size: var(--fs-cap); font-weight: 600; line-height: 1.2; letter-spacing: -.02em; white-space: nowrap; }
+.nav[data-collapsed="true"] .ns { display: block; }
+.nav[data-collapsed="true"] .status { flex-direction: column; gap: 2px; min-width: 56px; min-height: 40px; justify-content: center; padding: 4px; }
+.nav[data-collapsed="true"] .status .full, .nav[data-collapsed="true"] .mode .full { display: none; }
+.nav[data-collapsed="true"] .mode { flex-direction: column; gap: 3px; justify-content: center; min-width: 56px; padding: 4px; }
+.short { display: none; font-size: var(--fs-cap); font-weight: 600; }
+.nav[data-collapsed="true"] .short { display: block; }
+.fold { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 4px; border: 0; background: none; border-radius: var(--r-sm); color: var(--t2); font-size: var(--fs-small); margin-top: 2px; }
+.fold:hover { background: var(--bg3); color: var(--t1); }
+.fold svg { width: 16px; height: 16px; }
+.nav[data-collapsed="true"] .fold { justify-content: center; width: 40px; height: 36px; padding: 0; }
+.nav[data-collapsed="true"] .fold .full { display: none; }
+@media (max-width: 860px) {
+  .head { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px)); }
+  .body { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px)); }
+  .spend, .settings, .tiles, .form2, .choice { grid-template-columns: minmax(0, 1fr); }
+  .s-index { position: static; flex-direction: row; overflow-x: auto; }
+  .s-index button { white-space: nowrap; }
+  .inbox-row { grid-template-columns: 64px minmax(0, 1fr) auto; }
+  .inbox-row > :nth-child(3), .inbox-row > :nth-child(4), .inbox-row > :nth-child(5) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <nav class="nav" id="nav" aria-label="주 메뉴">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">예</div>
+      <div class="brand-text"><strong>예산 도우미</strong><small>KorDoc AI 기반</small></div>
+    </div>
+    <div class="nav-list" id="navList"></div>
+    <div class="nav-foot" id="navFoot"></div>
+  </nav>
+  <main class="main" id="main"></main>
+</div>
+<div id="toastHost"></div>
+
+<script>
+(() => {
+/* ---------- 아이콘 (lucide 모양을 줄여 그림) ---------- */
+const P = {
+  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+  chat: '<path d="M14 9a2 2 0 0 1-2 2H6l-3 3V4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2z"/><path d="M18 9h1a2 2 0 0 1 2 2v10l-3-3h-6a2 2 0 0 1-2-2v-1"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  book: '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+  pen: '<path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4z"/>',
+  stack: '<path d="M2 7h14v14H2z"/><path d="M8 3h14v14"/>',
+  layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  chart: '<path d="M3 3v18h18"/><path d="M7 16v-3"/><path d="M12 16V8"/><path d="M17 16v-6"/>',
+  ledger: '<path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 14h8"/><path d="M8 18h5"/>',
+  gear: '<path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
+  help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  down: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  spark: '<path d="M12 3 9.5 9.5 3 12l6.5 2.5L12 21l2.5-6.5L21 12l-6.5-2.5z"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  cpu: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  pclose: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+  popen: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',
+  clip: '<path d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>',
+};
+const ic = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const won = (n) => Math.round(n).toLocaleString('ko-KR');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- 예시 데이터 (가상의 가온초등학교, 2026 학교회계) ---------- */
+const ITEMS = [
+  { id: 'B01', program: '교육과정 운영', unit: '진로교육', detail: '진로체험활동 운영', account: '체험활동 임차료', budget: 6000000, spent: 2150000, kw: ['버스', '임차', '대절', '차량', '체험', '견학', '진로'] },
+  { id: 'B02', program: '교육과정 운영', unit: '진로교육', detail: '진로체험활동 운영', account: '외부강사 수당', budget: 3000000, spent: 1200000, kw: ['강사', '수당', '특강', '진로'] },
+  { id: 'B03', program: '교육과정 운영', unit: '진로교육', detail: '진로체험활동 운영', account: '일반수용비(소모품)', budget: 1500000, spent: 420000, kw: ['소모품', '인쇄', '현수막', '진로'] },
+  { id: 'B04', program: '교육과정 운영', unit: '과학교육', detail: '과학실험 활성화', account: '교구·기자재 구입', budget: 5000000, spent: 900000, kw: ['기자재', '구입', '교구', '실험', '과학', '현미경'] },
+  { id: 'B05', program: '교육과정 운영', unit: '과학교육', detail: '과학실험 활성화', account: '실험 소모품', budget: 2000000, spent: 1640000, kw: ['시약', '소모품', '실험', '과학'] },
+  { id: 'B06', program: '교원 역량 강화', unit: '교직원 연수', detail: '직무연수 지원', account: '국내여비', budget: 2400000, spent: 1980000, kw: ['출장', '여비', '연수', '교통비'] },
+  { id: 'B07', program: '교원 역량 강화', unit: '교직원 연수', detail: '직무연수 지원', account: '연수 운영비', budget: 1800000, spent: 300000, kw: ['연수', '운영', '워크숍', '강사'] },
+  { id: 'B08', program: '학교 일반 운영', unit: '학교운영위원회', detail: '운영위원회 운영', account: '협의회비', budget: 600000, spent: 510000, kw: ['회의', '다과', '협의회', '운영위원회'] },
+  { id: 'B09', program: '학교 일반 운영', unit: '학교운영위원회', detail: '운영위원회 운영', account: '일반수용비(소모품)', budget: 300000, spent: 80000, kw: ['인쇄', '자료집', '운영위원회'] },
+  { id: 'B10', program: '교육환경 개선', unit: '시설 유지관리', detail: '소규모 시설 보수', account: '시설 수선비', budget: 8000000, spent: 3200000, kw: ['수선', '보수', '시설', '공사', '교체'] },
+];
+const DOCS = [
+  { id: 'D1', type: 'hwpx', title: '2026 학년별 진로체험 버스 임차 협조', from: '가온시교육지원청 진로교육과', no: '진로교육과-4021', date: '2026-11-10', due: '2026-11-20',
+    amount: 1980000, amountLow: false, purpose: '6학년 진로체험(가온과학관) 버스 3대 임차', period: '2026-11-27(금) 1일', nature: '임차', people: '학생 142명, 인솔 8명',
+    body: ['1. 관련: 가온시교육지원청 진로교육과-3988(2026.10.30.)', '2. 2026학년도 학년별 진로체험활동과 관련하여 아래와 같이 <mark>버스 임차</mark>를 협조 요청하오니 2026. 11. 20.까지 계약 절차를 마쳐 주시기 바랍니다.', '가. 일시: 2026. 11. 27.(금) 08:30~15:30', '나. 장소: 가온과학관 및 가온시 직업체험센터', '다. 대상: 6학년 학생 142명, 인솔교사 8명', '라. 소요 예산: <mark class="amt">금1,980,000원</mark>(45인승 버스 3대, 부가세 포함)', '마. 예산 과목: 학교 실정에 맞게 집행'] },
+  { id: 'D2', type: 'hwp', title: '과학실 실험 기자재 확충 계획 알림', from: '가온도교육청 미래교육과', no: '미래교육과-1177', date: '2026-11-07', due: '2026-11-28',
+    amount: 3450000, amountLow: true, purpose: '과학실 디지털 현미경 등 기자재 구입', period: '2026-12-15까지 구입 완료', nature: '구입', people: '-',
+    body: ['1. 2026년 과학실험 활성화 사업과 관련입니다.', '2. 학교별 과학실 <mark>기자재 구입</mark>을 아래와 같이 안내하오니 기한 내 집행하여 주시기 바랍니다.', '가. 품목: 디지털 현미경 6대, 실험용 전자저울 4대', '나. 학교당 지원액: <mark class="amt">3,450천원</mark> (표 단위: 천원)', '다. 집행 기한: 2026. 12. 15.'] },
+  { id: 'D3', type: 'pdf', title: '교원 디지털 역량 직무연수 참가 안내', from: '가온교육연수원', no: '연수원-2290', date: '2026-11-05', due: '2026-11-18',
+    amount: 420000, amountLow: false, purpose: '직무연수 참가 교원 3명 출장 여비', period: '2026-11-24 ~ 11-25', nature: '여비', people: '교원 3명',
+    body: ['1. 2026 교원 디지털 역량 강화 직무연수를 아래와 같이 운영합니다.', '2. 참가 교원은 <mark>출장</mark> 처리하며, <mark>여비</mark>는 소속 학교에서 지급합니다.', '가. 기간: 2026. 11. 24.(화) ~ 11. 25.(수)', '나. 장소: 가온교육연수원 본관', '다. 예상 여비: 1인 140,000원 × 3명 = <mark class="amt">420,000원</mark>'] },
+];
+const RULES = { '임차': ['임차'], '구입': ['구입', '기자재'], '여비': ['여비', '출장'], '수당': ['수당'], '회의': ['협의회'] };
+
+/* ---------- 상태 ---------- */
+let S = {
+  screen: 'spend', easy: false, docId: 'D1', itemId: null, amount: DOCS[0].amount, stage: 'commit', confirming: false, search: '', pickMode: 'suggest',
+  setSec: 'set-budget', aiMode: 'pc', offline: true, warnAt: 90, overBlock: true, accType: '학교회계',
+  ledger: [
+    { id: 'L1', date: '2026-10-21', itemId: 'B01', amount: 650000, stage: 'paid', doc: '현장체험학습(4학년) 버스 임차', by: '김예산' },
+    { id: 'L2', date: '2026-11-03', itemId: 'B05', amount: 210000, stage: 'commit', doc: '과학 실험 시약 구입 품의', by: '김예산' },
+    { id: 'L3', date: '2026-11-06', itemId: 'B06', amount: 280000, stage: 'paid', doc: '학교폭력예방 연수 출장(2명)', by: '김예산' },
+  ],
+  linked: {},
+};
+S.collapsed = window.innerWidth < 1100;
+try { const m = localStorage.getItem('yesan-easy'); if (m) S.easy = m === '1'; const c = localStorage.getItem('yesan-nav'); if (c) S.collapsed = c === '1'; } catch (e) {}
+if (window.innerWidth < 640) S.collapsed = true;
+let wasNarrow = window.innerWidth < 640;
+window.addEventListener('resize', () => { const n = window.innerWidth < 640; if (n && !wasNarrow && !S.collapsed) { S.collapsed = true; render(); } wasNarrow = n; });
+
+const item = (id) => ITEMS.find((i) => i.id === id);
+const doc = () => DOCS.find((d) => d.id === S.docId);
+function tally(id) {
+  const it = item(id); let paid = it.spent, commit = 0;
+  for (const l of S.ledger) if (l.itemId === id) { if (l.stage === 'paid') paid += l.amount; else commit += l.amount; }
+  return { budget: it.budget, paid, commit, avail: it.budget - paid - commit, rate: (paid + commit) / it.budget * 100 };
+}
+function suggest(d) {
+  const text = (d.title + ' ' + d.purpose + ' ' + d.body.join(' ')).replace(/<[^>]+>/g, '');
+  return ITEMS.map((it) => {
+    const hits = it.kw.filter((k) => text.includes(k));
+    const rule = (RULES[d.nature] || []).some((r) => it.account.includes(r));
+    const t = tally(it.id);
+    let score = hits.length * 14 + (rule ? 40 : 0);
+    const enough = t.avail >= S.amount;
+    if (!enough) score -= 15;
+    return { it, hits, rule, enough, score: Math.max(0, Math.min(99, score)), t };
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+}
+
+/* ---------- 메뉴 ---------- */
+const NAV = [
+  { group: null, items: [['home', '홈', 'home'], ['chat', 'AI 대화', 'chat'], ['inbox', '접수함', 'inbox']] },
+  { group: '문서 작업', items: [['workbench', '문서 보기', 'book', '문서'], ['create', '새로 쓰기', 'pen'], ['pdf', 'PDF 합치기·나누기', 'stack', 'PDF'], ['batch', '여러 파일 한꺼번에', 'layers', '한꺼번에']] },
+  { group: '예산', isNew: true, items: [['spend', '지출 도우미', 'wallet', '지출'], ['budget', '예산 현황', 'chart', '현황'], ['ledger', '지출 대장', 'ledger', '대장']] },
+];
+const EASY = ['home', 'chat', 'inbox', 'workbench', 'spend'];
+function navHTML() {
+  const unlinked = DOCS.filter((d) => !S.linked[d.id]).length;
+  const btn = ([id, t, i, short]) => {
+    const b = id === 'inbox' ? `<span class="badge">2</span>` : id === 'spend' && unlinked ? `<span class="badge soft" title="예산 연결 안 된 공문">${unlinked}</span>` : '';
+    return `<button type="button" class="nav-item" data-go="${id}" ${S.screen === id ? 'aria-current="page"' : ''} ${S.collapsed ? `title="${t}" aria-label="${t}"` : ''}>${ic(i, 20)}<span class="ns" aria-hidden="true">${short || t}</span><span class="nt">${t}</span>${b}</button>`;
+  };
+  let h = '';
+  for (const g of NAV) {
+    const list = S.easy ? g.items.filter((x) => EASY.includes(x[0])) : g.items;
+    if (!list.length) continue;
+    if (g.group && !S.easy) h += `<div class="nav-group">${g.group}${g.isNew ? '<span class="new">신규</span>' : ''}</div>`;
+    h += list.map(btn).join('');
+  }
+  h += `<div class="nav-sep" role="separator"></div>` + btn(['settings', '설정', 'gear']) + btn(['help', '도움말', 'help']);
+  document.getElementById('navList').innerHTML = h;
+  document.getElementById('nav').dataset.collapsed = S.collapsed;
+  const c = S.collapsed;
+  document.getElementById('navFoot').innerHTML = `
+    <button type="button" class="status" data-tone="ok" data-go="settings" data-sec="set-ai" title="이 PC에서 · 내장 AI: 눌러서 설정 열기">${ic('cpu')}<span class="full">이 PC에서 · 내장 AI</span><span class="short">AI</span></button>
+    <span class="status" data-tone="ok" title="폐쇄망 모드 켜짐: 인터넷으로 나가는 연결을 모두 막습니다">${ic('shield')}<span class="full">폐쇄망 모드 켜짐</span><span class="short">폐쇄망</span></span>
+    <button type="button" class="mode" id="modeBtn" title="${S.easy ? '모든 기능과 세부 설정을 메뉴에 펼쳐 보입니다' : '자주 하는 일만 크게 보이고 세부 설정은 접어 둡니다'}"><span class="dot" data-on="${S.easy}"></span><span class="full">${S.easy ? '쉬운 화면 사용 중 · 전체 화면으로' : '전체 화면 사용 중 · 쉬운 화면으로'}</span><span class="short">${S.easy ? '쉬운' : '전체'}</span></button>
+    <button type="button" class="fold" id="foldBtn" aria-label="${c ? '메뉴 펼치기' : '메뉴 접기'}" title="${c ? '메뉴 펼치기' : '메뉴 접기'}" aria-expanded="${!c}">${ic(c ? 'popen' : 'pclose')}<span class="full">메뉴 접기</span></button>`;
+  document.getElementById('modeBtn').onclick = () => setEasy(!S.easy);
+  document.getElementById('foldBtn').onclick = () => { S.collapsed = !S.collapsed; try { localStorage.setItem('yesan-nav', S.collapsed ? '1' : '0'); } catch (e) {} render(); document.getElementById('foldBtn').focus(); };
+}
+
+/* ---------- 화면들 ---------- */
+const head = (t, sub, actions = '') => `<header class="head"><div style="min-width:0;flex:1"><h1 class="head-title">${t}</h1><p class="head-sub">${sub}</p></div>${actions ? `<div class="head-actions">${actions}</div>` : ''}</header>`;
+
+function spendHTML() {
+  const d = doc(); const sugs = suggest(d);
+  if (S.itemId === null && sugs[0]) S.itemId = sugs[0].it.id;
+  const it = S.itemId ? item(S.itemId) : null; const t = it ? tally(it.id) : null;
+  const after = t ? t.avail - S.amount : 0; const over = t && after < 0;
+  const rateAfter = t ? (t.paid + t.commit + S.amount) / t.budget * 100 : 0; const warn = t && !over && rateAfter >= S.warnAt;
+  const pct = (v) => t ? Math.max(0, Math.min(100, v / t.budget * 100)) : 0;
+
+  const left = `<div class="col">
+    <div class="step on"><b>1</b>받은 공문</div>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="공문 파일 넣기">${ic('upload', 20)}<strong>공문을 끌어다 놓거나 눌러서 고르기</strong>HWP · HWPX · HML · PDF(스캔 포함) · DOCX<input type="file" id="fileIn" hidden accept=".hwp,.hwpx,.hml,.pdf,.docx,.txt"></div>
+    <div class="doc-pick">${DOCS.map((x) => `<button type="button" class="doc-opt" data-doc="${x.id}" aria-pressed="${x.id === S.docId}"><span class="ft ${x.type}">${x.type.toUpperCase()}</span><span style="min-width:0"><span class="tt" style="display:block">${esc(x.title)}</span><span class="cap">${esc(x.from)}</span></span>${S.linked[x.id] ? '<span class="pill ok">반영됨</span>' : '<span class="pill gray">미연결</span>'}</button>`).join('')}</div>
+    <div class="doc-desk"><div class="paper">
+      <h4>${esc(d.from.split(' ')[0])}</h4>
+      <div class="meta">수신 가온초등학교장 · 제목 ${esc(d.title)}<br>문서번호 ${esc(d.no)} · 시행 ${d.date}</div>
+      ${d.body.map((p) => `<p>${p}</p>`).join('')}
+    </div></div>
+    <p class="cap" style="margin:0">초록 표시는 금액, 노란 표시는 거래 성격을 판단한 근거 낱말입니다.</p>
+  </div>`;
+
+  const sugList = sugs.map((x, i) => `<button type="button" class="sug" role="radio" data-item="${x.it.id}" aria-checked="${S.itemId === x.it.id}">
+      <span class="radio"></span>
+      <span style="min-width:0"><span class="path">${esc(x.it.program)} › ${esc(x.it.unit)} › ${esc(x.it.detail)}</span><div class="acc">${esc(x.it.account)}</div>
+        <span class="chips">${x.rule ? `<span class="pill ac">거래 성격: ${esc(d.nature)}</span>` : ''}${x.hits.slice(0, 3).map((h) => `<span class="pill gray">“${esc(h)}” 일치</span>`).join('')}${x.enough ? `<span class="pill ok">잔액 충분</span>` : `<span class="pill err">잔액 부족</span>`}</span></span>
+      <span class="score"><b>${x.score}</b><span class="cap">${i === 0 ? '1순위' : `${i + 1}순위`}</span></span></button>`).join('');
+  const q = S.search.trim();
+  const filtered = ITEMS.filter((x) => !q || (x.unit + x.detail + x.account).includes(q));
+  let tree = '', lastUnit = '';
+  for (const x of filtered) {
+    if (x.unit !== lastUnit) { tree += `<div class="tree-g">${esc(x.program)} › ${esc(x.unit)}</div>`; lastUnit = x.unit; }
+    const tt = tally(x.id);
+    tree += `<button type="button" class="tree-row" data-item="${x.id}" aria-pressed="${S.itemId === x.id}"><span>${esc(x.detail)} · <b>${esc(x.account)}</b></span><span class="num cap">잔액 ${won(tt.avail)}</span></button>`;
+  }
+  const mid = `<div class="col">
+    <div class="step on"><b>2</b>읽은 값 확인</div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <dl class="kv">
+        <dt>지출 목적</dt><dd>${esc(d.purpose)}</dd>
+        <dt>거래 성격</dt><dd><span class="pill ac">${esc(d.nature)}</span><span class="cap">규칙으로 판단</span></dd>
+        <dt>기간</dt><dd>${esc(d.period)}</dd>
+        <dt>대상</dt><dd>${esc(d.people)}</dd>
+        <dt>처리 기한</dt><dd>${d.due}까지</dd>
+      </dl>
+      <label class="field">금액 (원)
+        <input class="input amt-input ${d.amountLow ? 'low' : ''}" id="amtIn" inputmode="numeric" value="${won(S.amount)}" aria-describedby="amtTip">
+      </label>
+      <p class="cap" id="amtTip" style="margin:-4px 0 0">${d.amountLow ? `${ic('alert', 12)} 근거 문장에 “표 단위: 천원”이 있어 ×1,000으로 읽었습니다. 공문과 견줘 확인하세요.` : `근거: “${esc(d.body.find((p) => p.includes('amt')).replace(/<[^>]+>/g, '').slice(0, 44))}…”`}</p>
+    </div>
+    <div class="step on"><b>3</b>예산 항목 고르기</div>
+    <div class="tabs" role="tablist"><button type="button" class="tab" role="tab" data-pick="suggest" aria-selected="${S.pickMode === 'suggest'}">추천 ${sugs.length}</button><button type="button" class="tab" role="tab" data-pick="tree" aria-selected="${S.pickMode === 'tree'}">과목표에서 직접 찾기</button></div>
+    ${S.pickMode === 'suggest' ? `<div role="radiogroup" aria-label="추천 예산 항목" style="display:flex;flex-direction:column;gap:8px">${sugList || '<div class="note info">' + ic('info') + '맞는 항목을 찾지 못했습니다. 과목표에서 직접 찾으세요.</div>'}</div>
+      <div class="note info">${ic('spark')}<span>AI(이 PC에서 · 내장 AI)는 위 후보 가운데 고르는 이유만 설명합니다. 반영은 늘 담당자가 누릅니다.</span></div>`
+    : `<div style="display:flex;flex-direction:column;gap:8px"><div style="position:relative"><input class="input" id="searchIn" placeholder="사업명·과목명으로 찾기 (예: 여비)" value="${esc(S.search)}" style="padding-left:34px"><span style="position:absolute;left:10px;top:10px;color:var(--tm)">${ic('search')}</span></div><div class="tree">${tree || '<p class="cap" style="padding:12px;margin:0">찾는 항목이 없습니다.</p>'}</div></div>`}
+  </div>`;
+
+  const right = `<div class="col">
+    <div class="step on"><b>4</b>반영 전 잔액 확인</div>
+    ${it ? `<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:14px">
+      <div><div class="path">${esc(it.unit)} › ${esc(it.detail)}</div><div class="acc" style="margin-bottom:0">${esc(it.account)}</div></div>
+      <div><div class="cap">반영 후 가용 잔액</div><div class="big-num" style="color:${over ? 'var(--err)' : 'var(--t1)'}">${over ? '−' : ''}${won(Math.abs(after))}<span style="font-size:var(--fs-h3);font-weight:600"> 원</span></div></div>
+      <div class="bar" role="img" aria-label="예산 대비 집행 ${won(t.paid)}원, 품의 ${won(t.commit)}원, 이번 ${won(S.amount)}원">
+        <span class="s-paid" style="width:${pct(t.paid)}%"></span><span class="s-commit" style="width:${pct(t.commit)}%"></span><span class="${over ? 's-over' : 's-new'}" style="width:${Math.min(pct(S.amount), 100 - pct(t.paid) - pct(t.commit)) + (over ? 0 : 0)}%"></span>
+      </div>
+      <div class="legend"><span><i style="background:var(--ac)"></i>집행</span><span><i style="background:var(--ac);opacity:.45"></i>품의 중</span><span><i style="background:var(--warn)"></i>이번 반영</span></div>
+      <dl class="calc">
+        <dt>예산액</dt><dd>${won(t.budget)}</dd>
+        <dt>집행액</dt><dd>− ${won(t.paid)}</dd>
+        <dt>품의 중(집행 예정)</dt><dd>− ${won(t.commit)}</dd>
+        <dt>반영 전 가용 잔액</dt><dd>${won(t.avail)}</dd>
+        <dt>이번 공문</dt><dd style="color:var(--warn)">− ${won(S.amount)}</dd>
+        <dt class="sum">반영 후 가용 잔액</dt><dd class="sum" style="color:${over ? 'var(--err)' : 'inherit'}">${won(after)}</dd>
+        <dt>집행률(품의 포함)</dt><dd>${t.rate.toFixed(1)}% → ${rateAfter.toFixed(1)}%</dd>
+      </dl>
+      ${over ? `<div class="note err">${ic('alert')}<span><b>잔액이 ${won(-after)}원 모자랍니다.</b> 설정이 “반영 막기”라 반영할 수 없습니다. 다른 과목을 고르거나 예산 변경(전용·추경) 여부를 회계 담당과 확인하세요.</span></div>`
+        : warn ? `<div class="note warn">${ic('alert')}<span>반영하면 집행률이 경고 기준 ${S.warnAt}%를 넘습니다. 남은 사업 일정을 확인하세요.</span></div>` : `<div class="note ok">${ic('check')}<span>잔액이 충분합니다.</span></div>`}
+      <div class="seg" role="group" aria-label="반영 단계">
+        <button type="button" data-stage="commit" aria-pressed="${S.stage === 'commit'}">품의로 반영<small>집행 예정 · 잔액에서 미리 뺌</small></button>
+        <button type="button" data-stage="paid" aria-pressed="${S.stage === 'paid'}">지출 완료로 반영<small>실제 지급 끝남</small></button>
+      </div>
+      ${S.confirming ? `<div class="confirm" role="alertdialog" aria-label="반영 확인">
+          <b>이렇게 반영할까요?</b>
+          <span style="font-size:var(--fs-small);line-height:1.6">${esc(it.account)}에 <b class="num">${won(S.amount)}원</b>을 <b>${S.stage === 'commit' ? '품의(집행 예정)' : '지출 완료'}</b>로 기록합니다. 근거 공문: ${esc(d.no)}<br><span class="cap">잘못 넣으면 지출 대장에서 취소 기록을 남겨 되돌릴 수 있습니다.</span></span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary" id="doApply">반영하기</button><button type="button" class="btn" id="cancelApply">취소</button></div>
+        </div>`
+        : `<button type="button" class="btn primary" id="askApply" ${over && S.overBlock ? 'disabled' : ''} style="height:42px">${ic('check')}예산에 반영</button>`}
+    </div>` : `<div class="note info">${ic('info')}예산 항목을 고르면 잔액이 보입니다.</div>`}
+    <p class="cap" style="margin:0;line-height:1.6">잔액은 업무 참고용 추정치입니다. 공식 집행·결산은 기관 회계 시스템 기준입니다.</p>
+  </div>`;
+
+  return head('지출 도우미', '받은 공문을 읽어 맞는 예산 항목을 추천하고, 반영하면 남은 예산을 바로 보여 줍니다.',
+    `<span class="sketch-tag">화면 스케치 · 예시 데이터</span><button type="button" class="btn" data-go="ledger">${ic('ledger')}지출 대장</button>`)
+    + `<div class="body"><div class="spend">${left}${mid}${right}</div></div>`;
+}
+
+function budgetHTML() {
+  let tb = 0, tp = 0, tc = 0, rows = '', last = '';
+  for (const it of ITEMS) {
+    const t = tally(it.id); tb += t.budget; tp += t.paid; tc += t.commit;
+    if (it.program !== last) { rows += `<tr class="group"><td colspan="7">${esc(it.program)}</td></tr>`; last = it.program; }
+    const st = t.avail < 0 ? '<span class="pill err">초과</span>' : t.rate >= S.warnAt ? '<span class="pill warn">경고</span>' : '<span class="pill ok">여유</span>';
+    rows += `<tr><td><div class="cap">${esc(it.unit)} › ${esc(it.detail)}</div><b>${esc(it.account)}</b></td><td class="r num">${won(t.budget)}</td><td class="r num">${won(t.paid)}</td><td class="r num">${won(t.commit)}</td><td class="r num"><b>${won(t.avail)}</b></td>
+      <td style="min-width:140px"><div class="bar"><span class="s-paid" style="width:${Math.min(100, t.paid / t.budget * 100)}%"></span><span class="s-commit" style="width:${Math.min(100, t.commit / t.budget * 100)}%"></span></div><span class="cap num">${t.rate.toFixed(1)}%</span></td><td>${st}</td></tr>`;
+  }
+  const tile = (k, v, s) => `<div class="card tile"><span class="k">${k}</span><span class="v">${v}</span><span class="cap">${s}</span></div>`;
+  return head('예산 현황', '사업·과목별 예산, 집행, 품의 중, 가용 잔액을 한눈에 봅니다. 회계연도 2026 · 학교회계',
+    `<button type="button" class="btn">${ic('upload')}예산 엑셀 다시 불러오기</button><button type="button" class="btn">${ic('down')}현황 엑셀</button>`)
+    + `<div class="body" style="display:flex;flex-direction:column;gap:20px">
+      <div class="tiles">${tile('예산 총액', won(tb) + '원', `${ITEMS.length}개 과목`)}${tile('집행 + 품의', won(tp + tc) + '원', `집행률 ${((tp + tc) / tb * 100).toFixed(1)}%`)}${tile('가용 잔액', won(tb - tp - tc) + '원', `경고 기준 ${S.warnAt}% 넘은 과목 ${ITEMS.filter((i) => tally(i.id).rate >= S.warnAt).length}개`)}</div>
+      <div class="card tbl-wrap"><table class="grid"><thead><tr><th>과목</th><th class="r">예산액</th><th class="r">집행액</th><th class="r">품의 중</th><th class="r">가용 잔액</th><th>집행률</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="cap" style="margin:0">불러온 파일: 2026_학교회계_예산현황_1031.xlsx · 불러온 뒤 대장에 남긴 기록 ${S.ledger.length}건이 더해져 있습니다.</p></div>`;
+}
+
+function ledgerHTML() {
+  const rows = [...S.ledger].reverse().map((l) => {
+    const it = item(l.itemId); const reversed = S.ledger.some((x) => x.reverses === l.id);
+    return `<tr class="${l.reverses ? 'rev' : ''}"><td class="num">${l.date}</td><td>${esc(l.doc)}</td><td><div class="cap">${esc(it.unit)}</div>${esc(it.account)}</td>
+      <td class="r num" style="${l.amount < 0 ? 'color:var(--err)' : ''}">${l.amount < 0 ? '−' : ''}${won(Math.abs(l.amount))}</td>
+      <td>${l.reverses ? '<span class="pill gray">취소 기록</span>' : l.stage === 'paid' ? '<span class="pill ok">지출 완료</span>' : '<span class="pill info">품의 중</span>'}</td><td>${esc(l.by)}</td>
+      <td>${l.reverses || reversed ? (reversed ? '<span class="cap">취소됨</span>' : '') : `<button type="button" class="btn sm ghost" data-rev="${l.id}">${ic('undo', 14)}반영 취소</button>`}</td></tr>`;
+  }).join('');
+  return head('지출 대장', '반영한 기록입니다. 기록은 지우지 않고, 되돌릴 때는 취소 기록을 새로 남깁니다(감사 추적).',
+    `<button type="button" class="btn">${ic('down')}대장 엑셀</button><button type="button" class="btn">${ic('pen')}지출조서 만들기</button>`)
+    + `<div class="body"><div class="card tbl-wrap"><table class="grid"><thead><tr><th>일자</th><th>근거 공문</th><th>과목</th><th class="r">금액</th><th>단계</th><th>담당</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+function inboxHTML() {
+  const rows = DOCS.map((d, i) => {
+    const dd = [10, 2, 0][i]; const cls = dd === 0 ? 'red' : dd <= 7 ? 'amber' : 'gray';
+    return `<div class="inbox-row"><span class="dday ${cls}">${dd === 0 ? '오늘' : 'D-' + dd}</span>
+      <span class="ttl"><span class="ft ${d.type}">${d.type.toUpperCase()}</span><span>${esc(d.title)}</span></span>
+      <span><span style="display:block;font-size:var(--fs-small)">${esc(d.from)}</span><span class="cap">${esc(d.no)}</span></span>
+      <span style="font-size:var(--fs-small)">${esc(d.purpose)}</span>
+      <span>${S.linked[d.id] ? `<span class="pill ok">예산 반영됨</span>` : `<span class="pill gray">예산 미연결</span>`}</span>
+      <span style="display:flex;gap:6px"><button type="button" class="btn sm primary" data-spend="${d.id}">${ic('wallet', 14)}지출 도우미로</button></span></div>`;
+  }).join('');
+  return head('접수함', '받은 공문을 넣으면 보낸 곳, 문서번호, 요청 사항, 제출 기한을 뽑아 기한 순으로 정리합니다.',
+    `<button type="button" class="btn">${ic('down')}접수대장 엑셀</button><button type="button" class="btn primary">${ic('upload')}공문 추가</button>`)
+    + `<div class="body" style="display:flex;flex-direction:column;gap:14px">
+      <div class="row-between"><div class="tabs"><button type="button" class="tab" aria-selected="true">할 일 3</button><button type="button" class="tab" aria-selected="false">끝냄 12</button><button type="button" class="tab" aria-selected="false">전체 15</button></div><span class="cap">기한 지남 0건 · 오늘 1건 · 3일 안 1건</span></div>
+      <div class="card"><div class="inbox-row headrow"><span>기한</span><span>제목</span><span>보낸 곳</span><span>요청 사항</span><span>예산</span><span></span></div>${rows}</div>
+      <div class="note info">${ic('info')}<span>기존 KorDoc AI 접수함 그대로이며, <b>예산</b> 열과 <b>지출 도우미로</b> 단추만 더했습니다.</span></div></div>`;
+}
+
+function homeHTML() {
+  let tb = 0, tu = 0; ITEMS.forEach((i) => { const t = tally(i.id); tb += t.budget; tu += t.paid + t.commit; });
+  return head('홈', '할 일 고르기, 급한 공문, 예산 요약')
+    + `<div class="body"><div class="home-ask">
+      <div class="card urgent"><div style="padding:12px 14px 6px" class="row-between"><b>기한이 다가온 공문</b><button type="button" class="btn sm ghost" data-go="inbox">접수함 전체 보기</button></div>
+        ${DOCS.slice(0, 3).map((d, i) => `<button type="button" data-spend="${d.id}"><span class="dday ${i === 2 ? 'red' : 'amber'}">${['D-10', 'D-2', '오늘'][i]}</span><span style="min-width:0"><b style="font-size:var(--fs-small)">${esc(d.title)}</b><br><span class="cap">${esc(d.from)} · ${d.due}까지</span></span>${S.linked[d.id] ? '<span class="pill ok">반영됨</span>' : '<span class="pill gray">예산 미연결</span>'}</button>`).join('')}</div>
+      <h2 class="home-q">무엇을 맡길까요?</h2>
+      <div class="ask-box"><textarea id="askIn" aria-label="AI에게 맡길 일">붙인 공문의 지출을 어느 예산 항목으로 처리하면 좋을지 추천해 줘</textarea>
+        <div class="ask-tools"><button type="button" class="btn sm">${ic('clip', 14)}파일 첨부</button><button type="button" class="btn sm ghost">예시·내 프롬프트</button><span style="flex:1"></span><button type="button" class="btn sm primary" data-go="spend">보내기</button></div></div>
+      <div class="tiles">
+        <button type="button" class="card tile" data-go="budget"><span class="k">예산 집행률 (품의 포함)</span><span class="v">${(tu / tb * 100).toFixed(1)}%</span><span class="cap">가용 잔액 ${won(tb - tu)}원</span></button>
+        <button type="button" class="card tile" data-go="spend"><span class="k">예산 연결 안 된 공문</span><span class="v">${DOCS.filter((d) => !S.linked[d.id]).length}건</span><span class="cap">지출 도우미에서 처리</span></button>
+        <button type="button" class="card tile" data-go="ledger"><span class="k">이번 달 반영</span><span class="v">${S.ledger.filter((l) => l.date >= '2026-11').length}건</span><span class="cap">지출 대장 보기</span></button>
+      </div></div></div>`;
+}
+
+function stubHTML(t, sub, text) {
+  return head(t, sub) + `<div class="body"><div class="note info" style="max-width:640px">${ic('info')}<span>${text}</span></div></div>`;
+}
+
+const SECS = [
+  ['set-org', '내 기관 정보'], ['set-budget', '예산과 회계', 'new'], ['set-orgdocs', '우리 기관 문서 모음', 'adv'], ['set-ai', 'AI 연결'], ['set-sec', '보안'],
+  ['set-engine', '엔진과 모델', 'adv'], ['set-store', '저장과 연결', 'adv'], ['set-about', '화면과 정보'], ['set-law', '법령 확인', 'adv'],
+];
+const LET = ['가', '나', '다', '라', '마', '바', '사', '아', '자'];
+function settingsHTML() {
+  const vis = SECS.filter((s) => !S.easy || s[2] !== 'adv');
+  const mark = (id) => LET[vis.findIndex((s) => s[0] === id)] + '.';
+  const sec = (id, inner, added) => vis.some((s) => s[0] === id) ? `<section class="card s-sec ${added ? 'added' : ''}" id="${id}"><h2><span class="mk">${mark(id)}</span>${SECS.find((s) => s[0] === id)[1]}${added ? '<span class="pill ac">신규</span>' : ''}</h2>${inner}</section>` : '';
+  const sw = (on, key, label) => `<div class="row-between"><span style="font-size:var(--fs-small)">${label}</span><button type="button" class="switch" role="switch" aria-checked="${on}" data-sw="${key}" aria-label="${label}"></button></div>`;
+  const body = [
+    sec('set-org', `<div class="form2"><label class="field">기관명<input class="input" id="orgName" value="가온초등학교"></label><label class="field">부서<input class="input" id="orgDept" value="행정실"></label><label class="field">이름<input class="input" id="orgPerson" value="김예산"></label><label class="field">전화<input class="input" id="orgTel" value="031-000-0000"></label></div><p class="cap" style="margin:0">KorDoc AI 그대로. 서식·결재란·지출조서 서식 대응표가 이 구획에 있습니다.</p>`),
+    sec('set-budget', `<div class="form2">
+        <label class="field">회계연도<select class="input" id="fy"><option>2026</option><option>2027</option></select></label>
+        <label class="field">회계 구분<select class="input" id="accType">${['학교회계', '교육비특별회계', '기타'].map((x) => `<option ${x === S.accType ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+        <label class="field">집행률 경고 기준 (%)<input class="input num" id="warnAt" type="number" min="50" max="100" value="${S.warnAt}"></label>
+        <label class="field">추천 방식<select class="input" id="sugMode"><option>규칙 + AI (AI가 켜져 있을 때)</option><option>규칙만</option></select></label>
+      </div>
+      ${sw(S.overBlock, 'overBlock', '잔액을 넘는 반영 막기 (끄면 경고만)')}
+      <div class="row-between" style="padding:12px;border-radius:var(--r-md);background:var(--bg1)"><span style="display:flex;gap:10px;align-items:center"><span class="ft xlsx">XLSX</span><span><b style="font-size:var(--fs-small)">2026_학교회계_예산현황_1031.xlsx</b><br><span class="cap">과목 ${ITEMS.length}개 · 예산 합계 ${won(ITEMS.reduce((a, b) => a + b.budget, 0))}원 · 10월 31일 불러옴</span></span></span><button type="button" class="btn sm">${ic('upload', 14)}예산 과목표 불러오기</button></div>
+      <details><summary style="cursor:pointer;font-size:var(--fs-small);font-weight:600">거래 성격 → 과목 대응표 (기관 실정에 맞게 고침)</summary>
+        <div class="tbl-wrap" style="margin-top:8px"><table class="grid map-tbl"><thead><tr><th>공문 낱말</th><th>거래 성격</th><th>먼저 추천할 과목</th></tr></thead><tbody>
+        <tr><td>임차, 대절, 버스</td><td>임차</td><td>체험활동 임차료</td></tr><tr><td>구입, 구매, 기자재</td><td>구입</td><td>교구·기자재 구입, 일반수용비</td></tr><tr><td>출장, 여비</td><td>여비</td><td>국내여비</td></tr><tr><td>강사, 수당</td><td>수당</td><td>외부강사 수당</td></tr><tr><td>회의, 다과</td><td>회의</td><td>협의회비</td></tr></tbody></table></div></details>
+      <p class="cap" style="margin:0">과목 이름과 대응표는 예시입니다. 기관 세출예산 과목표로 바꿔 쓰세요.</p>`, true),
+    sec('set-orgdocs', `<p class="cap" style="margin:0">KorDoc AI 그대로 (결재 끝난 기관 문서를 넣어 초안 서식에 반영).</p>`),
+    sec('set-ai', `<div class="choice">${[['pc', '이 PC에서', '내장 AI(Gemma 등) 또는 켜 둔 Ollama. 문서가 PC 밖으로 나가지 않습니다.'], ['org', '기관 AI 서버', 'OpenAI 호환 주소·모델·키. 문서는 기관 안에서만.'], ['cloud', '외부 AI', 'Gemini·Claude API 키, 구독 계정. 보내기 전 개인정보를 가립니다.']].map(([k, b, s]) => `<button type="button" data-ai="${k}" aria-pressed="${S.aiMode === k}"><b>${b}</b><span>${s}</span></button>`).join('')}</div>`),
+    sec('set-sec', `${sw(S.offline, 'offline', '폐쇄망 모드: 인터넷으로 나가는 연결을 보내기 전에 막습니다')}<p class="cap" style="margin:0">예산 과목표·지출 대장도 이 PC 앱 데이터 폴더에만 저장합니다.</p>`),
+    sec('set-engine', `<p class="cap" style="margin:0">KorDoc AI 그대로 (엔진 점검, 글자 읽기 모델).</p>`),
+    sec('set-store', `<p class="cap" style="margin:0">KorDoc AI 그대로 (결과 폴더, 우클릭 메뉴, MCP 연결).</p>`),
+    sec('set-about', `<div class="row-between"><span style="font-size:var(--fs-small)">화면 방식</span><div class="tabs"><button type="button" class="tab" data-easy="1" aria-selected="${S.easy}">쉬운 화면</button><button type="button" class="tab" data-easy="0" aria-selected="${!S.easy}">전체 화면</button></div></div><p class="cap" style="margin:0">오픈소스 고지: KorDoc AI (MIT, © 2026 chrisryugj) 기반.</p>`),
+    sec('set-law', `<p class="cap" style="margin:0">KorDoc AI 그대로 (법제처 아이디).</p>`),
+  ].join('');
+  return head('설정', 'AI를 어디서 돌릴지, 내 기관 정보, 예산과 회계, 보안 상태를 한곳에서 정합니다.')
+    + `<div class="body"><div class="settings"><nav class="s-index" aria-label="설정 목차">${vis.map(([id, t, f]) => `<button type="button" data-sec="${id}" aria-current="${S.setSec === id}"><span>${mark(id)}</span>${t}${f === 'new' ? '<span class="new">신규</span>' : ''}</button>`).join('')}</nav>
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">${body}${S.easy ? `<div class="note info">${ic('info')}<span>우리 기관 문서 모음, 엔진과 모델, 저장과 연결, 법령 확인 같은 세부 설정은 전체 화면에서 보입니다.</span></div>` : ''}</div></div></div>`;
+}
+
+/* ---------- 그리기 ---------- */
+function render() {
+  navHTML();
+  const m = document.getElementById('main');
+  const map = {
+    home: homeHTML, spend: spendHTML, budget: budgetHTML, ledger: ledgerHTML, inbox: inboxHTML, settings: settingsHTML,
+    chat: () => stubHTML('AI 대화', '말로 일 시키기, 지난 대화', 'KorDoc AI 그대로입니다. 예산 도구(잔액 조회·항목 추천)를 작업 에이전트 도구에 더해 “진로교육 남은 예산 알려 줘”처럼 물을 수 있게 합니다(2단계).'),
+    workbench: () => stubHTML('문서 보기', '연 문서를 읽고 점검하고 고칩니다', 'KorDoc AI 그대로입니다. 공문을 열면 정보 칸에 “지출 도우미로” 단추를 더합니다.'),
+    create: () => stubHTML('새로 쓰기', '서식·초안·한글로 바꾸기', 'KorDoc AI 그대로입니다. 지출 대장 기록으로 품의서·지출조서 초안(HWPX)을 만드는 서식을 더합니다(2단계).'),
+    pdf: () => stubHTML('PDF 합치기·나누기', '쪽을 보며 합치고 나누고 순서를 바꿉니다', 'KorDoc AI 그대로입니다.'),
+    batch: () => stubHTML('여러 파일 한꺼번에', '제출물 모으기·합본·신구대조표', 'KorDoc AI 그대로입니다. 영수증 여러 장 → 지출조서 기능이 여기 있습니다.'),
+    help: () => stubHTML('도움말', '기능마다 쓰는 법과 막혔을 때 할 일', 'KorDoc AI 도움말에 “지출 도우미”, “예산 현황”, “지출 대장” 장을 더합니다.'),
+  };
+  m.innerHTML = `<div class="screen">${(map[S.screen] || homeHTML)()}</div>`;
+  bind();
+  if (S.screen === 'settings') { const el = document.getElementById(S.setSec); if (el && S._jump) { el.scrollIntoView({ block: 'start' }); S._jump = false; } }
+}
+function toast(msg) {
+  const h = document.getElementById('toastHost');
+  h.innerHTML = `<div class="toast" role="status">${ic('check')}<span>${msg}</span></div>`;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { h.innerHTML = ''; }, 3200);
+}
+function go(id, sec) { S.screen = id; if (sec) { S.setSec = sec; S._jump = true; } S.confirming = false; render(); document.querySelector('.body')?.scrollTo(0, 0); }
+function pickDoc(id) { S.docId = id; const d = doc(); S.amount = d.amount; S.itemId = null; S.confirming = false; S.pickMode = 'suggest'; }
+
+function bind() {
+  document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => go(b.dataset.go, b.dataset.sec));
+  document.querySelectorAll('[data-doc]').forEach((b) => b.onclick = () => { pickDoc(b.dataset.doc); render(); });
+  document.querySelectorAll('[data-spend]').forEach((b) => b.onclick = () => { pickDoc(b.dataset.spend); go('spend'); });
+  document.querySelectorAll('[data-item]').forEach((b) => b.onclick = () => { S.itemId = b.dataset.item; S.confirming = false; render(); });
+  document.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => { S.pickMode = b.dataset.pick; render(); });
+  document.querySelectorAll('[data-stage]').forEach((b) => b.onclick = () => { S.stage = b.dataset.stage; render(); });
+  document.querySelectorAll('[data-sec]').forEach((b) => { if (!b.dataset.go) b.onclick = () => { S.setSec = b.dataset.sec; S._jump = true; render(); }; });
+  document.querySelectorAll('[data-ai]').forEach((b) => b.onclick = () => { S.aiMode = b.dataset.ai; render(); });
+  document.querySelectorAll('[data-easy]').forEach((b) => b.onclick = () => setEasy(b.dataset.easy === '1'));
+  document.querySelectorAll('[data-sw]').forEach((b) => b.onclick = () => { S[b.dataset.sw] = !S[b.dataset.sw]; render(); });
+  document.querySelectorAll('[data-rev]').forEach((b) => b.onclick = () => {
+    const l = S.ledger.find((x) => x.id === b.dataset.rev);
+    S.ledger.push({ id: 'L' + (S.ledger.length + 1), date: '2026-11-13', itemId: l.itemId, amount: -l.amount, stage: l.stage, doc: `[취소] ${l.doc}`, by: '김예산', reverses: l.id });
+    toast(`반영을 취소했습니다. ${item(l.itemId).account} 잔액이 ${won(l.amount)}원 늘었습니다.`); render();
+  });
+  const amt = document.getElementById('amtIn');
+  if (amt) amt.onchange = () => { S.amount = Number(amt.value.replace(/[^\d]/g, '')) || 0; S.confirming = false; render(); };
+  const si = document.getElementById('searchIn');
+  if (si) si.oninput = () => { S.search = si.value; const pos = si.selectionStart; render(); const n = document.getElementById('searchIn'); n.focus(); n.setSelectionRange(pos, pos); };
+  const wa = document.getElementById('warnAt'); if (wa) wa.onchange = () => { S.warnAt = Math.max(50, Math.min(100, Number(wa.value) || 90)); render(); toast('예산과 회계 설정을 저장했습니다.'); };
+  const at = document.getElementById('accType'); if (at) at.onchange = () => { S.accType = at.value; toast(`회계 구분을 ${at.value}(으)로 바꿨습니다.`); };
+  const ask = document.getElementById('askApply'); if (ask) ask.onclick = () => { S.confirming = true; render(); };
+  const cancel = document.getElementById('cancelApply'); if (cancel) cancel.onclick = () => { S.confirming = false; render(); };
+  const apply = document.getElementById('doApply');
+  if (apply) apply.onclick = () => {
+    const d = doc(); const it = item(S.itemId);
+    S.ledger.push({ id: 'L' + (S.ledger.length + 1), date: '2026-11-13', itemId: it.id, amount: S.amount, stage: S.stage, doc: d.title, by: '김예산' });
+    S.linked[d.id] = true; S.confirming = false;
+    toast(`${it.account}에 ${won(S.amount)}원을 반영했습니다. 남은 예산 ${won(tally(it.id).avail)}원`);
+    render();
+  };
+  const drop = document.getElementById('drop'), fi = document.getElementById('fileIn');
+  if (drop) {
+    drop.onclick = () => fi.click();
+    drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.click(); } };
+    drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+    drop.ondragleave = () => drop.classList.remove('over');
+    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); fakeRead(e.dataTransfer.files[0]); };
+    fi.onchange = () => fakeRead(fi.files[0]);
+  }
+}
+function fakeRead(f) {
+  if (!f) return;
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  const name = f.name.replace(/\.[^.]+$/, '');
+  const nature = /여비|출장|연수/.test(name) ? '여비' : /구입|기자재|구매/.test(name) ? '구입' : /회의|다과/.test(name) ? '회의' : '임차';
+  const d = { id: 'D' + (DOCS.length + 1), type: ['hwp', 'hwpx', 'pdf'].includes(ext) ? ext : 'hwpx', title: name, from: '(올린 파일)', no: '확인 필요', date: '2026-11-13', due: '확인 필요',
+    amount: 500000, amountLow: true, purpose: name, period: '확인 필요', nature, people: '-',
+    body: ['이 스케치는 파일 내용을 실제로 읽지 않습니다. 실제 앱에서는 문서 엔진(kordoc)이 본문을 읽어 금액·목적·기간을 뽑습니다.', `파일 이름: ${esc(f.name)}`, '추정 금액: <mark class="amt">500,000원</mark>(예시 값)'] };
+  DOCS.push(d); pickDoc(d.id); render(); toast(`“${f.name}”을(를) 넣었습니다. 스케치라 예시 값으로 채웠습니다.`);
+}
+function setEasy(v) { S.easy = v; try { localStorage.setItem('yesan-easy', v ? '1' : '0'); } catch (e) {} if (v && !EASY.includes(S.screen) && S.screen !== 'settings' && S.screen !== 'help') S.screen = 'home'; render(); }
+render();
+})();
+</script>

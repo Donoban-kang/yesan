@@ -205,7 +205,7 @@ describe('MCP 서버', () => {
 
   it('initialize: 아는 판은 그대로, 모르는 판은 최신', async () => {
     const a = await handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26' } });
-    expect(a?.result).toMatchObject({ protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'kordoc-ai' } });
+    expect(a?.result).toMatchObject({ protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'knudoc-ai' } });
     const b = await handle({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '1999-01-01' } });
     expect((b?.result as { protocolVersion: string }).protocolVersion).toBe('2025-06-18');
   });

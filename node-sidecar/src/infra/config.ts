@@ -1,7 +1,7 @@
 /** 설정 로더 — 앱 데이터 폴더의 settings.json, 원자적 쓰기
  *
  * 위치: KORDOC_AI_DATA_DIR(Tauri 가 OS 앱 데이터 폴더를 넘김) → 없으면 OS 기본 경로.
- * v1(YAML, %APPDATA%/com.kordoc-ai.app/config/settings.yaml) 이 있으면 키·출력 폴더만 옮겨 온다.
+ * v1(YAML, %APPDATA%/com.knudoc-ai.app/config/settings.yaml) 이 있으면 키·출력 폴더만 옮겨 온다.
  * 적용 순서: 기본값 < 기관 배포 설정 defaults < 사용자 값(settings.json) < 기관 배포 설정 locked (policy.ts).
  * settings.json 에는 사용자가 정한 값만 쓴다 — 고정값·기관 기본값을 굳혀 두지 않아야 정책을 고치거나 빼면 그대로 따라간다.
  */
@@ -39,11 +39,33 @@ export const DEFAULT_SETTINGS: Settings = {
     approval_line: [], agency: '', seal_image: '', doc_number_prefix: '',
   },
   // 결과는 원본과 다른 폴더에 (원본 보호). 사용자가 비우면(설정의 "원래대로") 원본 옆
-  convert: { output_dir: join(existsSync(join(homedir(), 'Documents')) ? join(homedir(), 'Documents') : homedir(), 'KorDoc AI 결과'), ocr: 'auto' },
+  convert: { output_dir: join(existsSync(join(homedir(), 'Documents')) ? join(homedir(), 'Documents') : homedir(), 'KnuDoc AI 결과'), ocr: 'auto' },
   general: { log_level: 'info' },
   impact: { baselines: {} },
   law: { oc: '' },
   receipt: { template_path: '', template_name: '', columns: [] },
+  budget: {
+    year: 0,
+    warn_at: 90,
+    over_block: true,
+    accounts: [
+      { id: 'univ', label: '대학회계', words: ['대학회계', '등록금', '교비'] },
+      { id: 'glocal', label: '글로컬', words: ['글로컬'] },
+      { id: 'growth', label: '육성사업', words: ['육성사업', '국립대학육성', '대학육성'] },
+    ],
+    rules: [
+      { nature: '임차', words: ['임차', '대절', '버스', '대여', '렌탈'], hints: ['임차', '임대'] },
+      { nature: '구입', words: ['구입', '구매', '기자재', '물품', '장비'], hints: ['구입', '자산', '기자재', '재료', '수용비', '소모품'] },
+      { nature: '여비', words: ['출장', '여비', '교통비', '숙박'], hints: ['여비'] },
+      { nature: '수당', words: ['강사', '수당', '사례비', '자문료', '심사비', '원고료'], hints: ['수당', '사례', '인건비'] },
+      { nature: '회의', words: ['회의', '간담회', '다과', '협의회', '식대'], hints: ['회의', '협의회', '업무추진'] },
+      { nature: '용역', words: ['용역', '위탁', '제작', '개발', '컨설팅'], hints: ['용역', '위탁'] },
+      { nature: '행사', words: ['행사', '포럼', '세미나', '설명회', '박람회', '캠프'], hints: ['행사', '운영비'] },
+      { nature: '인쇄', words: ['인쇄', '홍보물', '현수막', '책자', '자료집'], hints: ['인쇄', '홍보', '수용비'] },
+      { nature: '장학', words: ['장학금', '장학', '학생 지원금'], hints: ['장학'] },
+      { nature: '수선', words: ['수선', '보수', '공사', '교체', '정비'], hints: ['수선', '시설', '공사'] },
+    ],
+  },
 };
 
 /** 앱 데이터 폴더 (설정·모델·로그) */
@@ -51,10 +73,10 @@ export function dataDir(): string {
   const env = process.env.KORDOC_AI_DATA_DIR;
   if (env && env.trim()) return env;
   if (process.platform === 'win32') {
-    return join(process.env.APPDATA || join(homedir(), 'AppData', 'Roaming'), 'com.kordoc-ai.app');
+    return join(process.env.APPDATA || join(homedir(), 'AppData', 'Roaming'), 'com.knudoc-ai.app');
   }
-  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'com.kordoc-ai.app');
-  return join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'com.kordoc-ai.app');
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'com.knudoc-ai.app');
+  return join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'com.knudoc-ai.app');
 }
 
 const configPath = () => join(dataDir(), 'settings.json');
@@ -113,7 +135,7 @@ function sealedForFile(o: Obj): Obj {
 /** v1 YAML 에서 쓸 만한 값만 옮김 — 옮긴 값만 둬야 기관 기본값을 가리지 않는다 */
 function migrateV1(): Obj | null {
   const appData = process.env.APPDATA || join(homedir(), 'AppData', 'Roaming');
-  const v1 = join(appData, 'com.kordoc-ai.app', 'config', 'settings.yaml');
+  const v1 = join(appData, 'com.knudoc-ai.app', 'config', 'settings.yaml');
   if (!existsSync(v1)) return null;
   try {
     const old = parseYaml(readFileSync(v1, 'utf-8')) as {
@@ -240,7 +262,7 @@ export function getConfig<K extends keyof Settings>(section: K): Settings[K] {
   return getSettings()[section];
 }
 
-const ALLOWED_SECTIONS = new Set(['ai', 'privacy', 'org', 'convert', 'general', 'impact', 'law', 'receipt']);
+const ALLOWED_SECTIONS = new Set(['ai', 'privacy', 'org', 'convert', 'general', 'impact', 'law', 'receipt', 'budget']);
 /** 기관 배포 설정이 정할 수 있는 모양 — 허용 구획의 기본값 */
 const POLICY_SHAPE: Obj = Object.fromEntries([...ALLOWED_SECTIONS].map((k) => [k, DEFAULT_SETTINGS[k as keyof Settings]]));
 const SECRET_FIELDS = ['api_key'];

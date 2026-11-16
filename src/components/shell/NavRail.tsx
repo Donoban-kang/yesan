@@ -3,7 +3,7 @@
 import { useCallback, type KeyboardEvent } from "react";
 import {
   House, MessagesSquare, CircleHelp, Inbox, BookOpenText, FilePen, FileStack, Layers, MessageSquareText, Settings2,
-  PanelLeftClose, PanelLeftOpen, Cpu, Server, Cloud, CircleAlert, Sparkles, Loader2, CheckCircle2, ShieldCheck,
+  PanelLeftClose, PanelLeftOpen, Wallet, ChartColumn, NotebookPen, Cpu, Server, Cloud, CircleAlert, Sparkles, Loader2, CheckCircle2, ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { useApp, type Screen } from "../../state/app";
@@ -21,6 +21,9 @@ const MAIN: NavDef[] = [
   { id: "pdf", title: "PDF 합치기·나누기", short: "PDF", desc: "쪽을 보며 합치고 나누고 순서를 바꿉니다", icon: FileStack },
   { id: "batch", title: "여러 파일 한꺼번에", short: "한꺼번에", desc: "제출물 모으기·합본·신구대조표·한꺼번에 바꾸기", icon: Layers },
   { id: "assistant", title: "물어보기", desc: "여러 문서에 묻고 다듬기", icon: MessageSquareText },
+  { id: "spend", title: "지출 도우미", short: "지출", desc: "공문을 읽어 예산 과목을 추천하고 반영합니다", icon: Wallet },
+  { id: "budget", title: "예산 현황", short: "현황", desc: "회계 구분·과목별 예산·집행·잔액", icon: ChartColumn },
+  { id: "ledger", title: "지출 대장", short: "대장", desc: "반영한 기록, 정산·취소", icon: NotebookPen },
 ];
 // 물어보기(문서에 묻기·글 다듬기)는 AI 대화에서 들어간다: 메뉴에는 없고 AI 대화 자리에 불을 켠다
 const LIT: Partial<Record<Screen, Screen>> = { impact: "home", compare: "batch", assistant: "chat" };
@@ -29,9 +32,10 @@ const BY_ID = Object.fromEntries(MAIN.map((m) => [m.id, m])) as Record<Screen, N
 const FULL: Array<{ label?: string; ids: Screen[] }> = [
   { ids: ["home", "chat", "inbox"] },
   { label: "문서 작업", ids: ["workbench", "create", "pdf", "batch"] },
+  { label: "예산", ids: ["spend", "budget", "ledger"] },
 ];
 /** 쉬운 화면: 늘 보이는 것만. 홈에서 들어간 다른 화면은 그 화면에 있는 동안 아래에 잠깐 보인다 */
-const EASY: Screen[] = ["home", "chat", "inbox", "workbench"];
+const EASY: Screen[] = ["home", "chat", "inbox", "workbench", "spend", "budget"];
 const HELP: NavDef = { id: "help", title: "도움말", desc: "기능마다 쓰는 법과 막혔을 때 할 일", icon: CircleHelp };
 const SETTINGS: NavDef = { id: "settings", title: "설정", desc: "AI 연결, 내 기관 정보", icon: Settings2 };
 
@@ -82,7 +86,7 @@ export function NavRail({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     <nav className="kd-nav" data-collapsed={collapsed} aria-label="주 메뉴" onKeyDown={onKey}>
       <div className="kd-nav-brand">
         <img src="/logo.png" alt="" />
-        {!collapsed && <strong>KorDoc AI</strong>}
+        {!collapsed && <strong>KnuDoc AI</strong>}
       </div>
       <div className="kd-nav-list">
         {uiMode === "easy" ? (

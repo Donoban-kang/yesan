@@ -1,101 +1,101 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  KorDoc Shell 컨텍스트 메뉴 (단일 파일).
+  KnuDoc Shell 컨텍스트 메뉴 (단일 파일).
 
-  구조: 우클릭 → KorDoc → 4개 서브메뉴
+  구조: 우클릭 → KnuDoc → 4개 서브메뉴
     1. 마크다운으로 변환 (.hwp, .hwpx, .pdf, .xls, .xlsx, .doc, .docx)
     2. PDF로 변환
     3. AI 요약
-    4. KorDoc 앱 열기
+    4. KnuDoc 앱 열기
 
   실행 흐름: kordoc-launcher.exe <action> "%1"
-    → kordoc:// deep-link 변환 → kordoc-ai 수신
+    → knudoc:// deep-link 변환 → kordoc-ai 수신
   참조: docs/archive/SPEC.md §3.2 (v1 기획)
 -->
 <RegistryData>
 
-  <!-- ┌─ 7개 확장자 각각에 동일한 KorDoc 메뉴 등록 ─┐ -->
+  <!-- ┌─ 7개 확장자 각각에 동일한 KnuDoc 메뉴 등록 ─┐ -->
   <!-- HWP -->
-  <RegistryKey Path="HKCU\Software\Classes\.hwp\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+  <RegistryKey Path="HKCU\Software\Classes\.hwp\shell\KnuDoc">
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
-    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
+    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KnuDoc\Submenu" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\.hwpx\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+  <RegistryKey Path="HKCU\Software\Classes\.hwpx\shell\KnuDoc">
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
-    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
+    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KnuDoc\Submenu" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\.pdf\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+  <RegistryKey Path="HKCU\Software\Classes\.pdf\shell\KnuDoc">
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
-    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
+    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KnuDoc\Submenu" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\.xls\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+  <RegistryKey Path="HKCU\Software\Classes\.xls\shell\KnuDoc">
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
-    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
+    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KnuDoc\Submenu" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\.xlsx\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+  <RegistryKey Path="HKCU\Software\Classes\.xlsx\shell\KnuDoc">
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
-    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
+    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KnuDoc\Submenu" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\.doc\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+  <RegistryKey Path="HKCU\Software\Classes\.doc\shell\KnuDoc">
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
-    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
+    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KnuDoc\Submenu" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\.docx\shell\KorDoc">
-    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KorDoc AI" />
+  <RegistryKey Path="HKCU\Software\Classes\.docx\shell\KnuDoc">
+    <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="KnuDoc AI" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
-    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KorDoc\Submenu" />
+    <RegistryValue Name="ExtendedSubCommandsKey" Type="REG_SZ" Value="Software\Classes\KnuDoc\Submenu" />
   </RegistryKey>
 
   <!-- ┌─ 서브메뉴 정의 (한 번만) — 동작 이름은 앱(src-tauri/src/shell.rs ACTIONS)과 같다 ─┐ -->
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\01_open">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\01_open">
     <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="앱에서 열기" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,0" />
   </RegistryKey>
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\01_open\command">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\01_open\command">
     <RegistryValue Type="REG_SZ" Value="&quot;kordoc-launcher.exe&quot; open &quot;%1&quot;" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\02_convert">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\02_convert">
     <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="글(마크다운)로 바꾸기" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,1" />
   </RegistryKey>
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\02_convert\command">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\02_convert\command">
     <RegistryValue Type="REG_SZ" Value="&quot;kordoc-launcher.exe&quot; convert &quot;%1&quot;" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\03_pdf">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\03_pdf">
     <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="PDF로 내보내기" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,2" />
   </RegistryKey>
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\03_pdf\command">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\03_pdf\command">
     <RegistryValue Type="REG_SZ" Value="&quot;kordoc-launcher.exe&quot; pdf &quot;%1&quot;" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\04_redact">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\04_redact">
     <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="개인정보 가리기" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,3" />
   </RegistryKey>
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\04_redact\command">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\04_redact\command">
     <RegistryValue Type="REG_SZ" Value="&quot;kordoc-launcher.exe&quot; redact &quot;%1&quot;" />
   </RegistryKey>
 
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\05_summarize">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\05_summarize">
     <RegistryValue Name="MUIVerb" Type="REG_SZ" Value="AI로 요약하기" />
     <RegistryValue Name="Icon" Type="REG_SZ" Value="kordoc-launcher.exe,3" />
   </RegistryKey>
-  <RegistryKey Path="HKCU\Software\Classes\KorDoc\Submenu\shell\05_summarize\command">
+  <RegistryKey Path="HKCU\Software\Classes\KnuDoc\Submenu\shell\05_summarize\command">
     <RegistryValue Type="REG_SZ" Value="&quot;kordoc-launcher.exe&quot; summarize &quot;%1&quot;" />
   </RegistryKey>
 

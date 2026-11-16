@@ -1,5 +1,5 @@
 /**
- * KorDoc 한글 편집기 중계 페이지 — 앱 창(Tauri) ↔ rhwp-studio
+ * KnuDoc 한글 편집기 중계 페이지 — 앱 창(Tauri) ↔ rhwp-studio
  *
  * 프로토콜: node-sidecar/src/types/editor-bridge.ts
  * - SDK(@rhwp/editor)는 HTTP(S) 출처에서만 돈다 → 사이드카가 127.0.0.1 에서 이 페이지와 스튜디오를 함께 서빙한다.

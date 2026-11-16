@@ -1,6 +1,6 @@
 /** 기관 배포 설정(policy.json) — 찾는 순서·defaults·locked·update 가 고정값을 못 바꿈·깨진 파일·금지 키·정책 제거
  *
- * 실제 사용자 설정 폴더·/Library·ProgramData 는 건드리지 않는다: 앱 데이터는 KORDOC_AI_DATA_DIR, 정책은 KORDOC_AI_POLICY 로 임시 폴더.
+ * 실제 사용자 설정 폴더·/Library·ProgramData 는 건드리지 않는다: 앱 데이터는 KORDOC_AI_DATA_DIR, 정책은 KNUDOC_AI_POLICY 로 임시 폴더.
  */
 
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
@@ -22,10 +22,10 @@ beforeEach(() => {
   data = join(root, `data-${n}`);
   policyPath = join(root, `policy-${n}.json`);
   process.env.KORDOC_AI_DATA_DIR = data;
-  process.env.KORDOC_AI_POLICY = policyPath;
+  process.env.KNUDOC_AI_POLICY = policyPath;
 });
 afterAll(() => {
-  delete process.env.KORDOC_AI_POLICY;
+  delete process.env.KNUDOC_AI_POLICY;
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -38,7 +38,7 @@ const userFile = () => JSON.parse(readFileSync(join(data, 'settings.json'), 'utf
 const sorted = (a: string[] | undefined) => [...(a ?? [])].sort();
 
 describe('찾기', () => {
-  it('KORDOC_AI_POLICY 경로의 파일을 읽어 source·notice·locked 를 붙인다', () => {
+  it('KNUDOC_AI_POLICY 경로의 파일을 읽어 source·notice·locked 를 붙인다', () => {
     writePolicy({ version: 1, notice: '가온시 정보통신과 배포', locked: { privacy: { offline: true } } });
     const s = reload();
     expect(s.policy).toEqual({ source: policyPath, notice: '가온시 정보통신과 배포', locked: ['privacy.offline'] });
@@ -46,12 +46,12 @@ describe('찾기', () => {
   });
 
   it('찾는 순서: 환경변수 → 기계 전체 → 설치 폴더(동봉 Node 의 위 폴더)', () => {
-    expect(policyCandidates({ KORDOC_AI_POLICY: 'D:\\배포\\policy.json', ProgramData: 'C:\\ProgramData' }, 'win32', 'C:\\Program Files\\KorDoc AI\\node\\node.exe'))
-      .toEqual(['D:\\배포\\policy.json', 'C:\\ProgramData\\KorDoc AI\\policy.json', 'C:\\Program Files\\KorDoc AI\\policy.json']);
-    expect(policyCandidates({}, 'darwin', '/Applications/KorDoc AI.app/Contents/Resources/node/node'))
-      .toEqual(['/Library/Application Support/KorDoc AI/policy.json', '/Applications/KorDoc AI.app/Contents/Resources/policy.json']);
+    expect(policyCandidates({ KNUDOC_AI_POLICY: 'D:\\배포\\policy.json', ProgramData: 'C:\\ProgramData' }, 'win32', 'C:\\Program Files\\KnuDoc AI\\node\\node.exe'))
+      .toEqual(['D:\\배포\\policy.json', 'C:\\ProgramData\\KnuDoc AI\\policy.json', 'C:\\Program Files\\KnuDoc AI\\policy.json']);
+    expect(policyCandidates({}, 'darwin', '/Applications/KnuDoc AI.app/Contents/Resources/node/node'))
+      .toEqual(['/Library/Application Support/KnuDoc AI/policy.json', '/Applications/KnuDoc AI.app/Contents/Resources/policy.json']);
     // 시스템 Node(개발 실행)는 설치 폴더 후보가 없다
-    expect(policyCandidates({ KORDOC_AI_POLICY: ' ' }, 'darwin', '/opt/homebrew/bin/node')).toEqual(['/Library/Application Support/KorDoc AI/policy.json']);
+    expect(policyCandidates({ KNUDOC_AI_POLICY: ' ' }, 'darwin', '/opt/homebrew/bin/node')).toEqual(['/Library/Application Support/KnuDoc AI/policy.json']);
   });
 
   it('레포 루트 policy.example.json 은 버리는 값 없이 그대로 적용된다', () => {
@@ -233,8 +233,8 @@ describe('정책 제거', () => {
   it('v1 이관은 옮긴 값만 사용자 값으로 둔다 (기관 기본값을 가리지 않음)', () => {
     const before = process.env.APPDATA;
     const appdata = join(root, `appdata-${n}`);
-    mkdirSync(join(appdata, 'com.kordoc-ai.app', 'config'), { recursive: true });
-    writeFileSync(join(appdata, 'com.kordoc-ai.app', 'config', 'settings.yaml'), 'convert:\n  output_dir: D:/out\n');
+    mkdirSync(join(appdata, 'com.knudoc-ai.app', 'config'), { recursive: true });
+    writeFileSync(join(appdata, 'com.knudoc-ai.app', 'config', 'settings.yaml'), 'convert:\n  output_dir: D:/out\n');
     process.env.APPDATA = appdata;
     try {
       writePolicy({ version: 1, defaults: { ai: { provider: 'openai', openai: { base_url: 'http://10.0.0.5:8000/v1' } } } });
@@ -254,13 +254,13 @@ describe('정책: 공유 폴더 저장 위치', () => {
     const dir = mkdtempSync(join(tmpdir(), 'kordoc-policy-unc-'));
     const file = join(dir, 'policy.json');
     writeFileSync(file, JSON.stringify({ version: 1, locked: { convert: { output_dir: '\\\\nas01\\공유\\결과', format: 'md' } } }));
-    const prev = process.env.KORDOC_AI_POLICY;
-    process.env.KORDOC_AI_POLICY = file;
+    const prev = process.env.KNUDOC_AI_POLICY;
+    process.env.KNUDOC_AI_POLICY = file;
     try {
       const p = loadPolicy({ convert: { output_dir: '', format: 'md' } })!;
       expect(p.locked).toEqual({ convert: { format: 'md' } });
     } finally {
-      if (prev === undefined) delete process.env.KORDOC_AI_POLICY; else process.env.KORDOC_AI_POLICY = prev;
+      if (prev === undefined) delete process.env.KNUDOC_AI_POLICY; else process.env.KNUDOC_AI_POLICY = prev;
       rmSync(dir, { recursive: true, force: true });
     }
   });
@@ -270,15 +270,15 @@ describe('정책: 믿지 못하는 파일이어도 조이는 고정값은 적용
   it.runIf(process.platform === 'win32')('일반 사용자 소유의 기계 전체 정책: 폐쇄망 모드·가리기·구독 금지만 적용하고 나머지(AI 서버 주소)는 버린다', async () => {
     const { loadPolicy } = await import('../src/infra/policy.js');
     const base = mkdtempSync(join(tmpdir(), 'kordoc-policy-pd-'));
-    mkdirSync(join(base, 'KorDoc AI'));
-    writeFileSync(join(base, 'KorDoc AI', 'policy.json'), JSON.stringify({
+    mkdirSync(join(base, 'KnuDoc AI'));
+    writeFileSync(join(base, 'KnuDoc AI', 'policy.json'), JSON.stringify({
       version: 1,
       defaults: { org: { name: '심은 기관' } },
       locked: { privacy: { offline: true }, ai: { allow_subscription: false, redact_before_cloud: true, provider: 'openai', openai: { base_url: 'http://evil.example/v1' } } },
     }));
-    const prev = { pd: process.env.ProgramData, pol: process.env.KORDOC_AI_POLICY };
+    const prev = { pd: process.env.ProgramData, pol: process.env.KNUDOC_AI_POLICY };
     process.env.ProgramData = base;
-    delete process.env.KORDOC_AI_POLICY;
+    delete process.env.KNUDOC_AI_POLICY;
     try {
       const p = loadPolicy({ privacy: { offline: false }, ai: { allow_subscription: false, redact_before_cloud: true, provider: '', openai: { base_url: '' } }, org: { name: '' } })!;
       expect(p.error).toMatch(/적용하지 않았습니다.*조이는 고정값.*적용했습니다/);
@@ -287,7 +287,7 @@ describe('정책: 믿지 못하는 파일이어도 조이는 고정값은 적용
       expect(p.defaults).toEqual({});
     } finally {
       if (prev.pd === undefined) delete process.env.ProgramData; else process.env.ProgramData = prev.pd;
-      if (prev.pol !== undefined) process.env.KORDOC_AI_POLICY = prev.pol;
+      if (prev.pol !== undefined) process.env.KNUDOC_AI_POLICY = prev.pol;
       rmSync(base, { recursive: true, force: true });
     }
   }, 60_000);

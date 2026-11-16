@@ -1,4 +1,4 @@
-# KorDoc Shell 아이콘
+# KnuDoc Shell 아이콘
 
 MSIX AppxManifest가 요구하는 PNG 아이콘 placeholder.
 

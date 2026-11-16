@@ -490,8 +490,8 @@ export async function redactPdf(
       const image = await out.embedJpg(s.jpg);
       out.addPage([s.pw, s.ph]).drawImage(image, { x: 0, y: 0, width: s.pw, height: s.ph });
     }
-    out.setProducer('KorDoc AI');
-    out.setCreator('KorDoc AI');
+    out.setProducer('KnuDoc AI');
+    out.setCreator('KnuDoc AI');
     const pdf = await out.save();
     return { hits, unscanned, residual: residual + unscanned.length, notes, pdf, repainted };
   } finally {

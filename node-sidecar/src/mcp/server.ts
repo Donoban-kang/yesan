@@ -31,7 +31,7 @@ export function createMcpHandler(router: RpcRouter, opts: { version: string; roo
         return ok({
           protocolVersion: VERSIONS.includes(asked) ? asked : VERSIONS[0],
           capabilities: { tools: {} },
-          serverInfo: { name: 'kordoc-ai', title: 'KorDoc AI', version: opts.version },
+          serverInfo: { name: 'knudoc-ai', title: 'KnuDoc AI', version: opts.version },
           instructions: WORK_SYSTEM,
         });
       }
@@ -74,5 +74,5 @@ export function runMcpServer(router: RpcRouter, version: string): void {
     });
   });
   rl.on('close', () => process.exit(0));
-  logger.info(`[mcp] KorDoc AI MCP 서버 시작 (도구 ${workToolDefs().length}개${process.env.KORDOC_ROOT ? `, 허용 폴더 ${process.env.KORDOC_ROOT}` : ''})`);
+  logger.info(`[mcp] KnuDoc AI MCP 서버 시작 (도구 ${workToolDefs().length}개${process.env.KORDOC_ROOT ? `, 허용 폴더 ${process.env.KORDOC_ROOT}` : ''})`);
 }

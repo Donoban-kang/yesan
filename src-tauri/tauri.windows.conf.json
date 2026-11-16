@@ -14,7 +14,7 @@
   "app": {
     "windows": [
       {
-        "title": "KorDoc AI",
+        "title": "KnuDoc AI",
         "visible": false,
         "width": 1280,
         "height": 920,

@@ -1,9 +1,16 @@
-KorDoc AI
+KnuDoc AI
 
 이 저장소와 설치본에는 아래 제3자 저작물이 들어 있다. 각 저작물의 권리는 원 저작권자에게
-있고 각자의 라이선스를 따른다. KorDoc AI 의 MIT 라이선스는 이들에 적용되지 않는다.
+있고 각자의 라이선스를 따른다. KnuDoc AI 의 MIT 라이선스는 이들에 적용되지 않는다.
 이 파일은 요약이다. 패키지별 이름·버전·라이선스 전문은 THIRD_PARTY_NOTICES.txt 에 있다
 (scripts/third-party-notices.mjs 로 만들고 설치본에 함께 싣는다).
+
+---
+
+KorDoc AI (이 앱의 바탕)
+https://github.com/chrisryugj/kordoc-ai
+MIT License, Copyright (c) 2026 chrisryugj
+KnuDoc AI 는 KorDoc AI 2.3.2 를 바탕으로 예산 지출 기능을 더한 앱이다. 원 저작권 고지는 LICENSE 에 그대로 둔다.
 
 ---
 

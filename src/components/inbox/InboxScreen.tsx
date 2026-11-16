@@ -20,7 +20,7 @@ import "./inbox.css";
 type Filter = "todo" | "done" | "all";
 type Failed = Array<{ path: string; error: string }>;
 
-const LETTER_FILTER = [{ name: "받은 공문", extensions: ["hwp", "hwpx", "hml", "pdf", "docx", "png", "jpg", "jpeg", "webp", "txt", "md"] }];
+const LETTER_FILTER = [{ name: "받은 공문", extensions: ["hwp", "hwpx", "hwx", "hml", "pdf", "docx", "png", "jpg", "jpeg", "webp", "txt", "md"] }];
 
 export function InboxScreen({ active }: { active: boolean }) {
   const { ready, registerDrop, dragTarget, setBadge, toast } = useApp();
@@ -68,7 +68,7 @@ export function InboxScreen({ active }: { active: boolean }) {
     setFailed([]);
     const added = await adding.run(async ({ signal, onProgress }) => {
       const files = (await rpc("scan_paths", { paths })).files.map((f) => f.path);
-      if (!files.length) throw new Error("넣을 문서를 찾지 못했습니다. HWP·HWPX·PDF 파일을 넣으세요.");
+      if (!files.length) throw new Error("넣을 문서를 찾지 못했습니다. HWP·HWPX·HWX·PDF 파일을 넣으세요.");
       const r = await rpc("inbox_add", { paths: files }, { signal, onProgress });
       setFailed(r.failed);
       if (r.items.length === 1) setOpenId(r.items[0].id);

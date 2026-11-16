@@ -2,8 +2,8 @@
 name = "kordoc-launcher"
 version = "0.1.0"
 edition = "2021"
-description = "KorDoc Shell Extension launcher — translates context menu verb to kordoc:// deep-link"
-authors = ["KorDoc"]
+description = "KnuDoc Shell Extension launcher — translates context menu verb to knudoc:// deep-link"
+authors = ["KnuDoc"]
 
 [[bin]]
 name = "kordoc-launcher"

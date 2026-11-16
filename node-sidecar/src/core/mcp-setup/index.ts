@@ -1,4 +1,4 @@
-/** MCP 원클릭 — PC 의 AI 에이전트에 KorDoc AI MCP 서버('kordoc-ai') 등록
+/** MCP 원클릭 — PC 의 AI 에이전트에 KnuDoc AI MCP 서버('knudoc-ai') 등록
  *
  * npx 없이 동봉 Node(process.execPath) + 이 엔진 번들 + --mcp 로 등록한다 (폐쇄망 PC 에서도 동작).
  * 도구는 앱의 'AI에게 일 시키기'와 같은 목록(core/agent-tools). 예전 판이 등록한 'kordoc'(앱에 든 kordoc/dist/mcp.js)은 지운다.
@@ -22,7 +22,7 @@ type Key = 'mcpServers' | 'servers' | 'context_servers' | 'toml';
 /** probeOnly: 설정 파일의 위 폴더가 늘 있어(홈) 설치 여부를 probes 로만 본다 */
 interface ClientDef { id: string; name: string; configPath: string; key: Key; probes: string[]; probeOnly?: boolean }
 
-export const SERVER_NAME = 'kordoc-ai';
+export const SERVER_NAME = 'knudoc-ai';
 
 /** MCP 로 띄울 엔진 진입 파일 — 설치본은 이 번들 자신(dist/bundle.mjs). 소스·tsc 출력에서 개발할 땐 레포의 dist/bundle.mjs */
 export function engineEntryPath(): string {
@@ -116,8 +116,8 @@ const TOML_KEY = /^\s*([A-Za-z0-9_\-.'" ]+?)\s*=/;
 const tomlParts = (k: string) => k.split('.').map((s) => s.trim().replace(/^(["'])(.*)\1$/, '$2'));
 const isOurs = (parts: string[]) => parts[0] === 'mcp_servers' && parts[1] === SERVER_NAME;
 
-/** Codex config.toml 에서 우리 서버를 뺀 줄들 — [mcp_servers.kordoc-ai] 표(하위 표 포함, 머리 뒤 주석·따옴표 키),
- *  [mcp_servers] 안의 kordoc-ai = { … } 인라인 표·점 키, 맨 위의 mcp_servers.kordoc-ai.… 점 키 */
+/** Codex config.toml 에서 우리 서버를 뺀 줄들 — [mcp_servers.knudoc-ai] 표(하위 표 포함, 머리 뒤 주석·따옴표 키),
+ *  [mcp_servers] 안의 knudoc-ai = { … } 인라인 표·점 키, 맨 위의 mcp_servers.knudoc-ai.… 점 키 */
 function stripTomlServer(text: string): { kept: string[]; found: boolean } {
   const kept: string[] = [];
   let table: string[] = [];

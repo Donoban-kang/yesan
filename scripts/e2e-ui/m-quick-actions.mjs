@@ -1,5 +1,5 @@
 /**
- * 우클릭 빠른 동작 — Rust 가 넘기는 것과 같은 kordoc:// 주소(파일 하나는 ?path=, 여럿은 batch 목록 파일)로
+ * 우클릭 빠른 동작 — Rust 가 넘기는 것과 같은 knudoc:// 주소(파일 하나는 ?path=, 여럿은 batch 목록 파일)로
  *  - 하나로 합치기(섞이면 PDF 한 권·한글 문서끼리면 HWPX 하나, 이름 차례·폴더째), 나누기(PDF 쪽마다), 옛 주소 pdfmerge, 쪽마다 그림으로, 한글 문서로, 용량 줄이기, 표를 엑셀로,
  *    쪽 번호 넣기, 엑셀 하나로 합치기(폴더째), 받은 공문 접수하기가
  *    창을 열지 않고(shell_show 없음) 결과 파일을 만들고 끝 알림 + shell_quick_done
@@ -66,12 +66,12 @@ await invoke('update_settings', { settings: { convert: { output_dir: SAVED } } }
 
 const ui = await openUi({ relay: RELAY, width: 1400, height: 900, query: 'notify', prefs: { 'kordoc-first-run-done': true, 'kordoc-theme': 'light' } });
 const { page } = ui;
-const link = (action, path) => post('/emit', { event: 'deep-link', payload: `kordoc://${action}?path=${encodeURIComponent(path)}` });
+const link = (action, path) => post('/emit', { event: 'deep-link', payload: `knudoc://${action}?path=${encodeURIComponent(path)}` });
 let seq = 0;
 const many = (action, files) => {
   const m = join(tmpdir(), `kordoc-batch-${Date.now()}${seq++}.json`);
   writeFileSync(m, JSON.stringify({ action, files, created_at: String(Date.now()) }));
-  return post('/emit', { event: 'deep-link', payload: `kordoc://batch?manifest=${encodeURIComponent(m)}` });
+  return post('/emit', { event: 'deep-link', payload: `knudoc://batch?manifest=${encodeURIComponent(m)}` });
 };
 const log = () => post('/log', { clear: true }).then((r) => r.log);
 /** 빠른 동작이 끝날 때까지 (shell_quick_done) 기다리며 모은 기록 */

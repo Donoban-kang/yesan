@@ -1,26 +1,26 @@
-# KorDoc Shell — 자체 서명 스크립트
+# KnuDoc Shell — 자체 서명 스크립트
 # 개발/테스트용. 배포 시에는 EV 코드사인 인증서 사용 권장.
 #
 # 흐름 (CurrentUser 모드 — 비관리자 가능):
-#   1. CN=KorDoc 자체 서명 cert가 없으면 생성 → CurrentUser\My
+#   1. CN=KnuDoc 자체 서명 cert가 없으면 생성 → CurrentUser\My
 #   2. cert를 CurrentUser\Root + CurrentUser\TrustedPeople 에 설치
 #   3. SignTool로 .msix 서명
 #
 # 요구: Windows SDK (signtool.exe). 관리자 권한 불필요.
 
 param(
-    [string]$Subject = "CN=KorDoc",
+    [string]$Subject = "CN=KnuDoc",
     [string]$Msix = ""
 )
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
-if (-not $Msix) { $Msix = Join-Path $root "build\KorDocShell.msix" }
+if (-not $Msix) { $Msix = Join-Path $root "build\KnuDocShell.msix" }
 if (-not (Test-Path $Msix)) {
     throw "MSIX 파일 없음: $Msix (먼저 build.ps1 실행)"
 }
 
-Write-Host "=== KorDoc Shell 자체서명 (CurrentUser 모드) ===" -ForegroundColor Cyan
+Write-Host "=== KnuDoc Shell 자체서명 (CurrentUser 모드) ===" -ForegroundColor Cyan
 
 # 1. cert 확보
 Write-Host "`n[1/3] 자체서명 인증서 확인/생성..."
@@ -31,7 +31,7 @@ if (-not $cert) {
         -Type Custom `
         -Subject $Subject `
         -KeyUsage DigitalSignature `
-        -FriendlyName "KorDoc Shell Dev Cert" `
+        -FriendlyName "KnuDoc Shell Dev Cert" `
         -CertStoreLocation "Cert:\CurrentUser\My" `
         -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 }

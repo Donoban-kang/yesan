@@ -62,7 +62,7 @@ export function useQuickActions() {
           else startBatch({ paths, task: back.task });
           if (why) toast(why, "error");
         };
-        const slow = setTimeout(() => void notifyQuick(`KorDoc AI: ${label}`, `${paths.length > 1 ? `${paths.length}개를 ` : ""}처리하는 중입니다. 끝나면 다시 알립니다.`), 1500);
+        const slow = setTimeout(() => void notifyQuick(`KnuDoc AI: ${label}`, `${paths.length > 1 ? `${paths.length}개를 ` : ""}처리하는 중입니다. 끝나면 다시 알립니다.`), 1500);
         try {
           await waitReady();
           const { settings } = appRef.current;
@@ -74,18 +74,18 @@ export function useQuickActions() {
             // 된 것의 결과(합본 이름·엔진 안내)와 "확인 필요"도 함께 알린다. 실패만 알리면 덜 가려진 사본에 대한 경고가 어디에도 없다
             // (목록 화면용 안내 "(목록의 경고 줄)"은 뺀다: 이어 열리는 화면에는 그 목록이 없다)
             const done = r.ok && r.message ? ` 된 것: ${r.message.replace("(목록의 경고 줄)", "")}.` : "";
-            if (r.review) void notifyQuick(`KorDoc AI: ${label} 확인 필요`, r.review);
+            if (r.review) void notifyQuick(`KnuDoc AI: ${label} 확인 필요`, r.review);
             await openInApp(`${label}: ${r.ok ? `${r.ok}개는 했고 ` : ""}${r.failed.length}개는 못 했습니다. ${baseName(first.path)}: ${first.error}.${done}${r.review ? ` ${r.review}` : ""}`);
             continue;
           }
           if (r.review) {
             // 확인할 것이 남았다: 알림과 함께 창에도 남긴다 (알림은 놓치기 쉽다)
-            void notifyQuick(`KorDoc AI: ${label} 확인 필요`, r.review);
+            void notifyQuick(`KnuDoc AI: ${label} 확인 필요`, r.review);
             await invokeCmd("shell_show").catch(() => undefined);
             appRef.current.toast(`${label}: ${r.review}`, "error");
             continue;
           }
-          if (!(await notifyQuick(`KorDoc AI: ${label} 끝`, r.message))) {
+          if (!(await notifyQuick(`KnuDoc AI: ${label} 끝`, r.message))) {
             await invokeCmd("shell_show").catch(() => undefined);
             appRef.current.toast(`${label} 끝: ${r.message}`, "success");
           }
