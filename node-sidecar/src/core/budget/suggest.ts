@@ -101,9 +101,11 @@ export function suggestItems(items: BudgetItemView[], entries: BudgetEntry[], s:
     if (!enough) score -= 20;
     return { item: it, score, reasons, enough, hits: hits.length };
   });
-  return scored
+  const kept = scored
     .filter((x) => x.score > 0 && (x.hits > 0 || x.reasons.some((r) => r.startsWith('거래 성격') || r.startsWith('결의서'))))
     .sort((a, b) => b.score - a.score || b.item.avail - a.item.avail)
-    .slice(0, Math.max(1, Math.min(20, input.limit ?? 5)))
-    .map(({ item, score, reasons, enough }) => ({ item, score: Math.min(99, Math.round(score)), reasons: enough ? [...reasons, '잔액 충분'] : [...reasons, '잔액 부족'], enough }));
+    .slice(0, Math.max(1, Math.min(20, input.limit ?? 5)));
+  // 99 를 넘으면 모두 같은 비율로 줄인다 (잘라 내면 1·2순위가 둘 다 99 로 보여 차이를 알 수 없다)
+  const scale = (kept[0]?.score ?? 0) > 99 ? 99 / kept[0].score : 1;
+  return kept.map(({ item, score, reasons, enough }) => ({ item, score: Math.max(1, Math.min(99, Math.round(score * scale))), reasons: enough ? [...reasons, '잔액 충분'] : [...reasons, '잔액 부족'], enough }));
 }
