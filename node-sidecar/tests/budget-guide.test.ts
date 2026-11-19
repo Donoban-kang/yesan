@@ -138,3 +138,31 @@ describe('나눠 반영 (F-09)', () => {
     await expect(call('budget_apply_split', { ...doc, parts: [{ item_id: b.id, amount: 120_000 }, { item_id: b.id, amount: 120_000 }] })).rejects.toThrow(/가용 잔액/);
   });
 });
+
+describe('AI 대화 도구 (F-12)', () => {
+  it('budget_status·budget_suggest_item: 잔액 조회, 추천과 근거 조항, 반영은 하지 않음, MCP 목록에도 있음', async () => {
+    const { runWorkTool, workToolDefs } = await import('../src/core/agent-tools/index.js');
+    const dispatch = ((m: string, p: Record<string, unknown>) => call(m, p)) as never;
+    expect(workToolDefs().map((t) => t.name)).toEqual(expect.arrayContaining(['budget_status', 'budget_suggest_item']));
+
+    const y = new Date().getFullYear();
+    await call('budget_item_add', { year: y, account: 'growth', unit: '교육혁신', detail: '교수법 연수', name: '국내여비', budget: 2_000_000, spent_before: 500_000 });
+    await call('budget_item_add', { year: y, account: 'univ', unit: '교직원 역량', detail: '직무연수 지원', name: '일반수용비', budget: 1_000_000 });
+    const rule = join(env.work, '여비 지침.txt');
+    writeFileSync(rule, ['제1조(목적) 예산 집행 기준을 정한다.', '제2조(국내여비) 숙박비는 1박당 70,000원 이내로 한다.', '제3조(일반수용비) 사무용품은 일반수용비로 산다.'].join('\n'));
+    await call('budget_guide_add', { paths: [rule] });
+
+    const st = await runWorkTool('budget_status', { query: '국내여비' }, dispatch);
+    expect(st.isError).toBeFalsy();
+    expect(st.output).toMatch(/국내여비: 예산 2,000,000원 · 집행 500,000원 · 품의 중 0원 · 가용 1,500,000원/);
+
+    const before = (await call('budget_book', { year: y })).entries.length;
+    const sg = await runWorkTool('budget_suggest_item', { text: '교수법 연수 국내 출장 여비 정산', amount: 300_000 }, dispatch);
+    expect(sg.output).toMatch(/1\. \[[^\]]+\] 교육혁신 › 교수법 연수 › 국내여비/);
+    expect(sg.output).toMatch(/제2조\(국내여비\)/);
+    expect(sg.output).toMatch(/반영은 하지 않았습니다/);
+    expect((await call('budget_book', { year: y })).entries.length).toBe(before);
+
+    expect((await runWorkTool('budget_suggest_item', {}, dispatch)).isError).toBe(true);
+  }, 30_000);
+});
