@@ -94,3 +94,15 @@ describe('규정 넣기·근거 찾기 (RPC)', () => {
     expect(r.failed[0].error).toMatch(/글을 읽지 못했습니다|읽지 못/);
   }, 30_000);
 });
+
+describe('추천 점수', () => {
+  it('99 를 넘는 후보가 둘이어도 같은 99 로 뭉개지 않고 차이를 남긴다', async () => {
+    await call('budget_item_add', { year: 2027, account: 'growth', unit: '교육혁신', detail: '교수법 연수', name: '물건비-여비-국내여비', budget: 3_000_000 });
+    await call('budget_item_add', { year: 2027, account: 'univ', unit: '교직원 역량', detail: '직무연수 지원', name: '물건비-여비-국내여비', budget: 3_000_000 });
+    const s = await call('budget_suggest', { year: 2027, text: '교수법 연수 국내 출장 여비 국내여비 정산', nature: '여비', amount: 100_000, subjects: ['물건비-여비-국내여비 (교수법 연수)'] });
+    expect(s).toHaveLength(2);
+    expect(s[0].item.detail).toBe('교수법 연수');
+    expect(s[0].score).toBe(99);
+    expect(s[1].score).toBeLessThan(99);
+  });
+});
