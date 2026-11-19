@@ -106,3 +106,35 @@ describe('추천 점수', () => {
     expect(s[1].score).toBeLessThan(99);
   });
 });
+
+describe('나눠 반영 (F-09)', () => {
+  it('결의서 한 건을 여러 과목에 한 번에, 하나라도 막히면 아무것도 쓰지 않고, 한 번 취소로 함께 취소', async () => {
+    const y = 2028;
+    const a = await call('budget_item_add', { year: y, account: 'univ', detail: '교육혁신과 운영', name: '일반수용비', budget: 1_000_000 });
+    const b = await call('budget_item_add', { year: y, account: 'univ', detail: '교무과 운영', name: '일반수용비', budget: 200_000 });
+    const doc = { year: y, stage: 'commit', doc_number: '가온대-시험-0001', doc_title: '[원인행위서] 사무용품 구입' };
+
+    // b 는 잔액 200,000 → 250,000 은 막히고, a 몫도 쓰이지 않는다
+    await expect(call('budget_apply_split', { ...doc, parts: [{ item_id: a.id, amount: 150_000 }, { item_id: b.id, amount: 250_000 }] })).rejects.toThrow(/가용 잔액/);
+    let book = await call('budget_book', { year: y });
+    expect(book.entries).toHaveLength(0);
+
+    const r = await call('budget_apply_split', { ...doc, parts: [{ item_id: a.id, amount: 150_000, memo: '교육혁신과' }, { item_id: b.id, amount: 150_000, memo: '교무과' }] });
+    expect(r.entries).toHaveLength(2);
+    expect(new Set(r.entries.map((e: { group: string }) => e.group)).size).toBe(1);
+    expect(r.items.map((i: { avail: number }) => i.avail).sort()).toEqual([50_000, 850_000]);
+    expect(r.entries[0].memo).toBe('교육혁신과');
+
+    // 같은 결의번호 다시는 막힘
+    await expect(call('budget_apply_split', { ...doc, parts: [{ item_id: a.id, amount: 1_000 }] })).rejects.toThrow(/이미 반영/);
+
+    // 한 번 취소로 두 줄 모두
+    await call('budget_reverse', { year: y, id: r.entries[0].id });
+    book = await call('budget_book', { year: y });
+    expect(book.items.map((i: { avail: number }) => i.avail).sort()).toEqual([1_000_000, 200_000]);
+    expect(book.linked_numbers).not.toContain('가온대-시험-0001');
+
+    // 같은 과목에 두 줄이면 합쳐서 잔액을 본다
+    await expect(call('budget_apply_split', { ...doc, parts: [{ item_id: b.id, amount: 120_000 }, { item_id: b.id, amount: 120_000 }] })).rejects.toThrow(/가용 잔액/);
+  });
+});

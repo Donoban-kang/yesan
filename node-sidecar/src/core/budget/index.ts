@@ -7,7 +7,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type {
-  BudgetAnalysis, BudgetApplyResult, BudgetEvidenceResult, BudgetVoucherFacts, BudgetBookView, BudgetEntry, BudgetImportResult, BudgetItem, BudgetItemView, BudgetMapping, BudgetSuggestion,
+  BudgetAnalysis, BudgetApplyResult, BudgetSplitResult, BudgetEvidenceResult, BudgetVoucherFacts, BudgetBookView, BudgetEntry, BudgetImportResult, BudgetItem, BudgetItemView, BudgetMapping, BudgetSuggestion,
 } from '../../types/rpc-contract.js';
 import { getSettings } from '../../infra/config.js';
 import { sendProgress } from '../../infra/progress.js';
@@ -339,6 +339,51 @@ export async function budgetApply(p: {
     await saveBook(book);
     const view = viewOf(item, book.entries);
     return { entries: [e], item: view, warning: warnFor(view) };
+  });
+}
+
+/** 나눠 반영 (F-09): 결의서 한 건을 여러 과목에 한 번에. 모두 확인한 뒤 한꺼번에 쓰고(하나라도 막히면 아무것도 안 씀),
+ *  한 묶음(group)이라 지출 대장에서 한 번 취소하면 함께 취소된다 */
+export async function budgetApplySplit(p: {
+  year?: number; parts: Array<{ item_id: string; amount: number; memo?: string }>; stage: 'commit' | 'paid'; date?: string;
+  doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string; again?: boolean;
+}): Promise<BudgetSplitResult> {
+  if (!p.parts.length) throw new Error('나눠 넣을 과목을 하나 이상 고르세요.');
+  if (p.parts.length > 30) throw new Error('한 번에 나눠 넣을 수 있는 줄은 30개까지입니다.');
+  const parts = p.parts.map((x) => ({ ...x, amount: amountOk(x.amount) }));
+  return serial(async () => {
+    const book = await loadBook(yearOf(p.year));
+    const no = clip(p.doc_number, 80);
+    if (no && !p.again && linkedNumbers(book.entries).includes(no)) {
+      throw new Error(`결의번호(문서번호) ${no} 은(는) 이미 반영했습니다. 지출 대장을 확인하고, 더 나눠 넣는 것이면 "다른 과목에 나눠 더 반영하기"를 누르세요.`);
+    }
+    // 같은 과목에 여러 줄이면 합쳐서 잔액을 본다
+    const sums = new Map<string, number>();
+    for (const x of parts) {
+      const item = book.items.find((i) => i.id === x.item_id);
+      if (!item) throw new Error('예산 과목을 찾지 못했습니다. 과목표를 다시 불러왔다면 과목을 다시 고르세요.');
+      if (item.retired) throw new Error(`"${item.name}"은(는) 지금 과목표에 없는 과목입니다. 다른 과목을 고르세요.`);
+      sums.set(item.id, (sums.get(item.id) ?? 0) + x.amount);
+    }
+    for (const [id, sum] of sums) overCheck(viewOf(book.items.find((i) => i.id === id)!, book.entries), sum);
+    const group = newId();
+    const at = new Date().toISOString();
+    const made: BudgetEntry[] = parts.map((x) => {
+      const memo = [clip(x.memo, 150), clip(p.memo, 150)].filter(Boolean).join(' · ');
+      return {
+        id: newId(), group, at, date: dateOk(p.date), item_id: x.item_id, amount: x.amount, stage: p.stage, kind: 'apply',
+        ...(p.doc_path ? { doc_path: p.doc_path } : {}),
+        ...(clip(p.doc_title, 200) ? { doc_title: clip(p.doc_title, 200) } : {}),
+        ...(no ? { doc_number: no } : {}),
+        ...(clip(p.sender, 80) ? { sender: clip(p.sender, 80) } : {}),
+        ...(memo ? { memo: memo.slice(0, 300) } : {}),
+        ...(by() ? { by: by() } : {}),
+      } satisfies BudgetEntry;
+    });
+    book.entries.push(...made);
+    await saveBook(book);
+    const views = [...sums.keys()].map((id) => viewOf(book.items.find((i) => i.id === id)!, book.entries));
+    return { entries: made, items: views, warnings: views.map(warnFor).filter((w): w is string => !!w) };
   });
 }
 

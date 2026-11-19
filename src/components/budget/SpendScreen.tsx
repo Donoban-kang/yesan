@@ -17,6 +17,7 @@ import { budgetChanged, itemPath, LETTER_FILTER, parseWon, useBudgetBook, won } 
 import { VoucherDraft } from "./VoucherDraft";
 import { EvidenceCheck } from "./EvidenceCheck";
 import { GuideRefs } from "./GuideRefs";
+import { SplitApply } from "./SplitApply";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -98,7 +99,8 @@ export function SpendScreen({ active }: { active: boolean }) {
   const linked = new Set(book?.linked_docs ?? []);
   // 이미 반영한 공문은 잔액에서 다시 빼 보이지 않는다 (다른 과목에 나눠 더 반영할 때만 "again")
   const linkedNos = new Set(book?.linked_numbers ?? []);
-  const already = !!a && (linked.has(a.path) || (!!a.doc_number && linkedNos.has(a.doc_number))) && !again;
+  const appliedBefore = !!a && (linked.has(a.path) || (!!a.doc_number && linkedNos.has(a.doc_number)));
+  const already = appliedBefore && !again;
   /** 증빙 대조를 했으면 대장 메모에 남길 한 줄 */
   const [evidenceNote, setEvidenceNote] = useState("");
   const items = useMemo(() => (book?.items ?? []).filter((x) => !x.retired), [book]);
@@ -220,7 +222,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {a.doc_kind && a.doc_kind !== "공문" && <EvidenceCheck key={a.path} analysis={a} onResult={setEvidenceNote} />}
                   {a.budget_lines && a.budget_lines.length > 0 && (
                     <div className="flex flex-col gap-1.5" aria-label="결의서 예산 줄">
-                      <span className="kd-label">결의서 예산 줄{a.budget_lines.length > 1 ? ` ${a.budget_lines.length}개: 줄을 누르면 그 금액·과목으로 추천합니다` : ""}</span>
+                      <span className="kd-label">결의서 예산 줄{a.budget_lines.length > 1 ? ` ${a.budget_lines.length}개: 줄을 누르면 그 줄만 추천·반영하고, 아래에서 한 번에 나눠 반영할 수도 있습니다` : ""}</span>
                       {a.budget_lines.map((l, i) => (
                         <button key={i} type="button" className="kd-docopt" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }} disabled={a.budget_lines!.length < 2}
                           onClick={() => { subjectsRef.current = [[l.detail, l.subject].filter(Boolean).join(" ")]; setAmountText(won(l.amount)); setConfirming(false); void resuggest(account, l.amount); }}>
@@ -229,6 +231,9 @@ export function SpendScreen({ active }: { active: boolean }) {
                         </button>
                       ))}
                     </div>
+                  )}
+                  {a.budget_lines && a.budget_lines.length > 1 && (
+                    <SplitApply key={a.path} analysis={a} items={items} label={label} already={appliedBefore} again={again} onAgain={setAgain} />
                   )}
                   <label className="kd-field">
                     <span className="kd-label">금액 (원)</span>
