@@ -3,7 +3,7 @@
 import type { RpcRouter } from '../router.js';
 import type { BudgetMapping } from '../../types/rpc-contract.js';
 import {
-  budgetAnalyze, budgetApply, budgetEvidence, budgetBook, budgetExport, budgetImport, budgetItemAdd, budgetItemUpdate, budgetReverse, budgetSettle, budgetSuggest,
+  budgetAnalyze, budgetApply, budgetApplySplit, budgetEvidence, budgetBook, budgetExport, budgetImport, budgetItemAdd, budgetItemUpdate, budgetReverse, budgetSettle, budgetSuggest,
 } from '../../core/budget/index.js';
 import { guideAdd, guideClause, guideFind, guideList, guideRemove } from '../../core/budget/guide.js';
 import { budgetSettings, yearOf } from '../../core/budget/settings.js';
@@ -47,6 +47,18 @@ export function registerBudget(router: RpcRouter): void {
     if (!stage) throw new Error('반영 단계(품의 또는 지출 완료)를 고르세요.');
     return budgetApply({
       year: year(p), item_id: id(p.item_id), amount: num(p.amount) ?? 0, stage, date: str(p.date),
+      doc_path: optPath(p.doc_path), doc_title: str(p.doc_title), doc_number: str(p.doc_number), sender: str(p.sender), memo: str(p.memo), again: bool(p.again),
+    });
+  });
+  reg('budget_apply_split', (p) => {
+    const stage = oneOf(p.stage, ['commit', 'paid'] as const);
+    if (!stage) throw new Error('반영 단계(품의 또는 지출 완료)를 고르세요.');
+    const parts = (Array.isArray(p.parts) ? p.parts : []).map((x) => {
+      const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+      return { item_id: id(o.item_id), amount: num(o.amount) ?? 0, memo: str(o.memo) };
+    });
+    return budgetApplySplit({
+      year: year(p), parts, stage, date: str(p.date),
       doc_path: optPath(p.doc_path), doc_title: str(p.doc_title), doc_number: str(p.doc_number), sender: str(p.sender), memo: str(p.memo), again: bool(p.again),
     });
   });

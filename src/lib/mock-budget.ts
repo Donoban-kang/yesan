@@ -78,7 +78,11 @@ const LETTER = `${D}/2026 진로체험 버스 임차 협조.hwpx`;
 const analysisOf = (path: string): BudgetAnalysis => {
   if (path.includes("원인행위")) {
     // 실제 원인행위서 짜임을 따른 가상 값 (사람·번호는 지어냄)
-    const lines = [{ dept: "교육혁신과", ledger: "자체수입", source: "지원금(보조금)", detail: "[국립대학육성사업]지원금", subject: "물건비-여비-국내여비 (국립대학 육성사업 국내여비)", amount: 412_000 }];
+    // 예산 줄 둘: 나눠 반영(F-09) 미리보기용
+    const lines = [
+      { dept: "교육혁신과", ledger: "자체수입", source: "지원금(보조금)", detail: "[국립대학육성사업]지원금", subject: "물건비-여비-국내여비 (국립대학 육성사업 국내여비)", amount: 300_000 },
+      { dept: "교육혁신과", ledger: "대학회계", source: "등록금", detail: "직무연수 지원", subject: "물건비-여비-국내여비 (교직원 직무연수)", amount: 112_000 },
+    ];
     const subjects = lines.map((l) => `${l.detail} ${l.subject}`);
     const basis = ["[육성]출장여비 정산 결의 요청", ...lines.map((l) => `${l.source} ${l.detail} ${l.subject}`)].join("\n");
     const views = items.map((it) => viewOf(it, entries));
@@ -125,6 +129,18 @@ export const budgetHandlers: H = {
     entries.push(e);
     const view = viewOf(it, entries);
     return { entries: [e], item: view, warning: view.rate >= 90 ? `${it.name} 집행률(품의 포함)이 ${view.rate}%로 경고 기준 90%를 넘었습니다.` : undefined };
+  },
+  budget_apply_split: (p) => {
+    for (const x of p.parts) {
+      const it = items.find((i) => i.id === x.item_id)!;
+      const sum = p.parts.filter((y) => y.item_id === x.item_id).reduce((n, y) => n + y.amount, 0);
+      if (viewOf(it, entries).avail < sum) throw new Error(`${it.name} 가용 잔액보다 많습니다. 다른 과목을 고르세요.`);
+    }
+    const group = `g${++seq}`;
+    const made: BudgetEntry[] = p.parts.map((x) => ({ id: `e${++seq}`, group, at: new Date().toISOString(), date: "2026-11-13", item_id: x.item_id, amount: x.amount, stage: p.stage, kind: "apply", doc_path: p.doc_path, doc_title: p.doc_title, doc_number: p.doc_number, sender: p.sender, memo: x.memo, by: "김예산" }));
+    entries.push(...made);
+    const ids = [...new Set(p.parts.map((x) => x.item_id))];
+    return { entries: made, items: ids.map((id) => viewOf(items.find((i) => i.id === id)!, entries)), warnings: [] };
   },
   budget_settle: (p) => {
     const c = entries.find((e) => e.id === p.id)!;

@@ -106,3 +106,63 @@ describe('추천 점수', () => {
     expect(s[1].score).toBeLessThan(99);
   });
 });
+
+describe('나눠 반영 (F-09)', () => {
+  it('결의서 한 건을 여러 과목에 한 번에, 하나라도 막히면 아무것도 쓰지 않고, 한 번 취소로 함께 취소', async () => {
+    const y = 2028;
+    const a = await call('budget_item_add', { year: y, account: 'univ', detail: '교육혁신과 운영', name: '일반수용비', budget: 1_000_000 });
+    const b = await call('budget_item_add', { year: y, account: 'univ', detail: '교무과 운영', name: '일반수용비', budget: 200_000 });
+    const doc = { year: y, stage: 'commit', doc_number: '가온대-시험-0001', doc_title: '[원인행위서] 사무용품 구입' };
+
+    // b 는 잔액 200,000 → 250,000 은 막히고, a 몫도 쓰이지 않는다
+    await expect(call('budget_apply_split', { ...doc, parts: [{ item_id: a.id, amount: 150_000 }, { item_id: b.id, amount: 250_000 }] })).rejects.toThrow(/가용 잔액/);
+    let book = await call('budget_book', { year: y });
+    expect(book.entries).toHaveLength(0);
+
+    const r = await call('budget_apply_split', { ...doc, parts: [{ item_id: a.id, amount: 150_000, memo: '교육혁신과' }, { item_id: b.id, amount: 150_000, memo: '교무과' }] });
+    expect(r.entries).toHaveLength(2);
+    expect(new Set(r.entries.map((e: { group: string }) => e.group)).size).toBe(1);
+    expect(r.items.map((i: { avail: number }) => i.avail).sort()).toEqual([50_000, 850_000]);
+    expect(r.entries[0].memo).toBe('교육혁신과');
+
+    // 같은 결의번호 다시는 막힘
+    await expect(call('budget_apply_split', { ...doc, parts: [{ item_id: a.id, amount: 1_000 }] })).rejects.toThrow(/이미 반영/);
+
+    // 한 번 취소로 두 줄 모두
+    await call('budget_reverse', { year: y, id: r.entries[0].id });
+    book = await call('budget_book', { year: y });
+    expect(book.items.map((i: { avail: number }) => i.avail).sort()).toEqual([1_000_000, 200_000]);
+    expect(book.linked_numbers).not.toContain('가온대-시험-0001');
+
+    // 같은 과목에 두 줄이면 합쳐서 잔액을 본다
+    await expect(call('budget_apply_split', { ...doc, parts: [{ item_id: b.id, amount: 120_000 }, { item_id: b.id, amount: 120_000 }] })).rejects.toThrow(/가용 잔액/);
+  });
+});
+
+describe('AI 대화 도구 (F-12)', () => {
+  it('budget_status·budget_suggest_item: 잔액 조회, 추천과 근거 조항, 반영은 하지 않음, MCP 목록에도 있음', async () => {
+    const { runWorkTool, workToolDefs } = await import('../src/core/agent-tools/index.js');
+    const dispatch = ((m: string, p: Record<string, unknown>) => call(m, p)) as never;
+    expect(workToolDefs().map((t) => t.name)).toEqual(expect.arrayContaining(['budget_status', 'budget_suggest_item']));
+
+    const y = new Date().getFullYear();
+    await call('budget_item_add', { year: y, account: 'growth', unit: '교육혁신', detail: '교수법 연수', name: '국내여비', budget: 2_000_000, spent_before: 500_000 });
+    await call('budget_item_add', { year: y, account: 'univ', unit: '교직원 역량', detail: '직무연수 지원', name: '일반수용비', budget: 1_000_000 });
+    const rule = join(env.work, '여비 지침.txt');
+    writeFileSync(rule, ['제1조(목적) 예산 집행 기준을 정한다.', '제2조(국내여비) 숙박비는 1박당 70,000원 이내로 한다.', '제3조(일반수용비) 사무용품은 일반수용비로 산다.'].join('\n'));
+    await call('budget_guide_add', { paths: [rule] });
+
+    const st = await runWorkTool('budget_status', { query: '국내여비' }, dispatch);
+    expect(st.isError).toBeFalsy();
+    expect(st.output).toMatch(/국내여비: 예산 2,000,000원 · 집행 500,000원 · 품의 중 0원 · 가용 1,500,000원/);
+
+    const before = (await call('budget_book', { year: y })).entries.length;
+    const sg = await runWorkTool('budget_suggest_item', { text: '교수법 연수 국내 출장 여비 정산', amount: 300_000 }, dispatch);
+    expect(sg.output).toMatch(/1\. \[[^\]]+\] 교육혁신 › 교수법 연수 › 국내여비/);
+    expect(sg.output).toMatch(/제2조\(국내여비\)/);
+    expect(sg.output).toMatch(/반영은 하지 않았습니다/);
+    expect((await call('budget_book', { year: y })).entries.length).toBe(before);
+
+    expect((await runWorkTool('budget_suggest_item', {}, dispatch)).isError).toBe(true);
+  }, 30_000);
+});

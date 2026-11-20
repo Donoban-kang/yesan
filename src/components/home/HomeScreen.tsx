@@ -1,4 +1,4 @@
-/** 오늘(홈) — 맨 위 "무엇을 할까요?" 말로 시키기(문서는 홈 어디에 놓아도 거기 붙음), 기한이 다가온 공문, 자주 하는 일, 최근 문서(처음 쓰는 날은 예제), 업무별 목차 */
+/** 오늘(홈) — 맨 위 "무엇을 할까요?" 말로 시키기(문서는 홈 어디에 놓아도 거기 붙음), 기한이 다가온 공문, 예산 요약(과목표가 있을 때), 자주 하는 일, 최근 문서(처음 쓰는 날은 예제), 업무별 목차 */
 
 import { useCallback, useEffect, useState } from "react";
 import { ChevronRight, History, CalendarClock, LayoutGrid, LifeBuoy, X } from "lucide-react";
@@ -11,6 +11,7 @@ import { HomeIndex } from "./HomeIndex";
 import { HomeSamples } from "./HomeSamples";
 import { HomeTasks } from "./HomeTasks";
 import { HomeAgent } from "./HomeAgent";
+import { HomeBudget } from "./HomeBudget";
 import { readPref, writePref } from "../../lib/recent";
 import { rpc } from "../../lib/rpc";
 import { pickFiles } from "../../lib/native";
@@ -159,6 +160,7 @@ export function HomeScreen({ active }: { active: boolean }) {
           {/* 급한 것(기한 공문·꺼진 문서)을 맨 위에, 그다음 입력창과 할 일 */}
           <DueSoon active={active} />
           <Recovered active={active} />
+          <HomeBudget active={active} />
           <HomeAgent />
           {!easy && <ImpactLine />}
           <HomeTasks />

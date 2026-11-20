@@ -209,6 +209,8 @@ export interface RpcMethods {
   /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */
   budget_apply: [{ year?: number; item_id: string; amount: number; stage: 'commit' | 'paid'; date?: string; doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string; again?: boolean }, BudgetApplyResult];
   /** 품의 중인 기록을 지출 완료로 (실제 금액이 다르면 amount) */
+  /** 나눠 반영: 결의서 한 건을 여러 과목에 한 번에 (모두 되거나 하나도 안 됨, 한 묶음이라 함께 취소) */
+  budget_apply_split: [{ year?: number; parts: Array<{ item_id: string; amount: number; memo?: string }>; stage: 'commit' | 'paid'; date?: string; doc_path?: string; doc_title?: string; doc_number?: string; sender?: string; memo?: string; again?: boolean }, BudgetSplitResult];
   budget_settle: [{ year?: number; id: string; amount?: number; date?: string; memo?: string }, BudgetApplyResult];
   /** 반영 취소: 기록을 지우지 않고 반대 기록을 남긴다 */
   budget_reverse: [{ year?: number; id: string; reason?: string }, BudgetApplyResult];
@@ -778,6 +780,14 @@ export interface BudgetAnalysis {
   /** 추천에 쓴 글 (budget_suggest 로 다시 넘긴다, 4천 자까지) */
   basis: string;
   suggestions: BudgetSuggestion[];
+}
+
+/** 나눠 반영 결과 */
+export interface BudgetSplitResult {
+  entries: BudgetEntry[];
+  /** 바뀐 과목 (같은 과목 여러 줄은 하나로) */
+  items: BudgetItemView[];
+  warnings: string[];
 }
 
 export interface BudgetApplyResult {

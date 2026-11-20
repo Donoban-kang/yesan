@@ -112,6 +112,61 @@ export const WORK_TOOLS: WorkTool[] = [
     },
   },
 
+  // ── 예산 (조회·추천만. 반영은 사람이 지출 도우미에서 확인하고 누른다) ──
+  {
+    name: 'budget_status',
+    description: '예산 장부(불러온 과목표 + 지출 대장)에서 과목별 예산액·집행액·품의 중·가용 잔액·집행률을 봅니다. query 로 과목 이름·사업명·코드 낱말을 주면 그 과목만, 비우면 회계 구분별 합계와 잔액이 적은 과목부터.',
+    inputSchema: obj({ query: { type: 'string', description: '과목 이름·사업명·코드 낱말 (예: 국내여비, 교수법)' } }),
+    async run(a, d) {
+      const book = await d('budget_book', {});
+      if (!book.items.length) return { output: '아직 불러온 예산 과목표가 없습니다. 예산 현황 화면에서 과목표 엑셀을 불러오세요.', summary: '예산 과목표 없음' };
+      const label = (id: string) => book.accounts.find((x) => x.id === id)?.label ?? id;
+      const won = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`;
+      const words = s(a.query).split(/\s+/).filter((w) => w.length >= 1);
+      const live = book.items.filter((x) => !x.retired);
+      const hit = words.length ? live.filter((x) => words.every((w) => [x.program, x.unit, x.detail, x.name, x.code ?? ''].join(' ').includes(w))) : [...live].sort((x, y) => x.avail - y.avail);
+      const head = book.accounts.filter((x) => x.items > 0).map((x) => `- ${x.label}: 예산 ${won(x.budget)} · 집행 ${won(x.paid)} · 품의 중 ${won(x.commit)} · 가용 ${won(x.avail)} (집행률 ${x.rate.toFixed(1)}%)`);
+      const rows = hit.slice(0, 30).map((x) => `- [${label(x.account)}] ${[x.program, x.unit, x.detail].filter(Boolean).join(' › ') || '사업 없음'} › ${x.name}${x.code ? ` (${x.code})` : ''}: 예산 ${won(x.budget)} · 집행 ${won(x.paid)} · 품의 중 ${won(x.commit)} · 가용 ${won(x.avail)} (집행률 ${x.rate.toFixed(1)}%)`);
+      const more = hit.length > 30 ? `\n… 외 ${hit.length - 30}개` : '';
+      return {
+        output: `${book.year}회계연도 예산 (잔액은 업무 참고용 추정치, 공식 집행·결산은 기관 회계 시스템 기준)\n회계 구분별:\n${head.join('\n')}\n\n${words.length ? `"${s(a.query)}" 과목 ${hit.length}개` : '잔액이 적은 과목부터'}:\n${rows.join('\n') || '- 맞는 과목 없음'}${more}`,
+        summary: words.length ? `예산 조회 · ${s(a.query)} ${hit.length}개` : '예산 현황 조회',
+      };
+    },
+  },
+  {
+    name: 'budget_suggest_item',
+    description: '공문·결의서(path) 또는 지출 내용 글(text)에 맞는 예산 과목을 근거·잔액과 함께 추천하고, 넣어 둔 기관 규정에서 근거 조항을 찾습니다. 추천일 뿐 반영하지 않습니다(반영은 사용자가 지출 도우미에서 확인).',
+    inputSchema: obj({ path: { ...path, description: '공문·원인행위서·지출결의서 파일의 절대 경로 (HWP·HWPX·HWX·PDF)' }, text: { type: 'string', description: '지출 내용 (path 가 없을 때)' }, amount: { type: 'number', description: '금액(원), 모르면 비움' } }),
+    async run(a, d) {
+      const won = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`;
+      let basis = s(a.text);
+      let nature: string | undefined;
+      let amount = typeof a.amount === 'number' && a.amount > 0 ? Math.round(a.amount) : undefined;
+      let subjects: string[] | undefined;
+      let sender: string | undefined;
+      const facts: string[] = [];
+      if (s(a.path)) {
+        const r = await d('budget_analyze', { path: s(a.path) });
+        basis = r.basis; nature = r.nature; amount = amount ?? r.amount; subjects = r.subjects; sender = r.sender;
+        facts.push(`문서: ${r.doc_kind ?? '공문'}${r.title ? ` 「${r.title}」` : ''}${r.doc_number ? ` · ${r.doc_number}` : ''}${r.fiscal_year ? ` · ${r.fiscal_year}회계연도` : ''}`);
+        if (r.budget_lines?.length) facts.push(`결의서 예산 줄: ${r.budget_lines.map((l) => `${l.subject} ${won(l.amount)}`).join(' / ')}`);
+      }
+      if (!basis.trim()) return { output: 'path(공문 파일) 또는 text(지출 내용)를 주세요.', summary: '추천할 내용 없음', isError: true };
+      const sug = await d('budget_suggest', { text: basis.slice(0, 4000), nature, amount, sender, subjects, limit: 5 });
+      if (!sug.length) return { output: `${facts.join('\n')}\n맞는 과목을 찾지 못했습니다. 예산 과목표를 불러왔는지, 과목에 추천 낱말이 있는지 확인하세요.`, summary: '맞는 과목 없음' };
+      const book = await d('budget_book', {});
+      const label = (id: string) => book.accounts.find((x) => x.id === id)?.label ?? id;
+      const rows = sug.map((x, i) => `${i + 1}. [${label(x.item.account)}] ${[x.item.unit, x.item.detail].filter(Boolean).join(' › ') || '사업 없음'} › ${x.item.name} · 차례 값 ${x.score} · 가용 ${won(x.item.avail)}${amount ? (x.enough ? ' (잔액 충분)' : ' (잔액 부족)') : ''}\n   근거: ${x.reasons.join(', ')}`);
+      const guide = await d('budget_guide_find', { text: basis.slice(0, 4000), item_id: sug[0].item.id, nature, limit: 2 }).catch(() => []);
+      const g = guide.length ? `\n\n1순위 과목의 근거 조항 (넣어 둔 기관 규정에서 낱말이 맞는 조항):\n${guide.map((m) => `- ${m.guide} ${m.no}${m.title ? `(${m.title})` : ''}: ${m.snippet}${m.amounts.length ? ` [금액 기준: ${m.amounts.join(', ')}]` : ''}`).join('\n')}` : '';
+      return {
+        output: `${facts.join('\n')}${facts.length ? '\n' : ''}${nature ? `거래 성격: ${nature} · ` : ''}금액: ${amount ? won(amount) : '모름'}\n\n추천 과목 (차례 값은 순서일 뿐 확률이 아님):\n${rows.join('\n')}${g}\n\n반영은 하지 않았습니다. 사용자가 지출 도우미에서 과목을 확인하고 반영하게 안내하세요. 집행 가능 여부는 규정 원문과 회계 담당 확인이 필요합니다.`,
+        summary: `예산 과목 추천 · ${sug[0].item.name}`,
+      };
+    },
+  },
+
   // ── 쓰기 ──
   {
     name: 'document_guide',

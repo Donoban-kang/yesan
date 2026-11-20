@@ -86,7 +86,15 @@ describe('llm_download', () => {
     const e = entry();
     const part = join(llmDir(), `${e.file}.part`);
     const ac = new AbortController();
-    stall = () => ac.abort();
+    // 보낸 앞부분이 .part 에 실제로 써진 뒤에 취소한다 (정해진 50ms 뒤에 끊으면 느린 실행기에서는 아직 0바이트일 수 있다)
+    stall = () => {
+      const t0 = Date.now();
+      const tick = () => {
+        if ((existsSync(part) && statSync(part).size > 0) || Date.now() - t0 > 5000) ac.abort();
+        else setTimeout(tick, 20);
+      };
+      tick();
+    };
     await expect(downloadModel(e, ac.signal)).rejects.toThrow();
     stall = null;
     expect(existsSync(part)).toBe(true);
