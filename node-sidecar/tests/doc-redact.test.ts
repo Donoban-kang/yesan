@@ -82,7 +82,7 @@ describe('redact', () => {
     const text = back.success ? back.markdown : '';
     for (const v of [...originals, '가온도민 한마음']) expect(text).not.toContain(v);
     expect(out.toString('latin1')).not.toMatch(/gaon\.example/);
-  });
+  }, 60_000); // 쪽을 그림으로 그려 다시 PDF 로 묶는다: 이 PC 9초대, Windows CI 는 10초를 넘겼다
 
   it('그림 — 한 쪽짜리 가림 PDF (스캔은 글자 읽기로 자리를 찾는다)', async () => {
     const png = join(env.work, '스캔.png');
