@@ -12,7 +12,7 @@ import { basename, extname, join } from 'node:path';
 import type { BudgetGuide, BudgetGuideMatch } from '../../types/rpc-contract.js';
 import type { Settings } from '../../types/index.js';
 import { parseDoc } from '../converter/index.js';
-import { formatOf } from '../files/format.js';
+import { formatOf, PARSEABLE, TEXT_FORMATS } from '../files/format.js';
 import { budgetDir } from './store.js';
 import { readHwx } from './read-doc.js';
 import { rankClauses, splitClauses, squash, type GuideClause, type GuideQuery } from './guide-match.js';
@@ -25,7 +25,22 @@ const dir = () => join(budgetDir(), 'guides');
 const indexFile = () => join(dir(), 'index.json');
 const clauseFile = (id: string) => join(dir(), `${id}.json`);
 
-const READABLE = new Set(['hwp', 'hwp3', 'hwpx', 'hwpml', 'pdf', 'docx', 'txt', 'md']);
+/** 확장자를 모르는 파일은 글자 파일로 읽어 본다. 이보다 크면 글자 파일로 보지 않는다 */
+const MAX_PLAIN = 20 * 1024 * 1024;
+
+/** 확장자를 모르는 파일(.htm·.law·.log 등): UTF-8 글이면 읽고(웹 문서는 태그를 걷음), 바이너리면 까닭과 함께 거절 */
+async function readPlain(path: string): Promise<string> {
+  const buf = await readFile(path);
+  const bad = () => new Error('글자로 읽을 수 없는 파일입니다. HWP·HWPX·HWX·PDF·DOCX·XLSX·PPTX·그림·TXT·MD 파일로 저장해 넣으세요.');
+  if (buf.length > MAX_PLAIN || buf.subarray(0, 8192).includes(0)) throw bad();
+  const text = buf.toString('utf-8');
+  const broken = (text.match(/\uFFFD/g) ?? []).length;
+  if (broken > Math.max(8, text.length / 200)) throw bad();
+  if (!/<(html|body|p|div|table)[\s>]/i.test(text)) return text;
+  return text.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<(br|\/p|\/div|\/tr|\/h\d|\/li)[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+    .split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).join('\n');
+}
 
 /* ───────── 저장 ───────── */
 
@@ -56,7 +71,7 @@ async function loadClauses(id: string): Promise<GuideClause[]> {
 async function readGuideText(path: string, signal?: AbortSignal): Promise<string> {
   if (extname(path).toLowerCase() === '.hwx') return (await readHwx(path, signal)).markdown;
   const fmt = formatOf(path);
-  if (!READABLE.has(fmt)) throw new Error('규정으로 읽을 수 없는 형식입니다. HWP·HWPX·HWX·PDF·DOCX·TXT 파일을 넣으세요.');
+  if (!PARSEABLE.has(fmt) && !TEXT_FORMATS.has(fmt)) return readPlain(path);
   const r = await parseDoc(path, { images: false, plain: true, pages: fmt === 'pdf' ? '1-300' : undefined, signal });
   return r.markdown;
 }

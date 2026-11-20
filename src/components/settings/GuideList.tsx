@@ -10,7 +10,16 @@ import { useApp } from "../../state/app";
 import { Button } from "../ui/Button";
 import { Note, Working } from "../common/Status";
 
-const FILTER = [{ name: "규정·지침", extensions: ["hwp", "hwpx", "hwx", "pdf", "docx", "txt"] }];
+/** 첫 줄이 기본(읽을 수 있는 형식 전부). 형식별로 좁히거나 "모든 파일"로 넓힐 수 있게 함께 둔다 */
+const FILTER = [
+  { name: "규정·지침 (읽을 수 있는 형식 전부)", extensions: ["hwp", "hwpx", "hwx", "hml", "pdf", "docx", "xlsx", "xls", "pptx", "txt", "md", "csv", "htm", "html", "png", "jpg", "jpeg"] },
+  { name: "한글 문서 (HWP·HWPX·HWX)", extensions: ["hwp", "hwpx", "hwx", "hml"] },
+  { name: "PDF", extensions: ["pdf"] },
+  { name: "워드·엑셀·파워포인트", extensions: ["docx", "xlsx", "xls", "pptx"] },
+  { name: "글자 파일 (TXT·MD·CSV·HTML)", extensions: ["txt", "md", "csv", "htm", "html"] },
+  { name: "스캔 그림 (PNG·JPG)", extensions: ["png", "jpg", "jpeg"] },
+  { name: "모든 파일", extensions: ["*"] },
+];
 
 export function GuideList() {
   const { toast } = useApp();
@@ -69,7 +78,7 @@ export function GuideList() {
       {busy && <Working label="규정을 읽어 조항으로 나누는 중" />}
       {error && <Note tone="err"><span style={{ whiteSpace: "pre-wrap" }}>{error}</span></Note>}
       <div><Button size="sm" variant="secondary" onClick={() => void add()} disabled={busy}><FilePlus2 size={13} /> 규정 파일 넣기</Button></div>
-      <p className="kd-small kd-muted">스캔한 PDF는 내장 글자 읽기(OCR)로 읽어 시간이 걸릴 수 있습니다. 법령은 국가법령정보센터에서 받은 파일을 넣으면 같은 방식으로 찾습니다.</p>
+      <p className="kd-small kd-muted">HWP·HWPX·HWX·PDF·워드·엑셀·파워포인트·그림·TXT·MD를 넣을 수 있고, 그 밖의 파일은 "모든 파일"로 골라 글자 파일로 읽어 봅니다. 스캔한 PDF는 내장 글자 읽기(OCR)로 읽어 시간이 걸릴 수 있습니다. 법령은 국가법령정보센터에서 받은 파일을 넣으면 같은 방식으로 찾습니다.</p>
     </div>
   );
 }

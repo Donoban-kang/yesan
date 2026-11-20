@@ -93,6 +93,23 @@ describe('규정 넣기·근거 찾기 (RPC)', () => {
     expect(r.added).toEqual([]);
     expect(r.failed[0].error).toMatch(/글을 읽지 못했습니다|읽지 못/);
   }, 30_000);
+
+  it('목록에 없는 확장자도 글자면 읽고(웹 문서는 태그를 걷음), 바이너리는 까닭과 함께 거절', async () => {
+    const html = join(env.work, '여비 규정.htm');
+    writeFileSync(html, '<html><body><p>제1조(목적) 이 규정은 여비 지급 기준을 정한다.</p><p>제2조(숙박비) 숙박비는 1박당 70,000원 이내로 한다.</p><p>제3조(정산) 출장 뒤 5일 안에 정산한다.</p></body></html>');
+    const md = join(env.work, '회의비 안내.md');
+    writeFileSync(md, '# 회의비 안내\n\n제1조(회의비) 회의 식대는 1인당 30,000원 이내로 집행한다.\n제2조(증빙) 참석자 명단과 영수증을 붙인다.\n제3조(한도) 같은 날 두 번 집행하지 않는다.');
+    const bin = join(env.work, '그림 묶음.dat');
+    writeFileSync(bin, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 1, 2, 3, 0, 255, 254]));
+    const r = await call('budget_guide_add', { paths: [html, md, bin] });
+    expect(r.added.map((g: { name: string; articles: number }) => [g.name, g.articles])).toEqual([['여비 규정.htm', 3], ['회의비 안내.md', 3]]);
+    expect(r.failed).toHaveLength(1);
+    expect(r.failed[0].error).toMatch(/글자로 읽을 수 없는 파일/);
+    const c = await call('budget_guide_clause', { id: r.added[0].id, no: '제2조' });
+    expect(c.text).toContain('1박당 70,000원 이내');
+    expect(c.text).not.toContain('<p>');
+    for (const g of r.added) await call('budget_guide_remove', { id: g.id });
+  }, 30_000);
 });
 
 describe('추천 점수', () => {
