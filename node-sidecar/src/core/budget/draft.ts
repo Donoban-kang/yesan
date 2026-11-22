@@ -142,3 +142,51 @@ export function subjectName(name: string): string {
   const head = name.replace(/\s*\(.*$/, '');
   return head.split('-').pop()?.trim() || head;
 }
+
+/** 품의서(지출 품의) 기안문 초안 — generate_hwpx 의 기안문(official) 꼴 markdown.
+ *  결의서 적요와 같은 값으로 "1. 관련 → 2. 지출 품의(가. 건명 나. 금액 다. 예산과목 …)" 짜임. 모르는 값은 "○○"로 비운다 (지어내지 않음).
+ *  기관 서식이 있으면 사람이 편집기에서 옮겨 붙인다. 이 글은 초안이다. */
+export function buildProposalMarkdown(p: DraftInput & { org_unit?: string }): string {
+  const amount = Math.round(p.amount);
+  const account = clean(p.account) || '○○회계';
+  const subject = clean(p.subject) || '○○';
+  const money = `금${won(amount)}원(금${koreanAmount(amount)}원)`;
+  const title = clean(p.title);
+  const lines: string[] = [];
+  const related = clean(p.related);
+  let n = 1;
+  if (p.kind === 'travel') {
+    const content = clean(p.content) || contentOf(p.title) || '○○';
+    lines.push(`# ${content.replace(/\s*참석$/, '')} 출장여비 지급 품의`, '');
+    if (related) lines.push(`${n++}. 관련: ${related}`);
+    lines.push(`${n++}. 위 ${related ? '관련으로' : '출장과 관련하여'} 출장여비를 아래와 같이 지급하고자 합니다.`,
+      `  가. 출장 내용: ${EVENT.test(content) && !/참석$/.test(content) ? `${content} 참석` : content}`,
+      `  나. 일시 및 출장지: ${[clean(p.period), clean(p.place)].filter(Boolean).join(', ') || '○○'}`,
+      `  다. 지급금액: ${money}`,
+      `  라. 예산과목: ${account}-${subject}`,
+      '', '붙임  1. 출장 신청서 1부.', '2. 여비 정산 신청서 및 증빙 1부.  끝.');
+    return lines.join('\n');
+  }
+  if (p.kind === 'purchase') {
+    const name = title || '부서 운영 물품 구매';
+    lines.push(`# ${name.replace(/\s*(결의|품의)$/, '')} 품의`, '');
+    if (related) lines.push(`${n++}. 관련: ${related}`);
+    lines.push(`${n++}. ${clean(p.org_unit) || '부서'} 운영에 필요한 물품을 아래와 같이 구매하고자 합니다.`,
+      `  가. 건명: ${name}`,
+      `  나. 구입품목: ${clean(p.items) || '○○'}`,
+      `  다. 소요금액: ${money} 이내`,
+      `  라. 예산과목: ${account}-${subject}`,
+      `  마. 구매 방법: ○○(견적 비교 후 결정)`,
+      '', '붙임  1. 견적서 1부.  끝.');
+    return lines.join('\n');
+  }
+  const name = title || '○○';
+  lines.push(`# ${name.replace(/\s*(안내|알림|협조\s*요청)$/, '')} 경비 지출 품의`, '');
+  if (related) lines.push(`${n++}. 관련: ${related}`);
+  lines.push(`${n++}. ${related ? '위 관련으로 ' : ''}소요 경비를 아래와 같이 지출하고자 합니다.`,
+    `  가. 건명: ${name}`,
+    `  나. 내용: ${clean(p.content) || contentOf(p.title) || '○○'}`,
+    `  다. 소요금액: ${money}`,
+    `  라. 예산과목: ${account}-${subject}  끝.`);
+  return lines.join('\n');
+}

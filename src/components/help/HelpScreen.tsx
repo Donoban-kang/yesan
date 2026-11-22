@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Search, X } from "lucide-react";
 import { ScreenHeader } from "../shell/ScreenHeader";
+import { useApp } from "../../state/app";
 import "./help.css";
 
 const PAGES = import.meta.glob("../../../docs/manual/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
@@ -31,7 +32,11 @@ const imageUrl = (src = "") => {
 
 const slug = (s: string) => s.replace(/\s+/g, "-");
 
+/** 도움말 머리에 보일 만든이 */
+const AUTHOR = "강원대학교 강돈호";
+
 export function HelpScreen({ active }: { active: boolean }) {
+  const { system } = useApp();
   const [cur, setCur] = useState(CHAPTERS[0]?.id ?? "");
   const [q, setQ] = useState("");
   const body = useRef<HTMLDivElement>(null);
@@ -51,7 +56,13 @@ export function HelpScreen({ active }: { active: boolean }) {
 
   return (
     <div className="kd-screen" hidden={!active}>
-      <ScreenHeader title="도움말" sub="기능마다 무엇을 하는지, 어떻게 쓰는지, 막혔을 때 어떻게 하는지 적었습니다." />
+      <ScreenHeader title="도움말" sub="기능마다 무엇을 하는지, 어떻게 쓰는지, 막혔을 때 어떻게 하는지 적었습니다."
+        actions={
+          <dl className="kd-help-about kd-small" aria-label="프로그램 정보">
+            <div><dt>버전</dt><dd className="kd-num">KnuDoc AI {system?.app_version ? `v${system.app_version}` : "(읽는 중)"}</dd></div>
+            <div><dt>만든이</dt><dd>{AUTHOR}</dd></div>
+          </dl>
+        } />
       <div className="kd-help">
         <nav className="kd-help-toc" aria-label="설명서 목차">
           <label className="kd-help-search">
