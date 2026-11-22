@@ -42,3 +42,9 @@
 .kd-prose th, .kd-prose td { padding: 9px 12px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; }
 .kd-prose th { font-weight: 600; color: var(--color-text-primary); background: var(--color-bg-primary); }
 .kd-prose hr { margin: 32px 0; border: 0; border-top: 1px solid var(--color-border); }
+
+/* 머리 오른쪽 프로그램 정보 (버전·만든이) */
+.kd-help-about { display: flex; flex-direction: column; gap: 2px; margin: 0; text-align: right; }
+.kd-help-about > div { display: flex; justify-content: flex-end; gap: 8px; }
+.kd-help-about dt { color: var(--color-text-muted); }
+.kd-help-about dd { margin: 0; font-weight: 600; }
