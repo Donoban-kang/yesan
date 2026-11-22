@@ -1,9 +1,12 @@
 /** 결의서 입력 초안 — 고른 과목·금액으로 회계 시스템에 옮겨 적을 건명·적요와 증빙 확인표 (core/budget/draft 의 순수 함수) */
 
 import { useMemo, useState } from "react";
-import { ClipboardCopy, ListChecks } from "lucide-react";
+import { ClipboardCopy, FileDown, ListChecks } from "lucide-react";
 import type { BudgetAnalysis, BudgetItemView } from "../../lib/contract";
-import { buildDraft, draftKindOf, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
+import { buildDraft, buildProposalMarkdown, draftKindOf, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
+import { rpc } from "../../lib/rpc";
+import { useTask } from "../../hooks/useTask";
+import { ErrorLine, SavedFile, Working } from "../common/Status";
 import { useApp } from "../../state/app";
 import { Button } from "../ui/Button";
 import { Seg } from "../common/Field";
@@ -20,6 +23,14 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
   const d = useMemo(() => buildDraft({
     kind, title: analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today,
   }), [kind, analysis.title, analysis.period, related, place, items, amount, accountLabel, item.name, today]);
+
+  const proposal = useTask<string>();
+  const saveProposal = () => void proposal.run(async () => {
+    const markdown = buildProposalMarkdown({ kind, title: analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
+    const r = await rpc("generate_hwpx", { markdown, preset: "official" });
+    if (!r.output_path) throw new Error("품의서 초안을 저장하지 못했습니다. 다시 눌러 보세요.");
+    return r.output_path;
+  });
 
   const copy = async (text: string, what: string) => {
     try {
@@ -51,6 +62,14 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
         <p className="kd-inset kd-small p-2" style={{ userSelect: "text" }}>{d.title}</p>
         <div className="flex items-center justify-between gap-2"><span className="kd-label">적요</span><Button size="sm" variant="ghost" onClick={() => void copy(d.memo, "적요")}><ClipboardCopy size={13} /> 복사</Button></div>
         <p className="kd-inset kd-small p-2" style={{ userSelect: "text", whiteSpace: "pre-wrap" }}>{d.memo}</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {proposal.busy ? <Working label="품의서 초안을 만드는 중" /> : (
+          <div><Button size="sm" variant="secondary" onClick={saveProposal}><FileDown size={13} /> 품의서 초안 HWPX로 저장</Button></div>
+        )}
+        <ErrorLine message={proposal.error} />
+        {proposal.result && <SavedFile path={proposal.result} label="품의서 초안을 저장했습니다. 기관 서식에 옮기거나 편집기에서 다듬으세요" />}
+        <p className="kd-small kd-muted">기안문 꼴(1. 가.)로 건명·금액(숫자와 한글)·예산과목을 채우고, 모르는 값은 ○○로 비워 둡니다.</p>
       </div>
       <details>
         <summary className="kd-label flex cursor-pointer items-center gap-1"><ListChecks size={14} aria-hidden="true" /> 증빙 확인표 ({d.checklist.length})</summary>

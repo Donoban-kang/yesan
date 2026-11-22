@@ -34,3 +34,42 @@ describe('결의서 입력 초안', () => {
     expect(draftKindOf('행사')).toBe('general');
   });
 });
+
+describe('품의서 기안문 초안 (F-10)', () => {
+  it('여비·물품·일반: 기안문 꼴(# 제목, 1. 가.), 금액은 숫자와 한글, 모르는 값은 ○○, 끝 표시', async () => {
+    const { buildProposalMarkdown } = await import('../src/core/budget/draft.js');
+    const t = buildProposalMarkdown({ kind: 'travel', title: '2026 가온 교육혁신 포럼 개최 안내', related: '가온지원과-1234(2026. 11. 4.)', period: '2026. 11. 20.', amount: 103_440, account: '대학회계', subject: '국내여비' });
+    expect(t.split('\n')[0]).toBe('# 2026 가온 교육혁신 포럼 출장여비 지급 품의');
+    expect(t).toContain('1. 관련: 가온지원과-1234(2026. 11. 4.)');
+    expect(t).toContain('  가. 출장 내용: 2026 가온 교육혁신 포럼 참석');
+    expect(t).toContain('  다. 지급금액: 금103,440원(금일십만삼천사백사십원)');
+    expect(t).toContain('  라. 예산과목: 대학회계-국내여비');
+    expect(t.trim().endsWith('끝.')).toBe(true);
+
+    const b = buildProposalMarkdown({ kind: 'purchase', title: '사무용품 구매', amount: 250_000, subject: '일반수용비' });
+    expect(b).toContain('# 사무용품 구매 품의');
+    expect(b).not.toContain('관련:');
+    expect(b).toMatch(/^1\. 부서 운영에/m);
+    expect(b).toContain('  나. 구입품목: ○○');
+    expect(b).toContain('  라. 예산과목: ○○회계-일반수용비');
+
+    const g = buildProposalMarkdown({ kind: 'general', amount: 1_000 });
+    expect(g).toContain('  다. 소요금액: 금1,000원(금일천원)');
+    expect(g.trim().endsWith('끝.')).toBe(true);
+  });
+
+  it('만든 글이 기안문 HWPX 로 만들어진다 (generate_hwpx)', async () => {
+    const { buildProposalMarkdown } = await import('../src/core/budget/draft.js');
+    const { call, setupEnv } = await import('./doc-helpers.js');
+    const env = setupEnv();
+    const md = buildProposalMarkdown({ kind: 'purchase', title: '사무용품 구매', amount: 250_000, account: '대학회계', subject: '일반수용비' });
+    const { join } = await import('node:path');
+    const out = join(env.work, '사무용품 구매 품의.hwpx');
+    const r = await call('generate_hwpx', { markdown: md, preset: 'official', output_path: out, no_usage: true });
+    expect(r.output_path).toBe(out);
+    const { parse } = await import('kordoc');
+    const { readFileSync } = await import('node:fs');
+    const back = await parse(readFileSync(out));
+    expect(back.success && back.markdown).toContain('일반수용비');
+  }, 30_000);
+});
