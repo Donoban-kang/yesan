@@ -165,7 +165,7 @@ describe('Claude Code', () => {
 
   it('응답이 멈추면 시간 제한으로 끊고 프로세스를 끝낸다, 취소하면 AbortError', async () => {
     const slow = rig(FAKE_CLAUDE, 'claude-code', { FAKE_CLAUDE_MODE: 'hang' });
-    const err = await failOf(createClaudeCodeProvider({ model: '', cli_path: '' }, 600, slow.deps).chat(req()));
+    const err = await failOf(createClaudeCodeProvider({ model: '', cli_path: '' }, 3000, slow.deps).chat(req()));
     expect(err.kind).toBe('timeout');
     expect(err.message).toMatch(/초 동안 응답하지 않아 멈췄습니다/);
     expect(await gone(lastRun(slow.log).pid!)).toBe(true);
@@ -309,7 +309,7 @@ describe('Codex', () => {
 
   it('응답이 멈추면 끊고 프로세스를 끝낸다', async () => {
     const { log, deps } = rig(FAKE_CODEX, 'codex', { FAKE_CODEX_MODE: 'hang' });
-    expect((await failOf(createCodexProvider({ model: '', cli_path: '' }, 600, deps).chat(req()))).kind).toBe('timeout');
+    expect((await failOf(createCodexProvider({ model: '', cli_path: '' }, 3000, deps).chat(req()))).kind).toBe('timeout');
     expect(await gone(runs(log).find((e) => e.args![0] === 'exec')!.pid!)).toBe(true);
   });
 
@@ -455,7 +455,8 @@ describe('Antigravity CLI (agy, 예전 Gemini CLI 자리)', () => {
     expect(await createGeminiCliProvider(gp(), 1000, linger.deps).chat(req())).toBe('안녕하세요');
     expect(await gone(lastRun(linger.log).pid!)).toBe(true);
     const hang = grig('hang');
-    expect((await failOf(createGeminiCliProvider(gp(), 600, hang.deps).chat(req()))).kind).toBe('timeout');
+    // 제한이 짧으면 붐비는 실행기에서 가짜 agy 가 시작 기록(pid)을 남기기 전에 끊긴다 (macOS CI 실측: 0.6초)
+    expect((await failOf(createGeminiCliProvider(gp(), 3000, hang.deps).chat(req()))).kind).toBe('timeout');
     expect(await gone(lastRun(hang.log).pid!)).toBe(true);
   });
 

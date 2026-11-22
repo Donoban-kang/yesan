@@ -95,7 +95,7 @@ describe('redact', () => {
       expect(r.total).toBe(1);
       expect(r.output_path).toMatch(/스캔_가림\.pdf$/);
     }
-  });
+  }, 60_000); // 글자 읽기(OCR) 모델을 불러온다: Windows CI 는 처음 부를 때 10초를 넘겼다
 
   it('PDF — 글자층이 있는 쪽에 붙은 그림 속 글자도 읽어 가린다 (못 읽으면 숨기지 않고 알린다)', async () => {
     const { PDFDocument, StandardFonts } = await import('pdf-lib');
@@ -114,7 +114,7 @@ describe('redact', () => {
     } else {
       expect(r.total).toBe(2);
     }
-  });
+  }, 60_000); // 글자 읽기(OCR) 모델을 불러온다: Windows CI 는 처음 부를 때 10초를 넘겼다
 
   it('PDF 양식 칸에 적어 넣은 개인정보 — 미리 찾기는 칸이 있다고 알리고, 가릴 때 칸 속 글자까지 읽어 가린다', async () => {
     const { PDFDocument, StandardFonts } = await import('pdf-lib');
@@ -203,7 +203,7 @@ describe('redact', () => {
     // 미리 찾아보기도 같은 안내를 낸다 (가릴 것이 본문에 없어도 그림은 본다)
     const dry = await call('redact', { path: await withPicture('신분증2', 'mail hong@gaon.example'), rules: ['email'], dry_run: true });
     expect(dry.notes?.length).toBeGreaterThanOrEqual(1);
-  });
+  }, 60_000); // 글자 읽기(OCR) 모델을 불러온다: Windows CI 는 처음 부를 때 10초를 넘겼다
 
   it('주소만 있는 문서 — 엔진 규칙에 안 걸려도 가린 사본을 만들고, 첫 쪽 미리보기 글에도 남기지 않는다', async () => {
     const JSZip = (await import('jszip')).default;
