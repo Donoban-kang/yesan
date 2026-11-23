@@ -23,7 +23,7 @@ KnuDoc AI를 설치하고 처음 켤 때 나오는 시작 준비 창을 마친 �
 
 따라 하기 (Windows)
 
-1. GitHub 릴리스(github.com/Donoban-kang/yesan/releases)에서 `KnuDoc.AI_2.3.2_x64-setup.exe` 파일을 받습니다.
+1. GitHub 릴리스(github.com/Donoban-kang/yesan/releases)에서 `KnuDoc.AI_2.3.3_x64-setup.exe` 파일을 받습니다.
 2. 받은 파일을 두 번 누릅니다. 관리자 권한은 필요 없습니다. 내 사용자 계정에만 설치됩니다.
 3. "Windows의 PC 보호" 창이 뜨면 **추가 정보**를 누른 뒤 **실행**을 누릅니다. 코드 서명 전이라 처음 한 번만 묻습니다.
 4. 설치가 끝나면 시작 메뉴에서 **KnuDoc AI**를 엽니다.
