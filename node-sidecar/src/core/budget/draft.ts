@@ -130,6 +130,11 @@ export function buildDraft(p: DraftInput): Draft {
   };
 }
 
+/** 건명 끝의 "(MM.DD)" 지출일 표시를 뗀다 (사용자가 고친 건명으로 품의서 초안을 만들 때) */
+export function stripDateTail(title: string): string {
+  return title.replace(/\s*\(\d{2}\.\d{2}\)\s*$/, '').trim();
+}
+
 /** 거래 성격 → 초안 갈래 */
 export function draftKindOf(nature?: string): DraftKind {
   if (nature === '여비') return 'travel';

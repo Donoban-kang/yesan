@@ -1,9 +1,9 @@
 /** 결의서 입력 초안 — 고른 과목·금액으로 회계 시스템에 옮겨 적을 건명·적요와 증빙 확인표 (core/budget/draft 의 순수 함수) */
 
 import { useMemo, useState } from "react";
-import { ClipboardCopy, FileDown, ListChecks } from "lucide-react";
+import { ClipboardCopy, FileDown, ListChecks, Undo2 } from "lucide-react";
 import type { BudgetAnalysis, BudgetItemView } from "../../lib/contract";
-import { buildDraft, buildProposalMarkdown, draftKindOf, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
+import { buildDraft, buildProposalMarkdown, draftKindOf, stripDateTail, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
 import { rpc } from "../../lib/rpc";
 import { useTask } from "../../hooks/useTask";
 import { ErrorLine, SavedFile, Working } from "../common/Status";
@@ -24,9 +24,18 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
     kind, title: analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today,
   }), [kind, analysis.title, analysis.period, related, place, items, amount, accountLabel, item.name, today]);
 
+  // 사용자가 고친 건명·적요 (null 이면 자동 초안을 그대로 따라간다. 갈래·금액을 바꿔도 고친 값은 유지)
+  const [titleEdit, setTitleEdit] = useState<string | null>(null);
+  const [memoEdit, setMemoEdit] = useState<string | null>(null);
+  const title = titleEdit ?? d.title;
+  const memo = memoEdit ?? d.memo;
+  const noTitle = !analysis.title?.trim();
+
   const proposal = useTask<string>();
   const saveProposal = () => void proposal.run(async () => {
-    const markdown = buildProposalMarkdown({ kind, title: analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
+    // 여비 정산은 건명이 정해진 글이라 품의서 제목에 쓰지 않는다. 그 밖에는 고친 건명을 쓴다(끝의 지출일 표시는 뗀다)
+    const proposalTitle = kind !== "travel" && titleEdit != null ? stripDateTail(titleEdit) : analysis.title;
+    const markdown = buildProposalMarkdown({ kind, title: proposalTitle, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
     const r = await rpc("generate_hwpx", { markdown, preset: "official" });
     if (!r.output_path) throw new Error("품의서 초안을 저장하지 못했습니다. 다시 눌러 보세요.");
     return r.output_path;
@@ -58,10 +67,24 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
         <label className="kd-field"><span className="kd-label">구입품목 요약</span><input className="kd-input" value={items} onChange={(e) => setItems(e.target.value)} placeholder="예: 진행문서화일 및 각종 문구류 77개" /></label>
       )}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2"><span className="kd-label">건명</span><Button size="sm" variant="ghost" onClick={() => void copy(d.title, "건명")}><ClipboardCopy size={13} /> 복사</Button></div>
-        <p className="kd-inset kd-small p-2" style={{ userSelect: "text" }}>{d.title}</p>
-        <div className="flex items-center justify-between gap-2"><span className="kd-label">적요</span><Button size="sm" variant="ghost" onClick={() => void copy(d.memo, "적요")}><ClipboardCopy size={13} /> 복사</Button></div>
-        <p className="kd-inset kd-small p-2" style={{ userSelect: "text", whiteSpace: "pre-wrap" }}>{d.memo}</p>
+        <div className="flex items-center justify-between gap-2">
+          <label className="kd-label" htmlFor="vd-title">건명{titleEdit != null && <span className="kd-small kd-muted"> · 직접 고침</span>}</label>
+          <span className="flex items-center gap-1">
+            {titleEdit != null && <Button size="sm" variant="ghost" onClick={() => setTitleEdit(null)}><Undo2 size={13} /> 자동 초안으로</Button>}
+            <Button size="sm" variant="ghost" onClick={() => void copy(title, "건명")}><ClipboardCopy size={13} /> 복사</Button>
+          </span>
+        </div>
+        <input id="vd-title" className="kd-input" value={title} onChange={(e) => setTitleEdit(e.target.value)} />
+        {noTitle && titleEdit == null && <p className="kd-small kd-muted">공문에서 건명을 읽지 못했습니다. 위 칸에 직접 적어 주세요.</p>}
+        <div className="flex items-center justify-between gap-2">
+          <label className="kd-label" htmlFor="vd-memo">적요{memoEdit != null && <span className="kd-small kd-muted"> · 직접 고침</span>}</label>
+          <span className="flex items-center gap-1">
+            {memoEdit != null && <Button size="sm" variant="ghost" onClick={() => setMemoEdit(null)}><Undo2 size={13} /> 자동 초안으로</Button>}
+            <Button size="sm" variant="ghost" onClick={() => void copy(memo, "적요")}><ClipboardCopy size={13} /> 복사</Button>
+          </span>
+        </div>
+        <textarea id="vd-memo" className="kd-input" rows={4} value={memo} onChange={(e) => setMemoEdit(e.target.value)} style={{ resize: "vertical" }} />
+        <p className="kd-small kd-muted">건명과 적요는 직접 고칠 수 있습니다. 고친 값은 복사와 품의서 초안에 그대로 쓰이고, 금액·갈래를 바꿔도 유지됩니다.</p>
       </div>
       <div className="flex flex-col gap-1.5">
         {proposal.busy ? <Working label="품의서 초안을 만드는 중" /> : (
