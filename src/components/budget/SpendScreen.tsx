@@ -2,7 +2,7 @@
  *  ① 공문 ② 읽은 값 확인 ③ 과목 고르기 ④ 반영 전 잔액 확인. 반영은 늘 사람이 누르고 한 번 더 확인한다 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChartColumn, FilePlus2, NotebookPen, Search, Sparkles, Wallet } from "lucide-react";
+import { Check, ChartColumn, FilePlus2, NotebookPen, Sparkles, Wallet } from "lucide-react";
 import type { BudgetAnalysis, BudgetItemView, BudgetSuggestion, RpcResult } from "../../lib/contract";
 import { useApp } from "../../state/app";
 import { rpc, errorText } from "../../lib/rpc";
@@ -18,6 +18,7 @@ import { VoucherDraft } from "./VoucherDraft";
 import { EvidenceCheck } from "./EvidenceCheck";
 import { GuideRefs } from "./GuideRefs";
 import { SplitApply } from "./SplitApply";
+import { ItemTree, projectOf } from "./ItemTree";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -32,6 +33,8 @@ export function SpendScreen({ active }: { active: boolean }) {
   const [account, setAccount] = useState("");
   const [suggestions, setSuggestions] = useState<BudgetSuggestion[]>([]);
   const [itemId, setItemId] = useState<string | null>(null);
+  /** 사람이 과목표·같은 세부사업 목록에서 직접 고른 과목이면 금액·회계 구분을 바꿔 다시 추천해도 바꾸지 않는다 */
+  const manualPick = useRef(false);
   const [pickMode, setPickMode] = useState<"suggest" | "tree">("suggest");
   const [search, setSearch] = useState("");
   /** 과목표에서 직접 찾기: 먼저 고른 세부사업(회계 › 정책 › 단위 › 세부 경로). 빈 글이면 전체 */
@@ -49,7 +52,7 @@ export function SpendScreen({ active }: { active: boolean }) {
   const warnAt = settings?.budget?.warn_at ?? 90;
   const overBlock = settings?.budget?.over_block ?? true;
   const accounts = book?.accounts ?? [];
-  const label = (id: string) => accounts.find((x) => x.id === id)?.label ?? id;
+  const label = useCallback((id: string) => accounts.find((x) => x.id === id)?.label ?? id, [accounts]);
 
   // 받은 공문 목록 (할 일 먼저) — 공문을 고르는 가장 빠른 길
   useEffect(() => {
@@ -72,6 +75,7 @@ export function SpendScreen({ active }: { active: boolean }) {
     setEvidenceNote("");
     setAccount(r.account_hint ?? "");
     setSuggestions(r.suggestions);
+    manualPick.current = false;
     setItemId(r.suggestions[0]?.item.id ?? null);
     setPickMode(r.suggestions.length ? "suggest" : "tree");
   }, [analysis, toast]);
@@ -92,7 +96,7 @@ export function SpendScreen({ active }: { active: boolean }) {
     try {
       const list = await rpc("budget_suggest", { text: a.basis, nature: a.nature, account: acc || undefined, amount: amt || undefined, sender: a.sender, subjects: subjectsRef.current ?? a.subjects });
       setSuggestions(list);
-      setItemId((cur) => (cur && list.some((s) => s.item.id === cur) ? cur : list[0]?.item.id ?? cur));
+      setItemId((cur) => (cur && (manualPick.current || list.some((s) => s.item.id === cur)) ? cur : list[0]?.item.id ?? cur));
     } catch (e) {
       toast(`다시 추천하지 못했습니다: ${errorText(e)}`, "error");
     }
@@ -136,17 +140,6 @@ export function SpendScreen({ active }: { active: boolean }) {
   const pick = () => void pickFiles({ filters: LETTER_FILTER, multiple: false }).then((p) => { if (p[0]) void analyze(p[0]); });
   const noItems = !!book && items.length === 0;
 
-  const q = search.trim();
-  const projectOf = (x: BudgetItemView) => `${x.account}|${itemPath(x)}`;
-  const inAccount = items.filter((x) => !account || x.account === account);
-  /** 세부사업마다 과목 수·예산·가용 잔액 합계 (과목표 차례 그대로) */
-  const projects = [...inAccount.reduce((m, x) => {
-    const k = projectOf(x);
-    const p = m.get(k) ?? { key: k, label: `${label(x.account)} › ${itemPath(x) || "사업 없음"}`, count: 0, budget: 0, avail: 0 };
-    p.count++; p.budget += x.budget; p.avail += x.avail;
-    return m.set(k, p);
-  }, new Map<string, { key: string; label: string; count: number; budget: number; avail: number }>()).values()];
-  const treeItems = inAccount.filter((x) => (!project || projectOf(x) === project) && (!q || `${itemPath(x)} ${x.name} ${x.code ?? ""}`.includes(q)));
   /** 고른 과목과 같은 세부사업의 다른 과목 (바꿔 고르기) */
   const siblings = item ? items.filter((x) => !x.retired && x.id !== item.id && projectOf(x) === projectOf(item)) : [];
 
@@ -269,7 +262,7 @@ export function SpendScreen({ active }: { active: boolean }) {
 
               <div className="kd-step" data-on={!!a}><b>3</b>예산 과목 고르기</div>
               {accounts.length > 0 && (
-                <Seg label="회계 구분" value={account} onChange={(v) => { setAccount(v); void resuggest(v, amount); }}
+                <Seg label="회계 구분" value={account} onChange={(v) => { setAccount(v); manualPick.current = false; void resuggest(v, amount); }}
                   options={[{ value: "", label: "전체" }, ...accounts.map((x) => ({ value: x.id, label: x.label }))]} />
               )}
               <Seg label="고르는 방법" value={pickMode} onChange={setPickMode} options={[{ value: "suggest", label: `추천 ${suggestions.length}` }, { value: "tree", label: "과목표에서 직접 찾기" }]} />
@@ -278,7 +271,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {!a ? <p className="kd-small kd-muted">공문을 읽으면 맞는 과목을 추천합니다.</p>
                     : suggestions.length === 0 ? <Note tone="info">맞는 과목을 찾지 못했습니다. 과목표에서 직접 찾으세요. 과목에 추천 낱말을 더하면 다음부터 찾습니다(예산 현황).</Note>
                       : suggestions.map((s, i) => (
-                        <button key={s.item.id} type="button" role="radio" aria-checked={itemId === s.item.id} className="kd-sug" onClick={() => { setItemId(s.item.id); setConfirming(false); }}>
+                        <button key={s.item.id} type="button" role="radio" aria-checked={itemId === s.item.id} className="kd-sug" onClick={() => { manualPick.current = false; setItemId(s.item.id); setConfirming(false); }}>
                           <span className="kd-sug-radio" aria-hidden="true" />
                           <span className="min-w-0">
                             <span className="kd-sug-path block">{label(s.item.account)} · {itemPath(s.item) || "사업 없음"}</span>
@@ -291,37 +284,8 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {a && suggestions.length > 0 && <p className="kd-small kd-muted flex items-center gap-1"><Sparkles size={13} aria-hidden="true" /> 점수는 순서를 정할 뿐 확률이 아닙니다. 근거를 보고 고르세요.</p>}
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
-                  <label className="kd-field">
-                    <span className="kd-label">① 세부사업</span>
-                    <select className="kd-input" value={projects.some((p) => p.key === project) ? project : ""} onChange={(e) => setProject(e.target.value)}>
-                      <option value="">전체 세부사업 ({projects.length}개)</option>
-                      {projects.map((p) => <option key={p.key} value={p.key}>{p.label} · 과목 {p.count}개 · 잔액 {won(p.avail)}원</option>)}
-                    </select>
-                  </label>
-                  <span className="kd-label">② 과목</span>
-                  <label className="relative block">
-                    <span className="sr-only">과목 찾기</span>
-                    <Search size={15} className="kd-muted absolute left-2.5 top-2.5" aria-hidden="true" />
-                    <input className="kd-input" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="사업명·과목명·코드로 찾기 (예: 여비)" />
-                  </label>
-                  <div className="kd-tree">
-                    {treeItems.length === 0 ? <p className="kd-small kd-muted p-3">찾는 과목이 없습니다.</p> : treeItems.map((x, i) => {
-                      const g = `${label(x.account)} › ${itemPath(x) || "사업 없음"}`;
-                      const prev = treeItems[i - 1];
-                      const head = !prev || `${label(prev.account)} › ${itemPath(prev) || "사업 없음"}` !== g;
-                      return (
-                        <div key={x.id}>
-                          {head && <div className="kd-tree-g">{g}</div>}
-                          <button type="button" className="kd-tree-row" aria-pressed={itemId === x.id} onClick={() => { setItemId(x.id); setConfirming(false); }}>
-                            <span className="font-semibold">{x.name}{x.code && <span className="kd-small kd-muted"> ({x.code})</span>}</span>
-                            <span className="kd-small kd-muted kd-num">잔액 {won(x.avail)}</span>
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <ItemTree items={items} account={account} label={label} itemId={itemId} onPick={(id) => { manualPick.current = true; setItemId(id); setConfirming(false); }}
+                  project={project} onProject={setProject} search={search} onSearch={setSearch} />
               )}
               <GuideRefs analysis={a ?? null} item={item} year={book?.year} />
             </div>
@@ -340,7 +304,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {siblings.length > 0 && (
                     <label className="kd-field">
                       <span className="kd-small kd-muted">같은 세부사업의 다른 과목으로 바꾸기</span>
-                      <select className="kd-input" value="" onChange={(e) => { if (e.target.value) { setItemId(e.target.value); setConfirming(false); } }}>
+                      <select className="kd-input" value="" onChange={(e) => { if (e.target.value) { manualPick.current = true; setItemId(e.target.value); setConfirming(false); } }}>
                         <option value="">과목 {siblings.length + 1}개 중 고르기</option>
                         {siblings.map((x) => <option key={x.id} value={x.id}>{x.name}{x.code ? ` (${x.code})` : ""} · 잔액 {won(x.avail)}원</option>)}
                       </select>

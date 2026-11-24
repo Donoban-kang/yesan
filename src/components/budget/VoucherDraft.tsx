@@ -6,7 +6,7 @@ import type { BudgetAnalysis, BudgetItemView } from "../../lib/contract";
 import { buildDraft, buildProposalMarkdown, draftKindOf, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
 import { rpc } from "../../lib/rpc";
 import { useTask } from "../../hooks/useTask";
-import { ErrorLine, SavedFile, Working } from "../common/Status";
+import { ErrorLine, Note, SavedFile, Working } from "../common/Status";
 import { useApp } from "../../state/app";
 import { Button } from "../ui/Button";
 import { Seg } from "../common/Field";
@@ -25,16 +25,19 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
   }), [kind, analysis.title, analysis.period, related, place, items, amount, accountLabel, item.name, today]);
 
   /** 사람이 고친 건명·적요 (갈래마다 따로 둔다. 없으면 만든 글 그대로) */
-  const [edits, setEdits] = useState<Partial<Record<DraftKind, { title?: string; memo?: string }>>>({});
+  //   base = 고치기 시작할 때 앱이 만든 글. 그 뒤 금액·관련 문서 등이 바뀌어 만든 글이 달라지면 고친 글에 예전 값이 남았다고 알린다
+  type Edit = { text: string; base: string };
+  const [edits, setEdits] = useState<Partial<Record<DraftKind, { title?: Edit; memo?: Edit }>>>({});
   const mine = edits[kind] ?? {};
-  const title = mine.title ?? d.title;
-  const memo = mine.memo ?? d.memo;
-  const edit = (k: "title" | "memo", v: string) => setEdits((e) => ({ ...e, [kind]: { ...e[kind], [k]: v } }));
+  const title = mine.title?.text ?? d.title;
+  const memo = mine.memo?.text ?? d.memo;
+  const stale = (["title", "memo"] as const).filter((k) => mine[k] && mine[k]!.base !== d[k]);
+  const edit = (k: "title" | "memo", v: string) => setEdits((e) => ({ ...e, [kind]: { ...e[kind], [k]: { text: v, base: e[kind]?.[k]?.base ?? d[k] } } }));
   const reset = (k: "title" | "memo") => setEdits((e) => ({ ...e, [kind]: { ...e[kind], [k]: undefined } }));
 
   const proposal = useTask<string>();
   const saveProposal = () => void proposal.run(async () => {
-    const markdown = buildProposalMarkdown({ kind, title: mine.title !== undefined ? mine.title.replace(/\s*\(\d{2}\.\d{2}\)$/, "") : analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
+    const markdown = buildProposalMarkdown({ kind, title: mine.title ? mine.title.text.replace(/\s*\(\d{2}\.\d{2}\)$/, "") : analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
     const r = await rpc("generate_hwpx", { markdown, preset: "official" });
     if (!r.output_path) throw new Error("품의서 초안을 저장하지 못했습니다. 다시 눌러 보세요.");
     return r.output_path;
@@ -69,7 +72,7 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
         <div className="flex items-center justify-between gap-2">
           <label className="kd-label" htmlFor="vd-title">건명</label>
           <span className="flex gap-1">
-            {mine.title !== undefined && <Button size="sm" variant="ghost" onClick={() => reset("title")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
+            {mine.title && <Button size="sm" variant="ghost" onClick={() => reset("title")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
             <Button size="sm" variant="ghost" onClick={() => void copy(title, "건명")}><ClipboardCopy size={13} /> 복사</Button>
           </span>
         </div>
@@ -77,11 +80,17 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
         <div className="flex items-center justify-between gap-2">
           <label className="kd-label" htmlFor="vd-memo">적요</label>
           <span className="flex gap-1">
-            {mine.memo !== undefined && <Button size="sm" variant="ghost" onClick={() => reset("memo")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
+            {mine.memo && <Button size="sm" variant="ghost" onClick={() => reset("memo")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
             <Button size="sm" variant="ghost" onClick={() => void copy(memo, "적요")}><ClipboardCopy size={13} /> 복사</Button>
           </span>
         </div>
         <textarea id="vd-memo" className="kd-textarea kd-small w-full resize-y" rows={4} value={memo} onChange={(e) => edit("memo", e.target.value)} />
+        {stale.length > 0 && (
+          <Note tone="warn">
+            고친 뒤에 금액이나 입력값이 바뀌었습니다. 고친 {stale.map((k) => (k === "title" ? "건명" : "적요")).join("·")}에 예전 값이 남아 있을 수 있으니 확인하세요.{" "}
+            <button type="button" className="kd-link kd-small" onClick={() => stale.forEach(reset)}>바뀐 값으로 다시 만들기</button>
+          </Note>
+        )}
         <p className="kd-small kd-muted">건명·적요는 고쳐 쓸 수 있습니다. 고친 글은 갈래(여비 정산·물품 구매·일반 지출)마다 따로 남고, 복사하면 고친 글이 복사됩니다.</p>
       </div>
       <div className="flex flex-col gap-1.5">
