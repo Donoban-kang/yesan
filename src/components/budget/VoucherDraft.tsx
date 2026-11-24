@@ -1,7 +1,7 @@
 /** 결의서 입력 초안 — 고른 과목·금액으로 회계 시스템에 옮겨 적을 건명·적요와 증빙 확인표 (core/budget/draft 의 순수 함수) */
 
 import { useMemo, useState } from "react";
-import { ClipboardCopy, FileDown, ListChecks } from "lucide-react";
+import { ClipboardCopy, FileDown, ListChecks, RotateCcw } from "lucide-react";
 import type { BudgetAnalysis, BudgetItemView } from "../../lib/contract";
 import { buildDraft, buildProposalMarkdown, draftKindOf, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
 import { rpc } from "../../lib/rpc";
@@ -24,9 +24,17 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
     kind, title: analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today,
   }), [kind, analysis.title, analysis.period, related, place, items, amount, accountLabel, item.name, today]);
 
+  /** 사람이 고친 건명·적요 (갈래마다 따로 둔다. 없으면 만든 글 그대로) */
+  const [edits, setEdits] = useState<Partial<Record<DraftKind, { title?: string; memo?: string }>>>({});
+  const mine = edits[kind] ?? {};
+  const title = mine.title ?? d.title;
+  const memo = mine.memo ?? d.memo;
+  const edit = (k: "title" | "memo", v: string) => setEdits((e) => ({ ...e, [kind]: { ...e[kind], [k]: v } }));
+  const reset = (k: "title" | "memo") => setEdits((e) => ({ ...e, [kind]: { ...e[kind], [k]: undefined } }));
+
   const proposal = useTask<string>();
   const saveProposal = () => void proposal.run(async () => {
-    const markdown = buildProposalMarkdown({ kind, title: analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
+    const markdown = buildProposalMarkdown({ kind, title: mine.title !== undefined ? mine.title.replace(/\s*\(\d{2}\.\d{2}\)$/, "") : analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
     const r = await rpc("generate_hwpx", { markdown, preset: "official" });
     if (!r.output_path) throw new Error("품의서 초안을 저장하지 못했습니다. 다시 눌러 보세요.");
     return r.output_path;
@@ -58,10 +66,23 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
         <label className="kd-field"><span className="kd-label">구입품목 요약</span><input className="kd-input" value={items} onChange={(e) => setItems(e.target.value)} placeholder="예: 진행문서화일 및 각종 문구류 77개" /></label>
       )}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2"><span className="kd-label">건명</span><Button size="sm" variant="ghost" onClick={() => void copy(d.title, "건명")}><ClipboardCopy size={13} /> 복사</Button></div>
-        <p className="kd-inset kd-small p-2" style={{ userSelect: "text" }}>{d.title}</p>
-        <div className="flex items-center justify-between gap-2"><span className="kd-label">적요</span><Button size="sm" variant="ghost" onClick={() => void copy(d.memo, "적요")}><ClipboardCopy size={13} /> 복사</Button></div>
-        <p className="kd-inset kd-small p-2" style={{ userSelect: "text", whiteSpace: "pre-wrap" }}>{d.memo}</p>
+        <div className="flex items-center justify-between gap-2">
+          <label className="kd-label" htmlFor="vd-title">건명</label>
+          <span className="flex gap-1">
+            {mine.title !== undefined && <Button size="sm" variant="ghost" onClick={() => reset("title")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
+            <Button size="sm" variant="ghost" onClick={() => void copy(title, "건명")}><ClipboardCopy size={13} /> 복사</Button>
+          </span>
+        </div>
+        <input id="vd-title" className="kd-input kd-small" value={title} onChange={(e) => edit("title", e.target.value)} />
+        <div className="flex items-center justify-between gap-2">
+          <label className="kd-label" htmlFor="vd-memo">적요</label>
+          <span className="flex gap-1">
+            {mine.memo !== undefined && <Button size="sm" variant="ghost" onClick={() => reset("memo")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
+            <Button size="sm" variant="ghost" onClick={() => void copy(memo, "적요")}><ClipboardCopy size={13} /> 복사</Button>
+          </span>
+        </div>
+        <textarea id="vd-memo" className="kd-textarea kd-small w-full resize-y" rows={4} value={memo} onChange={(e) => edit("memo", e.target.value)} />
+        <p className="kd-small kd-muted">건명·적요는 고쳐 쓸 수 있습니다. 고친 글은 갈래(여비 정산·물품 구매·일반 지출)마다 따로 남고, 복사하면 고친 글이 복사됩니다.</p>
       </div>
       <div className="flex flex-col gap-1.5">
         {proposal.busy ? <Working label="품의서 초안을 만드는 중" /> : (
