@@ -91,7 +91,9 @@ const analysisOf = (path: string): BudgetAnalysis => {
       doc_kind: "원인행위서", fiscal_year: 2025, resolution_no: "20251BD0000E40000001", doc_number: "20251BD0000E40000001", title: "[육성]출장여비 정산 결의 요청(교육혁신과/김*온외 1명)",
       sender: "교육혁신과", sent_date: "2026-01-08", purpose: "[육성]출장여비 정산 결의 요청", amount: 412_000,
       amounts: [{ value: 412_000, source: "원인행위서 금액 칸", confidence: 0.97, form: "결의서" }], nature: "여비", nature_words: ["여비"], account_hint: "growth",
-      budget_lines: lines, basis, subjects, suggestions: suggestItems(views, entries, MOCK_BUDGET_SETTINGS, { text: basis, nature: "여비", account: "growth", amount: 412_000, subjects }),
+      budget_lines: lines, basis, subjects,
+      content: "# [육성]출장여비 정산 결의 요청\n\n| 회계연도 | 2025 | 결의구분 | 원인행위 |\n|---|---|---|---|\n| 발의부서 | 교육혁신과 | 발의일자 | 2026-01-08 |\n\n| 세부사업 | 예산과목 | 금액 |\n|---|---|---|\n" + lines.map((l) => `| ${l.detail} | ${l.subject} | ${l.amount.toLocaleString("ko-KR")} |`).join("\n") + "\n\n적요: 1. 관련: 교육혁신과-0000(2026.01.05.) 2. 내용: 가온 교육혁신 포럼 참석 3. 지급금액: 금412,000원",
+      suggestions: suggestItems(views, entries, MOCK_BUDGET_SETTINGS, { text: basis, nature: "여비", account: "growth", amount: 412_000, subjects }),
     };
   }
   const forum = path.includes("포럼");
@@ -109,6 +111,9 @@ const analysisOf = (path: string): BudgetAnalysis => {
     purpose: forum ? "지역 협업 포럼 개최" : "진로체험 버스 임차", period: forum ? "2026. 12. 4.(금) 14:00" : "2026. 11. 27.(금) 08:30~15:30", people: forum ? undefined : "학생 142명, 인솔 8명",
     amount, amounts: [{ value: amount, source: forum ? "나. 소요 예산: 금3,000,000원(행사 운영)" : "라. 소요 예산: 금1,980,000원(45인승 버스 3대, 부가세 포함)", confidence: 0.85, form: "원" }, { value: 660_000, source: "버스 1대 660,000원", confidence: 0.45, form: "원" }],
     nature, nature_words: forum ? ["포럼"] : ["임차", "버스"], ...(account ? { account_hint: account } : {}), basis,
+    content: forum
+      ? "# 글로컬대학 30 지역 협업 포럼 개최 안내\n\n1. 관련: 기획처-70(2026. 11. 3.)\n2. 지역 협업을 위한 포럼을 아래와 같이 개최하오니 참석하여 주시기 바랍니다.\n  가. 일시: 2026. 12. 4.(금) 14:00\n  나. 소요 예산: 금3,000,000원(행사 운영)\n\n붙임  1. 포럼 계획서 1부.  끝."
+      : "# 2026 진로체험 버스 임차 협조 요청\n\n1. 학생 진로체험 활동을 위하여 버스 임차를 아래와 같이 협조 요청하오니 2026. 11. 20.까지 회신하여 주시기 바랍니다.\n  가. 일시: 2026. 11. 27.(금) 08:30~15:30\n  나. 대상: 학생 142명, 인솔 8명\n  다. 차량: 45인승 버스 3대 (1대 660,000원)\n  라. 소요 예산: 금1,980,000원(45인승 버스 3대, 부가세 포함)\n\n| 구분 | 수량 | 단가 | 금액 |\n|---|---|---|---|\n| 45인승 버스 | 3 | 660,000 | 1,980,000 |\n\n붙임  1. 견적서 1부.  끝.",
     suggestions: suggestItems(views, entries, MOCK_BUDGET_SETTINGS, { text: basis, nature, account, amount }),
   };
 };

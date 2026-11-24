@@ -19,6 +19,7 @@ import { EvidenceCheck } from "./EvidenceCheck";
 import { GuideRefs } from "./GuideRefs";
 import { SplitApply } from "./SplitApply";
 import { ItemTree, projectOf } from "./ItemTree";
+import { DocContent } from "./DocContent";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -186,6 +187,7 @@ export function SpendScreen({ active }: { active: boolean }) {
               )}
               {analysis.busy && <Working label="공문을 읽는 중" progress={analysis.progress} onCancel={analysis.cancel} />}
               <ErrorLine message={analysis.error} />
+              {a && !analysis.busy && <DocContent analysis={a} />}
             </div>
 
             {/* ② 읽은 값 · ③ 과목 */}

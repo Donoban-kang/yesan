@@ -741,6 +741,8 @@ export interface BudgetAnalysis {
   path: string;
   name: string;
   format: DocFormat;
+  /** 읽은 본문(마크다운, 앞 10만 자) — 지출 도우미가 "공문 내용"으로 보여 준다. 이 PC 화면에만 쓴다 */
+  content?: string;
   /** HWX 를 어떻게 읽었는지 등 */
   notes: string[];
   /** 공문 · 원인행위서 · 지출결의서 … */
