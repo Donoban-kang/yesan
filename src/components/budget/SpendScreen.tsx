@@ -34,6 +34,8 @@ export function SpendScreen({ active }: { active: boolean }) {
   const [itemId, setItemId] = useState<string | null>(null);
   const [pickMode, setPickMode] = useState<"suggest" | "tree">("suggest");
   const [search, setSearch] = useState("");
+  /** 과목표에서 직접 찾기: 먼저 고른 세부사업(회계 › 정책 › 단위 › 세부 경로). 빈 글이면 전체 */
+  const [project, setProject] = useState("");
   const [stage, setStage] = useState<Stage>("commit");
   const [memo, setMemo] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -135,7 +137,18 @@ export function SpendScreen({ active }: { active: boolean }) {
   const noItems = !!book && items.length === 0;
 
   const q = search.trim();
-  const treeItems = items.filter((x) => (!account || x.account === account) && (!q || `${itemPath(x)} ${x.name} ${x.code ?? ""}`.includes(q)));
+  const projectOf = (x: BudgetItemView) => `${x.account}|${itemPath(x)}`;
+  const inAccount = items.filter((x) => !account || x.account === account);
+  /** 세부사업마다 과목 수·예산·가용 잔액 합계 (과목표 차례 그대로) */
+  const projects = [...inAccount.reduce((m, x) => {
+    const k = projectOf(x);
+    const p = m.get(k) ?? { key: k, label: `${label(x.account)} › ${itemPath(x) || "사업 없음"}`, count: 0, budget: 0, avail: 0 };
+    p.count++; p.budget += x.budget; p.avail += x.avail;
+    return m.set(k, p);
+  }, new Map<string, { key: string; label: string; count: number; budget: number; avail: number }>()).values()];
+  const treeItems = inAccount.filter((x) => (!project || projectOf(x) === project) && (!q || `${itemPath(x)} ${x.name} ${x.code ?? ""}`.includes(q)));
+  /** 고른 과목과 같은 세부사업의 다른 과목 (바꿔 고르기) */
+  const siblings = item ? items.filter((x) => !x.retired && x.id !== item.id && projectOf(x) === projectOf(item)) : [];
 
   return (
     <div className="kd-screen" hidden={!active}>
@@ -279,6 +292,14 @@ export function SpendScreen({ active }: { active: boolean }) {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
+                  <label className="kd-field">
+                    <span className="kd-label">① 세부사업</span>
+                    <select className="kd-input" value={projects.some((p) => p.key === project) ? project : ""} onChange={(e) => setProject(e.target.value)}>
+                      <option value="">전체 세부사업 ({projects.length}개)</option>
+                      {projects.map((p) => <option key={p.key} value={p.key}>{p.label} · 과목 {p.count}개 · 잔액 {won(p.avail)}원</option>)}
+                    </select>
+                  </label>
+                  <span className="kd-label">② 과목</span>
                   <label className="relative block">
                     <span className="sr-only">과목 찾기</span>
                     <Search size={15} className="kd-muted absolute left-2.5 top-2.5" aria-hidden="true" />
@@ -316,6 +337,15 @@ export function SpendScreen({ active }: { active: boolean }) {
                     <span className="kd-sug-path block">{label(item.account)} · {itemPath(item) || "사업 없음"}</span>
                     <span className="kd-sug-name block" style={{ marginBottom: 0 }}>{item.name}</span>
                   </div>
+                  {siblings.length > 0 && (
+                    <label className="kd-field">
+                      <span className="kd-small kd-muted">같은 세부사업의 다른 과목으로 바꾸기</span>
+                      <select className="kd-input" value="" onChange={(e) => { if (e.target.value) { setItemId(e.target.value); setConfirming(false); } }}>
+                        <option value="">과목 {siblings.length + 1}개 중 고르기</option>
+                        {siblings.map((x) => <option key={x.id} value={x.id}>{x.name}{x.code ? ` (${x.code})` : ""} · 잔액 {won(x.avail)}원</option>)}
+                      </select>
+                    </label>
+                  )}
                   <div>
                     <span className="kd-small kd-muted">{already ? "지금 가용 잔액" : "반영 후 가용 잔액"}</span>
                     <div className="kd-big" data-over={over}>{over ? "−" : ""}{won(Math.abs(after))}<small> 원</small></div>
