@@ -36,7 +36,7 @@ const slug = (s: string) => s.replace(/\s+/g, "-");
 const AUTHOR = "강원대학교 강돈호";
 
 export function HelpScreen({ active }: { active: boolean }) {
-  const { system } = useApp();
+  const { system, ready } = useApp();
   const [cur, setCur] = useState(CHAPTERS[0]?.id ?? "");
   const [q, setQ] = useState("");
   const body = useRef<HTMLDivElement>(null);
@@ -59,7 +59,7 @@ export function HelpScreen({ active }: { active: boolean }) {
       <ScreenHeader title="도움말" sub="기능마다 무엇을 하는지, 어떻게 쓰는지, 막혔을 때 어떻게 하는지 적었습니다."
         actions={
           <dl className="kd-help-about kd-small" aria-label="프로그램 정보">
-            <div><dt>버전</dt><dd className="kd-num">KnuDoc AI {system?.app_version ? `v${system.app_version}` : "(읽는 중)"}</dd></div>
+            <div><dt>버전</dt><dd className="kd-num">KnuDoc AI {system?.app_version ? `v${system.app_version}` : ready ? "(확인 못 함: 설정 › 화면과 정보에서 다시 확인)" : "(읽는 중)"}</dd></div>
             <div><dt>만든이</dt><dd>{AUTHOR}</dd></div>
           </dl>
         } />

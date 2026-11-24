@@ -205,6 +205,9 @@ export async function budgetItemUpdate(p: { year?: number; id: string; keywords?
 const PERIOD = /^(?:[가-하]\.\s*|\d+\)\s*)?(?:일\s*시|기\s*간|일\s*정|행사\s*일|집행\s*기한|사업\s*기간|운영\s*기간)\s*[:：]?\s*(.+)$/;
 const PEOPLE = /^(?:[가-하]\.\s*|\d+\)\s*)?(?:대\s*상|인\s*원|참\s*가\s*자|참석\s*대상)\s*[:：]?\s*(.+)$/;
 
+/** 화면에 보일 본문 길이 (아주 긴 문서도 화면이 버벅이지 않게) */
+const CONTENT_MAX = 100_000;
+
 export async function budgetAnalyze(p: { path: string; year?: number }, signal?: AbortSignal): Promise<BudgetAnalysis> {
   sendProgress({ current: 0, total: 2, message: '공문 읽는 중' });
   const doc = await readBudgetDoc(p.path, signal);
@@ -213,7 +216,7 @@ export async function budgetAnalyze(p: { path: string; year?: number }, signal?:
   const s = budgetSettings();
   const book = await loadBook(yearOf(p.year));
   const items = book.items.map((it) => viewOf(it, book.entries));
-  const base = { path: p.path, name: basename(p.path), format: doc.format, notes: doc.notes };
+  const base = { path: p.path, name: basename(p.path), format: doc.format, notes: doc.notes, content: doc.markdown.slice(0, CONTENT_MAX) };
 
   // 회계 시스템의 원인행위서·지출결의서: 칸에서 바로 읽는다
   const v = extractVoucher(doc.markdown);

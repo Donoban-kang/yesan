@@ -157,6 +157,9 @@ describe('장부 흐름 (RPC)', () => {
     expect(a.amount).toBe(1_980_000);
     expect(a.nature).toBe('임차');
     expect(a.title).toContain('버스 임차');
+    // 화면 "공문 내용"에 보일 본문
+    expect(a.content).toContain('버스 임차');
+    expect(a.content).toContain('1,980,000');
     expect(a.suggestions[0].item.name).toBe('체험활동 임차료');
     expect(a.suggestions[0].reasons).toContain('거래 성격: 임차');
 
