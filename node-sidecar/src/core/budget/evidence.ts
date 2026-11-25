@@ -206,22 +206,32 @@ export function compareEvidence(pages: EvidencePage[], v: VoucherFacts): { check
   return { checks, missing };
 }
 
-/** 증빙 파일을 쪽마다 읽는다 (스캔 쪽은 OCR, 글자층 쪽은 그대로) */
-export async function readEvidence(path: string, signal?: AbortSignal): Promise<EvidencePage[]> {
+/** 스캔 PDF·그림을 쪽마다 줄 글로 읽는다 (스캔 쪽은 OCR 줄 좌표로 한 줄씩, 글자층 쪽은 그대로). ocr = 글자 읽기 모델을 썼는가 */
+export async function readPageLines(path: string, signal?: AbortSignal): Promise<{ pages: Array<{ page: number; lines: string[]; markdown: string }>; ocr: boolean }> {
   const fmt = formatOf(path);
-  if (fmt !== 'pdf' && fmt !== 'image') throw new Error('증빙은 스캔한 PDF나 그림(PNG·JPG) 파일로 넣으세요.');
+  if (fmt !== 'pdf' && fmt !== 'image') throw new Error('스캔한 PDF나 그림(PNG·JPG) 파일로 넣으세요.');
   const ready = ocrModelsReady();
   const buf = await readFile(path);
   const r = await parseBytes(buf, { filePath: path, ocr: ready ? true : false, ocrLines: true, ...(fmt === 'pdf' ? { pages: '1-30' } : {}) }, undefined, signal);
   if (!r.success) throw parseFailure(r);
   const ocr = new Map<number, OcrPageLines>((r.ocrLines ?? []).map((p) => [p.pageNumber, p]));
   const pages = r.pages?.length ? r.pages : [{ pageNumber: 1, markdown: r.markdown }];
-  const out: EvidencePage[] = [];
-  for (const pg of pages) {
-    const o = ocr.get(pg.pageNumber);
-    const lines = (o && !o.regionsOnly ? linesFromOcr(o) : linesFromMarkdown(pg.markdown)).map((l) => l.text);
-    out.push(extractPage(pg.pageNumber, lines));
-  }
-  if (!ready && out.every((p) => p.kind === 'other')) throw new Error('스캔한 증빙을 읽으려면 글자 읽기(OCR) 모델이 필요합니다. 설정 › 엔진과 모델에서 모델을 넣은 뒤 다시 하세요.');
+  return {
+    ocr: ready,
+    pages: pages.map((pg) => {
+      const o = ocr.get(pg.pageNumber);
+      const lines = (o && !o.regionsOnly ? linesFromOcr(o) : linesFromMarkdown(pg.markdown)).map((l) => l.text);
+      return { page: pg.pageNumber, lines, markdown: o && !o.regionsOnly ? lines.join('\n') : pg.markdown };
+    }),
+  };
+}
+
+/** 증빙 파일을 쪽마다 읽는다 (스캔 쪽은 OCR, 글자층 쪽은 그대로) */
+export async function readEvidence(path: string, signal?: AbortSignal): Promise<EvidencePage[]> {
+  const fmt = formatOf(path);
+  if (fmt !== 'pdf' && fmt !== 'image') throw new Error('증빙은 스캔한 PDF나 그림(PNG·JPG) 파일로 넣으세요.');
+  const r = await readPageLines(path, signal);
+  const out = r.pages.map((pg) => extractPage(pg.page, pg.lines));
+  if (!r.ocr && out.every((p) => p.kind === 'other')) throw new Error('스캔한 증빙을 읽으려면 글자 읽기(OCR) 모델이 필요합니다. 설정 › 엔진과 모델에서 모델을 넣은 뒤 다시 하세요.');
   return out;
 }

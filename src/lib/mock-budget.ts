@@ -4,7 +4,7 @@ import type { BudgetAnalysis, BudgetBookView, BudgetEntry, BudgetItem, RpcMethod
 import { linkedDocs, linkedNumbers, reversedGroups, reversibleGroups, settledCommits, viewOf } from "../../node-sidecar/src/core/budget/tally";
 import { suggestItems } from "../../node-sidecar/src/core/budget/suggest";
 import { rankClauses, splitClauses } from "../../node-sidecar/src/core/budget/guide-match";
-import type { BudgetGuide } from "./contract";
+import type { BudgetBundleDoc, BudgetGuide } from "./contract";
 
 /** 미리보기용 가상 규정 (실제 규정 아님) */
 const MOCK_RULE = [
@@ -124,6 +124,23 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const budgetHandlers: H = {
   budget_book: () => book(),
   budget_analyze: async (p) => { await wait(400); return analysisOf(p.path); },
+  budget_bundle: async (p) => {
+    await wait(500);
+    const name = (x: string) => x.split("/").pop() ?? x;
+    // 이름으로 가른 가상 서류 (계좌·사업자번호는 지어낸 값)
+    const docs = p.paths.map((x): BudgetBundleDoc => {
+      const n = name(x);
+      if (/영수증/.test(n)) return { path: x, name: n, kind: "receipt", label: "영수증", amount: 1_980_000, date: "2026-11-27", ocr: true };
+      if (/통장|계좌/.test(n)) return { path: x, name: n, kind: "bank", label: "계좌 사본", bank: "가온은행", account: "1002-345-678901", holder: "가온관광", ocr: true };
+      return { path: x, name: n, kind: "letter", label: "공문" };
+    });
+    const main = docs.find((d) => d.kind === "letter") ?? docs[0];
+    const analysis = { ...analysisOf(main.path), doc_kind: "공문" as const, budget_lines: undefined };
+    const receipts_total = docs.filter((d) => d.kind === "receipt").reduce((n, d) => n + (d.amount ?? 0), 0);
+    const payees = docs.filter((d) => d.kind === "bank").map((d) => ({ bank: d.bank, account: d.account, holder: d.holder, from: d.name }));
+    const notes = docs.some((d) => d.ocr) ? ["스캔 서류는 글자 읽기(OCR)로 읽어 틀릴 수 있습니다. 원본과 견줘 확인하세요."] : [];
+    return { analysis, docs, receipts_total, quotes_total: 0, failed: [], notes, payees };
+  },
   budget_suggest: (p) => suggestItems(items.map((it) => viewOf(it, entries)), entries, MOCK_BUDGET_SETTINGS, { ...p, account: p.account || undefined }),
   budget_apply: (p) => {
     const it = items.find((x) => x.id === p.item_id)!;
