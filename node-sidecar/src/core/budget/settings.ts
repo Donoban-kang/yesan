@@ -2,6 +2,7 @@
 
 import type { Settings } from '../../types/index.js';
 import { DEFAULT_SETTINGS, getSettings } from '../../infra/config.js';
+import { REQUIRED_DOC_KINDS } from './bundle-kinds.js';
 
 export type BudgetSettings = Settings['budget'];
 
@@ -25,7 +26,8 @@ export function normalizeBudgetSettings(raw: unknown): BudgetSettings {
       const o = (r && typeof r === 'object' ? r : {}) as Record<string, unknown>;
       const nature = typeof o.nature === 'string' ? o.nature.trim().slice(0, 20) : '';
       const words = strs(o.words);
-      return nature && words.length ? [{ nature, words, hints: strs(o.hints) }] : [];
+      const docs = Array.isArray(o.docs) ? strs(o.docs).filter((k) => (REQUIRED_DOC_KINDS as readonly string[]).includes(k)) : undefined;
+      return nature && words.length ? [{ nature, words, hints: strs(o.hints), ...(docs ? { docs: [...new Set(docs)] } : {}) }] : [];
     })
     : [];
   return {
@@ -33,7 +35,7 @@ export function normalizeBudgetSettings(raw: unknown): BudgetSettings {
     warn_at: Number.isFinite(warn) && warn >= 1 && warn <= 100 ? warn : d.warn_at,
     over_block: typeof b.over_block === 'boolean' ? b.over_block : d.over_block,
     accounts: accounts.length ? dedupe(accounts) : d.accounts.map((a) => ({ ...a, words: [...a.words] })),
-    rules: rules.length ? rules : d.rules.map((r) => ({ ...r, words: [...r.words], hints: [...r.hints] })),
+    rules: rules.length ? rules : d.rules.map((r) => ({ ...r, words: [...r.words], hints: [...r.hints], ...(r.docs ? { docs: [...r.docs] } : {}) })),
   };
 }
 
