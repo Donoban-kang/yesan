@@ -82,7 +82,7 @@ export interface Settings {
     /** 회계 구분: id 는 바꾸지 않고 이름(label)과 공문 단서 낱말(words)만 고친다 */
     accounts: Array<{ id: string; label: string; words: string[] }>;
     /** 거래 성격 규칙: 공문 낱말(words)이 보이면 그 성격, 과목 이름에 hints 가 들면 먼저 추천 */
-    rules: Array<{ nature: string; words: string[]; hints: string[] }>;
+    rules: Array<{ nature: string; words: string[]; hints: string[]; /** 집행 전 점검표의 필요 서류 종류 (BudgetBundleKind 값, 없으면 기본값) */ docs?: string[] }>;
   };
   /** 기관 배포 설정(읽기 전용, get_settings 가 채움) — 파일 위치·안내·고정된 항목 경로("privacy.offline" 꼴) */
   policy?: { source: string; notice?: string; locked: string[]; error?: string };

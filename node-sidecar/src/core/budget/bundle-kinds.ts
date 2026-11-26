@@ -59,3 +59,6 @@ export function classifyDoc(lines: string[]): BudgetBundleKind {
   if (/^1\.관련/m.test(lines.map(squash).join('\n')) || (/끝\.$/.test(t) && /\d\.\S/.test(t))) return 'letter';
   return 'other';
 }
+
+/** 집행 전 점검표에서 "필요 서류"로 고를 수 있는 종류 (기타·품의서·검수서는 갈래마다 달라 뺀다) */
+export const REQUIRED_DOC_KINDS = ['letter', 'quote', 'receipt', 'bank', 'claim', 'inspection'] as const satisfies readonly BudgetBundleKind[];

@@ -206,6 +206,8 @@ export interface RpcMethods {
   budget_analyze: [{ path: string; year?: number }, BudgetAnalysis];
   /** 지출 서류 묶음: 공문·영수증·계좌 사본·견적서 등을 함께 읽어 서류마다 종류와 값, 중심 공문 분석 (원인행위서·결의서 칸 읽기는 하지 않음) */
   budget_bundle: [{ paths: string[]; year?: number }, BudgetBundle];
+  /** 집행 전 점검표 (서류 구비·금액 일치·사업자·계좌·잔액·규정 기준 대조, AI 없이 규칙으로) */
+  budget_precheck: [{ bundle: BudgetPrecheckBundle; item_id?: string; amount?: number; year?: number }, BudgetPrecheck];
   /** 글과 금액으로 다시 추천 (회계 구분을 바꾸거나 금액을 고쳤을 때) */
   budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }, BudgetSuggestion[]];
   /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */
@@ -869,6 +871,48 @@ export interface BudgetBundle {
   notes: string[];
   /** 지급할 곳 (계좌 사본에서 읽은 것, 여럿이면 차례대로) */
   payees: Array<{ bank?: string; account?: string; holder?: string; from: string }>;
+}
+
+/** 집행 전 점검표에 넘기는 묶음 읽기 결과 (budget_bundle 결과에서 필요한 값만) */
+export interface BudgetPrecheckBundle {
+  docs: BudgetBundleDoc[];
+  receipts_total: number;
+  quotes_total: number;
+  analysis: Pick<BudgetAnalysis, 'amount' | 'people' | 'nature' | 'sent_date' | 'basis'>;
+}
+
+/** 점검 결과: ok=이상 없음, check=확인 필요, na=읽은 값이 모자라 점검하지 못함 (적정·위반을 판정하지 않는다) */
+export type BudgetPrecheckStatus = 'ok' | 'check' | 'na';
+
+/** 규정 조항 속 금액 기준과 이번 금액을 견준 결과 */
+export interface BudgetPrecheckClause {
+  guide: string;
+  /** "제12조" 또는 "3번째 단락" */
+  no: string;
+  title: string;
+  /** 조항의 금액 기준 글 ("1인당 30,000원 이내") */
+  rule: string;
+  /** ok=기준 안, over=기준을 넘음, applies="이상·초과" 기준에 해당(조항의 추가 절차 확인), unknown=견주지 못함 */
+  verdict: 'ok' | 'over' | 'applies' | 'unknown';
+  note: string;
+}
+
+export interface BudgetPrecheckItem {
+  id: 'docs' | 'amount' | 'party' | 'balance' | 'rule';
+  label: string;
+  status: BudgetPrecheckStatus;
+  summary: string;
+  details: string[];
+  clauses?: BudgetPrecheckClause[];
+}
+
+export interface BudgetPrecheck {
+  nature?: string;
+  /** 필요 서류 목록의 출처: 설정에서 고친 것이면 'settings', 아니면 일반 기본값(추정) */
+  docs_source: 'default' | 'settings';
+  items: BudgetPrecheckItem[];
+  /** 항상 보이는 한계 문구 */
+  caveat: string;
 }
 
 /** 기관 규정·지침 파일 하나 (budget_guide_*) */

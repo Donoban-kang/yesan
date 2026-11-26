@@ -14,6 +14,8 @@ import { GuideList } from "./GuideList";
 type B = Settings["budget"];
 const words = (s: string) => s.split(/[,，]+/).map((w) => w.trim()).filter(Boolean);
 const joinW = (w: string[]) => w.join(", ");
+/** 집행 전 점검표의 필요 서류 종류 (엔진 REQUIRED_DOC_KINDS 와 같은 값) */
+const DOCS: Array<[string, string]> = [["letter", "공문"], ["quote", "견적서"], ["receipt", "영수증"], ["bank", "계좌 사본"], ["claim", "여비 정산 신청서"], ["inspection", "검사·검수서"]];
 
 export function BudgetSection() {
   const mark = useSectionMark("set-budget");
@@ -66,6 +68,19 @@ export function BudgetSection() {
                 <TextField label="거래 성격" value={r.nature} onChange={(v) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, nature: v } : x)) })} />
                 <TextField label="공문 낱말" value={joinW(r.words)} onChange={(v) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, words: words(v) } : x)) })} />
                 <TextField label="과목 단서" value={joinW(r.hints)} onChange={(v) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, hints: words(v) } : x)) })} />
+                <fieldset className="kd-field" aria-label={`${r.nature} 필요 서류`}>
+                  <legend className="kd-label">필요 서류 (집행 전 점검표)</legend>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {DOCS.map(([k, name]) => (
+                      <label key={k} className="kd-small flex items-center gap-1">
+                        <input type="checkbox" checked={(r.docs ?? []).includes(k)}
+                          onChange={(e) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, docs: DOCS.map(([d]) => d).filter((d) => (d === k ? e.target.checked : (x.docs ?? []).includes(d))) } : x)) })} />
+                        {name}
+                      </label>
+                    ))}
+                  </div>
+                  {!r.docs?.length && <span className="kd-small kd-muted">고르지 않으면 일반 기본값(추정)을 씁니다.</span>}
+                </fieldset>
               </div>
             ))}
           </div>

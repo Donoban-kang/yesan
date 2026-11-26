@@ -141,6 +141,26 @@ export const budgetHandlers: H = {
     const notes = docs.some((d) => d.ocr) ? ["스캔 서류는 글자 읽기(OCR)로 읽어 틀릴 수 있습니다. 원본과 견줘 확인하세요."] : [];
     return { analysis, docs, receipts_total, quotes_total: 0, failed: [], notes, payees };
   },
+  budget_precheck: async (p) => {
+    await wait(200);
+    const it = items.find((x) => x.id === p.item_id);
+    const v = it ? viewOf(it, entries) : undefined;
+    const amount = p.amount ?? p.bundle.analysis.amount ?? 0;
+    const kinds = new Set(p.bundle.docs.map((d) => d.kind));
+    const missing = (["quote", "bank"] as const).filter((k) => !kinds.has(k)).map((k) => (k === "quote" ? "견적서" : "계좌 사본"));
+    return {
+      nature: p.bundle.analysis.nature, docs_source: "default",
+      items: [
+        { id: "docs", label: "서류 구비", status: missing.length ? "check" : "ok", summary: missing.length ? `${missing.join("·")}이(가) 없습니다` : "필요한 서류가 모두 있습니다", details: ["거래 성격 기준 필요 서류: 공문 · 견적서 · 계좌 사본 (일반 기본값, 추정)"] },
+        { id: "amount", label: "금액 일치", status: p.bundle.receipts_total && p.bundle.receipts_total !== amount ? "check" : p.bundle.receipts_total ? "ok" : "na", summary: p.bundle.receipts_total ? (p.bundle.receipts_total !== amount ? "서류 금액이 서로 다릅니다" : "서류 금액이 서로 맞습니다") : "견줄 영수증·견적 금액이 없습니다", details: [] },
+        { id: "party", label: "사업자·계좌·날짜", status: "na", summary: "점검할 사업자번호·계좌·날짜를 읽지 못했습니다", details: [] },
+        v ? { id: "balance", label: "예산 잔액", status: amount > v.avail ? "check" : "ok", summary: amount > v.avail ? `잔액이 ${(amount - v.avail).toLocaleString("ko-KR")}원 모자랍니다` : "잔액이 충분합니다", details: [] }
+          : { id: "balance", label: "예산 잔액", status: "na", summary: "예산 과목을 고르면 점검합니다", details: [] },
+        { id: "rule", label: "규정 금액 기준", status: "na", summary: "규정 파일이 없어 대조하지 못했습니다", details: ["설정 › 예산과 회계에서 기관 규정·지침 파일을 넣으면 맞는 조항의 금액 기준을 견줍니다."] },
+      ],
+      caveat: "정해진 규칙으로 읽은 값만 견준 참고용 점검표입니다. 집행 가능 여부와 규정 적합 여부는 기관 규정 원문과 회계 담당 확인으로 정하세요.",
+    };
+  },
   budget_suggest: (p) => suggestItems(items.map((it) => viewOf(it, entries)), entries, MOCK_BUDGET_SETTINGS, { ...p, account: p.account || undefined }),
   budget_apply: (p) => {
     const it = items.find((x) => x.id === p.item_id)!;

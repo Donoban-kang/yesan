@@ -35,6 +35,7 @@ pub const ALLOWED_METHODS: &[&str] = &[
     "budget_import",
     "budget_item_add",
     "budget_item_update",
+    "budget_precheck",
     "budget_reverse",
     "budget_settle",
     "budget_suggest",

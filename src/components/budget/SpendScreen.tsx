@@ -19,6 +19,7 @@ import { GuideRefs } from "./GuideRefs";
 import { ItemTree, projectOf } from "./ItemTree";
 import { DocContent } from "./DocContent";
 import { BundleDocs, BundleSummary } from "./BundleDocs";
+import { PrecheckPanel } from "./PrecheckPanel";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -340,6 +341,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   )}
                 </div>
               )}
+              {bundle && !analysis.busy && <PrecheckPanel bundle={bundle} itemId={itemId} amount={amount} year={book?.year} />}
               {/* 공문으로 지출할 때만: 이미 결의서(원인행위서 등)를 넣었으면 초안은 필요 없다 */}
               {a && item && amount > 0 && (!a.doc_kind || a.doc_kind === "공문") && (
                 <VoucherDraft key={`${a.path}#${item.id}`} analysis={a} item={item} amount={amount} accountLabel={label(item.account)} />
