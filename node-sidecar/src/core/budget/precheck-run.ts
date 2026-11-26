@@ -7,7 +7,7 @@ import { viewOf } from './tally.js';
 import { guideFind, guideList } from './guide.js';
 import { buildPrecheck } from './precheck.js';
 import { buildRecord } from './precheck-record.js';
-import { newRecordId, saveRecord } from './precheck-store.js';
+import { newRecordId, purgeRecords, saveRecord } from './precheck-store.js';
 
 type Params = { bundle: BudgetPrecheckBundle; item_id?: string; amount?: number; year?: number };
 
@@ -50,5 +50,12 @@ export async function budgetPrecheckSave(p: Params & { memo?: string }): Promise
   const at = new Date();
   const rec = buildRecord({ bundle: p.bundle, precheck: r.precheck, year: yearOf(p.year), item: r.item, amount: r.amount, memo: p.memo, id: newRecordId(at), at });
   await saveRecord(rec);
+  await purgeByPolicy().catch(() => 0);
   return rec;
+}
+
+/** 설정의 보관 연수가 있으면 오래된 기록을 정리 (타이머 없이 보관할 때·목록을 볼 때 실행, 점검 기록 폴더만 건드린다) */
+export async function purgeByPolicy(): Promise<number> {
+  const years = budgetSettings().precheck_keep_years;
+  return years >= 1 ? (await purgeRecords(years)).deleted : 0;
 }

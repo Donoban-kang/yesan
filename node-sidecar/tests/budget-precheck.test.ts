@@ -241,3 +241,56 @@ describe('점검 기록 보관·문서 글', () => {
     expect(md).toContain('※ 정해진 규칙으로');
   });
 });
+
+describe('보관 기록 자동 정리', () => {
+  const rec = (id: string, at: string): import('../src/types/rpc-contract.js').BudgetPrecheckRecord => ({
+    id, saved_at: at, year: 2026, title: id, docs: [], receipts_total: 0, quotes_total: 0,
+    precheck: { docs_source: 'default', items: [], caveat: '' },
+  });
+  const NOW = new Date('2026-11-26T00:00:00Z');
+  const seed = async () => {
+    const { setupEnv } = await import('./doc-helpers.js');
+    setupEnv();
+    const { saveRecord, listRecords, deleteRecord } = await import('../src/core/budget/precheck-store.js');
+    for (const r of await listRecords()) await deleteRecord(r.id);
+    await saveRecord(rec('pc-1000000000001-aaaaaa', '2020-01-01T00:00:00Z')); // 6년 전
+    await saveRecord(rec('pc-1000000000002-bbbbbb', '2024-06-01T00:00:00Z')); // 2년 전
+    await saveRecord(rec('pc-1000000000003-cccccc', '2026-10-01T00:00:00Z')); // 최근
+  };
+
+  it('연수가 0 이거나 범위 밖이면 아무것도 지우지 않는다', async () => {
+    await seed();
+    const { purgeRecords, listRecords } = await import('../src/core/budget/precheck-store.js');
+    for (const y of [0, -1, 1.5, 51]) expect(await purgeRecords(y, { now: NOW })).toEqual({ due: 0, deleted: 0 });
+    expect((await listRecords()).length).toBe(3);
+  });
+  it('dry_run 은 건수만 알리고, 실제로는 기준보다 오래된 기록만 지운다', async () => {
+    await seed();
+    const { purgeRecords, listRecords } = await import('../src/core/budget/precheck-store.js');
+    expect(await purgeRecords(1, { dryRun: true, now: NOW })).toEqual({ due: 2, deleted: 0 });
+    expect((await listRecords()).length).toBe(3);
+    expect(await purgeRecords(3, { now: NOW })).toEqual({ due: 1, deleted: 1 });
+    expect((await listRecords()).map((r) => r.id)).toEqual(['pc-1000000000003-cccccc', 'pc-1000000000002-bbbbbb']);
+    expect(await purgeRecords(3, { now: NOW })).toEqual({ due: 0, deleted: 0 });
+  });
+  it('설정값은 1~50 정수만 받고 나머지는 지우지 않음(0)으로 본다', () => {
+    const k = (v: unknown) => normalizeBudgetSettings({ precheck_keep_years: v }).precheck_keep_years;
+    expect([k(5), k(0), k(-2), k(2.5), k('3'), k(99), k(undefined)]).toEqual([5, 0, 0, 0, 3, 0, 0]);
+  });
+  it('RPC: 기본 설정(0)이면 목록을 봐도 지우지 않고, dry_run 미리보기는 지우지 않는다', async () => {
+    await seed();
+    const { call } = await import('./doc-helpers.js');
+    expect((await call('budget_precheck_list', {}) as unknown[]).length).toBe(3);
+    expect(await call('budget_precheck_purge', { years: 1, dry_run: true })).toMatchObject({ due: expect.any(Number), deleted: 0 });
+    expect((await call('budget_precheck_list', {}) as unknown[]).length).toBe(3);
+  });
+  it('보관 연수를 정하면 목록을 볼 때 오래된 기록이 정리된다', async () => {
+    await seed();
+    const { call } = await import('./doc-helpers.js');
+    await call('update_settings', { settings: { budget: { precheck_keep_years: 3 } } });
+    const list = await call('budget_precheck_list', {}) as Array<{ id: string }>;
+    expect(list.map((r) => r.id)).not.toContain('pc-1000000000001-aaaaaa');
+    expect(list.length).toBe(2);
+    await call('update_settings', { settings: { budget: { precheck_keep_years: 0 } } });
+  });
+});

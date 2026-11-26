@@ -13,6 +13,7 @@ export function normalizeBudgetSettings(raw: unknown): BudgetSettings {
   const b = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const year = Number(b.year);
   const warn = Number(b.warn_at);
+  const keep = Number(b.precheck_keep_years);
   const accounts = Array.isArray(b.accounts)
     ? b.accounts.flatMap((a) => {
       const o = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>;
@@ -34,6 +35,7 @@ export function normalizeBudgetSettings(raw: unknown): BudgetSettings {
     year: Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : 0,
     warn_at: Number.isFinite(warn) && warn >= 1 && warn <= 100 ? warn : d.warn_at,
     over_block: typeof b.over_block === 'boolean' ? b.over_block : d.over_block,
+    precheck_keep_years: Number.isInteger(keep) && keep >= 1 && keep <= 50 ? keep : 0,
     accounts: accounts.length ? dedupe(accounts) : d.accounts.map((a) => ({ ...a, words: [...a.words] })),
     rules: rules.length ? rules : d.rules.map((r) => ({ ...r, words: [...r.words], hints: [...r.hints], ...(r.docs ? { docs: [...r.docs] } : {}) })),
   };

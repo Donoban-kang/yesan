@@ -79,6 +79,8 @@ export interface Settings {
     warn_at: number;
     /** 가용 잔액을 넘는 반영을 막는다 (false 면 경고만) */
     over_block: boolean;
+    /** 보관한 점검 기록을 지우는 기준 연수 (0 이면 지우지 않는다) */
+    precheck_keep_years: number;
     /** 회계 구분: id 는 바꾸지 않고 이름(label)과 공문 단서 낱말(words)만 고친다 */
     accounts: Array<{ id: string; label: string; words: string[] }>;
     /** 거래 성격 규칙: 공문 낱말(words)이 보이면 그 성격, 과목 이름에 hints 가 들면 먼저 추천 */

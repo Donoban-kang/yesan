@@ -39,6 +39,7 @@ pub const ALLOWED_METHODS: &[&str] = &[
     "budget_precheck_delete",
     "budget_precheck_get",
     "budget_precheck_list",
+    "budget_precheck_purge",
     "budget_precheck_record",
     "budget_precheck_save",
     "budget_reverse",

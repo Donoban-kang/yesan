@@ -26,6 +26,7 @@ export const MOCK_BUDGET_SETTINGS: Settings["budget"] = {
   year: 2026,
   warn_at: 90,
   over_block: true,
+  precheck_keep_years: 0,
   accounts: [
     { id: "univ", label: "대학회계", words: ["대학회계", "등록금", "교비"] },
     { id: "glocal", label: "글로컬", words: ["글로컬"] },
@@ -179,6 +180,12 @@ export const budgetHandlers: H = {
     const r = precheckRecords.find((x) => x.id === p.id);
     if (!r) throw new Error("점검 기록을 찾지 못했습니다. 이미 지웠거나 다른 PC의 기록일 수 있습니다.");
     return r;
+  },
+  budget_precheck_purge: (p) => {
+    const cut = new Date(); cut.setFullYear(cut.getFullYear() - p.years);
+    const old = p.years >= 1 ? precheckRecords.filter((r) => new Date(r.saved_at) < cut) : [];
+    if (!p.dry_run) for (const r of old) precheckRecords.splice(precheckRecords.indexOf(r), 1);
+    return { due: old.length, deleted: p.dry_run ? 0 : old.length };
   },
   budget_precheck_delete: (p) => {
     const i = precheckRecords.findIndex((x) => x.id === p.id);
