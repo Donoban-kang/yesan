@@ -213,13 +213,19 @@ export async function budgetAnalyze(p: { path: string; year?: number }, signal?:
   const doc = await readBudgetDoc(p.path, signal);
   if (doc.markdown.replace(/\s/g, '').length < 10) throw new Error('공문 글자를 읽지 못했습니다. 스캔한 공문이면 설정 › 저장과 연결에서 스캔한 쪽 글자 읽기를 켜고 다시 넣으세요.');
   sendProgress({ current: 1, total: 2, message: '금액·과목 찾는 중' });
+  return analyzeDoc(p.path, doc, p.year);
+}
+
+/** 읽은 글 하나를 공문으로 분석한다. voucher: false 면 원인행위서·결의서 칸 읽기를 하지 않는다(지출 서류 묶음) */
+export async function analyzeDoc(path: string, doc: { markdown: string; format: BudgetAnalysis['format']; notes: string[] }, year?: number, opts: { voucher?: boolean } = {}): Promise<BudgetAnalysis> {
+  const p = { path, year };
   const s = budgetSettings();
   const book = await loadBook(yearOf(p.year));
   const items = book.items.map((it) => viewOf(it, book.entries));
   const base = { path: p.path, name: basename(p.path), format: doc.format, notes: doc.notes, content: doc.markdown.slice(0, CONTENT_MAX) };
 
   // 회계 시스템의 원인행위서·지출결의서: 칸에서 바로 읽는다
-  const v = extractVoucher(doc.markdown);
+  const v = opts.voucher === false ? null : extractVoucher(doc.markdown);
   if (v) {
     const subjects = v.lines.map((l) => [l.detail, l.subject].filter(Boolean).join(' '));
     const title = v.title ?? '';

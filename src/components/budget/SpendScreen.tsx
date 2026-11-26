@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChartColumn, FilePlus2, NotebookPen, Sparkles, Wallet } from "lucide-react";
-import type { BudgetAnalysis, BudgetItemView, BudgetSuggestion, RpcResult } from "../../lib/contract";
+import type { BudgetBundle, BudgetItemView, BudgetSuggestion, RpcResult } from "../../lib/contract";
 import { useApp } from "../../state/app";
 import { rpc, errorText } from "../../lib/rpc";
 import { pickFiles } from "../../lib/native";
@@ -13,13 +13,12 @@ import { ScreenHeader } from "../shell/ScreenHeader";
 import { Button } from "../ui/Button";
 import { Seg } from "../common/Field";
 import { Empty, ErrorLine, Note, Working } from "../common/Status";
-import { budgetChanged, itemPath, LETTER_FILTER, parseWon, useBudgetBook, won } from "./useBudget";
+import { budgetChanged, itemPath, BUNDLE_FILTER, parseWon, useBudgetBook, won } from "./useBudget";
 import { VoucherDraft } from "./VoucherDraft";
-import { EvidenceCheck } from "./EvidenceCheck";
 import { GuideRefs } from "./GuideRefs";
-import { SplitApply } from "./SplitApply";
 import { ItemTree, projectOf } from "./ItemTree";
 import { DocContent } from "./DocContent";
+import { BundleDocs, BundleSummary } from "./BundleDocs";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -28,7 +27,7 @@ type Stage = "commit" | "paid";
 export function SpendScreen({ active }: { active: boolean }) {
   const { ready, registerDrop, dragTarget, spendIntent, go, toast, settings } = useApp();
   const { book, error: bookError } = useBudgetBook(active);
-  const analysis = useTask<BudgetAnalysis>({ keepOnFail: true });
+  const analysis = useTask<BudgetBundle>({ keepOnFail: true });
   const [inbox, setInbox] = useState<InboxItem[]>([]);
   const [amountText, setAmountText] = useState("");
   const [account, setAccount] = useState("");
@@ -48,7 +47,8 @@ export function SpendScreen({ active }: { active: boolean }) {
   const [done, setDone] = useState<{ name: string; amount: number; avail: number; warning?: string } | null>(null);
   const [again, setAgain] = useState(false);
 
-  const a = analysis.result;
+  const bundle = analysis.result;
+  const a = bundle?.analysis;
   const amount = parseWon(amountText);
   const warnAt = settings?.budget?.warn_at ?? 90;
   const overBlock = settings?.budget?.over_block ?? true;
@@ -65,14 +65,15 @@ export function SpendScreen({ active }: { active: boolean }) {
   busyRef.current = analysis.busy;
   // 결의서 예산 줄을 하나 골랐으면 그 줄만으로 추천
   const subjectsRef = useRef<string[] | undefined>(undefined);
-  const analyze = useCallback(async (path: string) => {
-    if (busyRef.current) { toast("앞 공문을 읽는 중입니다. 다 읽은 뒤 다시 넣으세요.", "info"); return; }
+  const analyze = useCallback(async (paths: string[]) => {
+    if (!paths.length) return;
+    if (busyRef.current) { toast("앞 서류를 읽는 중입니다. 다 읽은 뒤 다시 넣으세요.", "info"); return; }
     setConfirming(false); setDone(null); setApplyError(""); setMemo(""); setAgain(false); subjectsRef.current = undefined;
-    const r = await analysis.run(({ signal, onProgress }) => rpc("budget_analyze", { path }, { signal, onProgress }));
-    if (!r) return;
+    const b = await analysis.run(({ signal, onProgress }) => rpc("budget_bundle", { paths }, { signal, onProgress }));
+    if (!b) return;
+    const r = b.analysis;
     setAmountText(r.amount ? won(r.amount) : "");
-    // 원인행위서는 지출원인행위(집행 예정), 지출결의서는 지급(지출 완료)
-    setStage(r.doc_kind === "지출결의서" ? "paid" : "commit");
+    setStage("commit");
     setEvidenceNote("");
     setAccount(r.account_hint ?? "");
     setSuggestions(r.suggestions);
@@ -86,10 +87,10 @@ export function SpendScreen({ active }: { active: boolean }) {
   useEffect(() => {
     if (!spendIntent || !ready || spendIntent.nonce === handled.current) return;
     handled.current = spendIntent.nonce;
-    void analyze(spendIntent.value.path);
+    void analyze([spendIntent.value.path]);
   }, [spendIntent, ready, analyze]);
 
-  useEffect(() => registerDrop("spend", (p) => { if (p[0]) void analyze(p[0]); }), [registerDrop, analyze]);
+  useEffect(() => registerDrop("spend", (p) => { void analyze(p); }), [registerDrop, analyze]);
 
   // 회계 구분·금액을 바꾸면 다시 추천 (글은 처음 읽은 것 그대로)
   const resuggest = useCallback(async (acc: string, amt: number) => {
@@ -138,7 +139,7 @@ export function SpendScreen({ active }: { active: boolean }) {
     }
   };
 
-  const pick = () => void pickFiles({ filters: LETTER_FILTER, multiple: false }).then((p) => { if (p[0]) void analyze(p[0]); });
+  const pick = () => void pickFiles({ filters: BUNDLE_FILTER, multiple: true }).then((p) => { void analyze(p); });
   const noItems = !!book && items.length === 0;
 
   /** 고른 과목과 같은 세부사업의 다른 과목 (바꿔 고르기) */
@@ -146,11 +147,11 @@ export function SpendScreen({ active }: { active: boolean }) {
 
   return (
     <div className="kd-screen" hidden={!active}>
-      <ScreenHeader title="지출 도우미" sub="받은 공문을 읽어 맞는 예산 과목을 추천하고, 반영하면 남은 예산을 바로 보여 줍니다."
+      <ScreenHeader title="지출 도우미" sub="지출할 공문·영수증·계좌 사본 등 서류를 함께 넣으면 서류마다 읽고, 맞는 예산 과목을 추천하고, 반영하면 남은 예산을 보여 줍니다."
         actions={(
           <>
             <Button variant="ghost" onClick={() => go("ledger")}><NotebookPen size={15} /> 지출 대장</Button>
-            <Button variant="secondary" onClick={pick} disabled={analysis.busy}><FilePlus2 size={15} /> 공문 고르기</Button>
+            <Button variant="secondary" onClick={pick} disabled={analysis.busy}><FilePlus2 size={15} /> 서류 고르기</Button>
           </>
         )} />
       <div className="kd-body kd-budget-drop" data-drop="spend" data-over={dragTarget === "spend"}>
@@ -165,19 +166,19 @@ export function SpendScreen({ active }: { active: boolean }) {
             </Note>
           )}
           <div className="kd-spend">
-            {/* ① 공문 */}
+            {/* ① 지출 서류 */}
             <div className="kd-spend-col">
-              <div className="kd-step" data-on="true"><b>1</b>받은 공문</div>
+              <div className="kd-step" data-on="true"><b>1</b>지출 서류 넣기</div>
               <button type="button" className="kd-dropzone" data-over={dragTarget === "spend"} onClick={pick} disabled={analysis.busy}>
                 <FilePlus2 size={22} aria-hidden="true" />
-                <span className="kd-row-title block">공문을 끌어다 놓거나 눌러서 고르기</span>
-                <span className="kd-small kd-muted block">공문·원인행위서·지출결의서 (HWP · HWPX · HWX · HML · PDF · DOCX)</span>
+                <span className="kd-row-title block">서류를 끌어다 놓거나 눌러서 고르기 (여러 개 함께)</span>
+                <span className="kd-small kd-muted block">지출할 공문 · 영수증 · 견적서 · 세금계산서 · 계좌 사본 (HWP · HWPX · HWX · PDF · 사진)</span>
               </button>
               {inbox.length > 0 && (
                 <div className="kd-docpick" aria-label="접수함의 공문">
                   <span className="kd-label">접수함에서 고르기</span>
                   {inbox.map((it) => (
-                    <button key={it.id} type="button" className="kd-docopt" aria-pressed={a?.path === it.path} onClick={() => void analyze(it.path)} disabled={analysis.busy}>
+                    <button key={it.id} type="button" className="kd-docopt" aria-pressed={a?.path === it.path} onClick={() => void analyze([it.path])} disabled={analysis.busy}>
                       <Wallet size={15} aria-hidden="true" className="kd-muted" />
                       <span className="min-w-0"><span className="kd-docopt-name">{it.title ?? it.name}</span><span className="kd-small kd-muted">{it.sender ?? baseName(it.path)}</span></span>
                       <span className="kd-badge" data-tone={linked.has(it.path) ? "ok" : undefined}>{linked.has(it.path) ? "반영됨" : "미연결"}</span>
@@ -185,8 +186,9 @@ export function SpendScreen({ active }: { active: boolean }) {
                   ))}
                 </div>
               )}
-              {analysis.busy && <Working label="공문을 읽는 중" progress={analysis.progress} onCancel={analysis.cancel} />}
+              {analysis.busy && <Working label="서류를 읽는 중" progress={analysis.progress} onCancel={analysis.cancel} />}
               <ErrorLine message={analysis.error} />
+              {bundle && !analysis.busy && <BundleDocs bundle={bundle} />}
               {a && !analysis.busy && <DocContent analysis={a} />}
             </div>
 
@@ -194,14 +196,12 @@ export function SpendScreen({ active }: { active: boolean }) {
             <div className="kd-spend-col">
               <div className="kd-step" data-on={!!a}><b>2</b>읽은 값 확인</div>
               {!a ? (
-                <Empty icon={<Wallet size={28} />} title="공문을 넣으면 여기에 금액·목적이 보입니다">AI 없이 정해진 규칙으로 읽습니다.</Empty>
+                <Empty icon={<Wallet size={28} />} title="서류를 넣으면 여기에 금액·목적·지급할 곳이 보입니다">AI 없이 정해진 규칙으로 읽습니다.</Empty>
               ) : (
                 <div className="kd-bcard">
                   <dl className="kd-dl">
-                    {a.doc_kind && a.doc_kind !== "공문" && <div><dt>문서</dt><dd><span className="kd-badge" data-tone="info">{a.doc_kind}</span> <span className="kd-small kd-muted">결의서 칸에서 바로 읽었습니다</span></dd></div>}
-                    <div><dt>{a.doc_kind && a.doc_kind !== "공문" ? "건명" : "공문"}</dt><dd className="min-w-0">{a.title ?? a.name}{(a.doc_number || a.sender) && <span className="kd-small kd-muted block">{a.sender ? `${a.sender} · ` : ""}{a.resolution_no ? `결의번호 ${a.resolution_no}` : a.doc_number}{a.sent_date && a.resolution_no ? ` · 발의 ${a.sent_date}` : ""}</span>}</dd></div>
+                    <div><dt>공문</dt><dd className="min-w-0">{a.title ?? a.name}{(a.doc_number || a.sender) && <span className="kd-small kd-muted block">{a.sender ? `${a.sender} · ` : ""}{a.doc_number}</span>}</dd></div>
                     {a.fiscal_year && <div><dt>회계연도</dt><dd className="kd-num">{a.fiscal_year}</dd></div>}
-                    {a.vendor && <div><dt>거래처</dt><dd>{a.vendor}{a.vendor_no && <span className="kd-small kd-muted"> · {a.vendor_no}</span>}</dd></div>}
                     {a.nature && <div><dt>거래 성격</dt><dd><span className="kd-badge" data-tone="accent">{a.nature}</span> <span className="kd-small kd-muted">"{a.nature_words.slice(0, 3).join("·")}" 낱말로 판단</span></dd></div>}
                     {a.period && <div><dt>기간</dt><dd>{a.period}</dd></div>}
                     {a.people && <div><dt>대상</dt><dd>{a.people}</dd></div>}
@@ -211,38 +211,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {a.fiscal_year && book && a.fiscal_year !== book.year && (
                     <Note tone="warn">문서는 {a.fiscal_year}회계연도인데 지금 장부는 {book.year}회계연도입니다. 맞는 장부에 반영하려면 설정 › 예산과 회계에서 회계연도를 바꾸세요.</Note>
                   )}
-                  {a.memo && (
-                    <div className="kd-inset p-3">
-                      <span className="kd-label">적요{a.related ? ` · 관련 ${a.related}` : ""}</span>
-                      <p className="kd-small mt-1" style={{ whiteSpace: "pre-wrap" }}>{a.memo}</p>
-                    </div>
-                  )}
-                  {a.checks && a.checks.length > 0 && (
-                    <div className="flex flex-col gap-1" aria-label="결의서 칸 대조">
-                      <span className="kd-label">결의서 칸 대조</span>
-                      {a.checks.map((c) => (
-                        <span key={c.label} className="kd-small flex flex-wrap items-center gap-2">
-                          <span className="kd-badge" data-tone={c.ok ? "ok" : "err"}>{c.ok ? "맞음" : "다름"}</span>{c.label}<span className="kd-muted kd-num">{c.detail}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {a.doc_kind && a.doc_kind !== "공문" && <EvidenceCheck key={a.path} analysis={a} onResult={setEvidenceNote} />}
-                  {a.budget_lines && a.budget_lines.length > 0 && (
-                    <div className="flex flex-col gap-1.5" aria-label="결의서 예산 줄">
-                      <span className="kd-label">결의서 예산 줄{a.budget_lines.length > 1 ? ` ${a.budget_lines.length}개: 줄을 누르면 그 줄만 추천·반영하고, 아래에서 한 번에 나눠 반영할 수도 있습니다` : ""}</span>
-                      {a.budget_lines.map((l, i) => (
-                        <button key={i} type="button" className="kd-docopt" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }} disabled={a.budget_lines!.length < 2}
-                          onClick={() => { subjectsRef.current = [[l.detail, l.subject].filter(Boolean).join(" ")]; setAmountText(won(l.amount)); setConfirming(false); void resuggest(account, l.amount); }}>
-                          <span className="min-w-0"><span className="kd-docopt-name">{l.subject}</span><span className="kd-small kd-muted">{[l.source, l.detail].filter(Boolean).join(" · ")}</span></span>
-                          <span className="kd-num font-semibold">{won(l.amount)}원</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {a.budget_lines && a.budget_lines.length > 1 && (
-                    <SplitApply key={a.path} analysis={a} items={items} label={label} already={appliedBefore} again={again} onAgain={setAgain} />
-                  )}
+                  {bundle && <BundleSummary bundle={bundle} />}
                   <label className="kd-field">
                     <span className="kd-label">금액 (원)</span>
                     <input className="kd-input kd-amount-input" inputMode="numeric" value={amountText} data-low={!a.amounts[0] || a.amounts[0].confidence < 0.6}
