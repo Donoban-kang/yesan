@@ -7,6 +7,7 @@ import { useApp } from "../../state/app";
 import { useSectionMark } from "./marks";
 import { Button } from "../ui/Button";
 import { Section, Switch, TextField } from "../common/Field";
+import { rpc } from "../../lib/rpc";
 import { Note } from "../common/Status";
 import { Advanced, UnsavedBadge, useDirtyMark } from "./dirty";
 import { GuideList } from "./GuideList";
@@ -24,6 +25,18 @@ export function BudgetSection() {
   const [b, setB] = useState<B | undefined>(saved);
   const [saving, setSaving] = useState(false);
   useEffect(() => setB(saved), [saved]);
+
+  // 보관 연수를 바꾸면 "지금 저장하면 몇 건이 삭제 대상인지"를 먼저 보여 준다 (미리보기만, 지우지 않음)
+  const keepYears = b?.precheck_keep_years ?? 0;
+  const [due, setDue] = useState<number | null>(null);
+  useEffect(() => {
+    if (keepYears < 1) { setDue(null); return; }
+    let alive = true;
+    const t = window.setTimeout(() => {
+      void rpc("budget_precheck_purge", { years: keepYears, dry_run: true }).then((r) => { if (alive) setDue(r.due); }, () => { if (alive) setDue(null); });
+    }, 300);
+    return () => { alive = false; window.clearTimeout(t); };
+  }, [keepYears]);
 
   const changed = useMemo(() => JSON.stringify(b) !== JSON.stringify(saved), [b, saved]);
   const save = async () => {
@@ -50,6 +63,14 @@ export function BudgetSection() {
         </div>
         <Switch label="잔액을 넘는 반영 막기" desc="끄면 반영은 하되 경고만 합니다. 예산 변경(전용·추경) 여부는 회계 담당과 확인하세요."
           checked={b.over_block} onChange={(v) => setB({ ...b, over_block: v })} />
+        <div className="flex flex-col gap-2">
+          <TextField label="점검 기록 보관 연수" hint="0 또는 빈칸이면 자동으로 지우지 않습니다 (1~50)" value={keepYears ? String(keepYears) : ""} placeholder="0"
+            onChange={(v) => setB({ ...b, precheck_keep_years: Math.min(50, Number(v.replace(/\D/g, "").slice(0, 2)) || 0) })} />
+          <p className="kd-small kd-muted">보관한 점검 기록(집행 전 점검표)만 저장한 날부터 이 기간이 지나면 지출 도우미를 쓸 때 자동으로 지웁니다. 지출 대장과 예산 장부는 지우지 않으며, 지운 기록은 되돌릴 수 없습니다. 기관의 기록물 보존 기준이 있으면 그 기간 이상으로 정하세요.</p>
+          {keepYears >= 1 && due !== null && (
+            <Note tone={due > 0 ? "warn" : "info"}>{due > 0 ? `저장하면 지금 보관된 기록 중 ${due}건이 바로 삭제됩니다.` : "저장해도 지금 지워지는 기록은 없습니다."}</Note>
+          )}
+        </div>
         <div className="flex flex-col gap-2">
           <span className="kd-label">회계 구분</span>
           <p className="kd-small kd-muted">이름은 화면과 엑셀에 보이는 말입니다. 단서 낱말이 공문에 나오면 그 회계의 과목을 먼저 추천합니다.</p>

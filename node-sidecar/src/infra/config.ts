@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
     year: 0,
     warn_at: 90,
     over_block: true,
+    precheck_keep_years: 0,
     accounts: [
       { id: 'univ', label: '대학회계', words: ['대학회계', '등록금', '교비'] },
       { id: 'glocal', label: '글로컬', words: ['글로컬'] },

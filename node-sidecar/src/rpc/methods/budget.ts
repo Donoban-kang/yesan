@@ -9,8 +9,8 @@ import { guideAdd, guideClause, guideFind, guideList, guideRemove } from '../../
 import { budgetSettings, yearOf } from '../../core/budget/settings.js';
 import { loadBook } from '../../core/budget/store.js';
 import { budgetBundle } from '../../core/budget/bundle.js';
-import { budgetPrecheck, budgetPrecheckRecord, budgetPrecheckSave } from '../../core/budget/precheck-run.js';
-import { deleteRecord, getRecord, listRecords } from '../../core/budget/precheck-store.js';
+import { budgetPrecheck, budgetPrecheckRecord, budgetPrecheckSave, purgeByPolicy } from '../../core/budget/precheck-run.js';
+import { deleteRecord, getRecord, listRecords, purgeRecords } from '../../core/budget/precheck-store.js';
 import type { BudgetBundleDoc, BudgetPrecheckBundle } from '../../types/rpc-contract.js';
 import { bool, num, oneOf, optPath, registrar, reqPath, reqPaths, str, strList } from './params.js';
 
@@ -69,7 +69,8 @@ export function registerBudget(router: RpcRouter): void {
   const precheckArgs = (p: Record<string, unknown>) => ({ bundle: precheckBundle(p.bundle), item_id: str(p.item_id), amount: num(p.amount), year: year(p), memo: str(p.memo) });
   reg('budget_precheck_record', (p) => budgetPrecheckRecord(precheckArgs(p)));
   reg('budget_precheck_save', (p) => budgetPrecheckSave(precheckArgs(p)));
-  reg('budget_precheck_list', () => listRecords());
+  reg('budget_precheck_list', async () => { await purgeByPolicy().catch(() => 0); return listRecords(); });
+  reg('budget_precheck_purge', (p) => purgeRecords(num(p.years) ?? 0, { dryRun: bool(p.dry_run) === true }));
   reg('budget_precheck_get', (p) => getRecord(id(p.id)));
   reg('budget_precheck_delete', (p) => deleteRecord(id(p.id)));
   reg('budget_suggest', (p) => budgetSuggest({

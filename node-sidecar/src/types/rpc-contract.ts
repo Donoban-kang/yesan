@@ -215,6 +215,8 @@ export interface RpcMethods {
   budget_precheck_list: [Record<string, never>, BudgetPrecheckRecordSummary[]];
   budget_precheck_get: [{ id: string }, BudgetPrecheckRecord];
   budget_precheck_delete: [{ id: string }, boolean];
+  /** 보관 연수보다 오래된 점검 기록 정리. dry_run 이면 지우지 않고 대상 건수만 (설정 화면 미리보기) */
+  budget_precheck_purge: [{ years: number; dry_run?: boolean }, { due: number; deleted: number }];
   /** 글과 금액으로 다시 추천 (회계 구분을 바꾸거나 금액을 고쳤을 때) */
   budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }, BudgetSuggestion[]];
   /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */

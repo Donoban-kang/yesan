@@ -51,6 +51,18 @@ export async function listRecords(): Promise<BudgetPrecheckRecordSummary[]> {
   return out.sort((a, b) => b.saved_at.localeCompare(a.saved_at));
 }
 
+/** 저장일이 보관 연수보다 오래된 기록 (기준일은 저장일 + N년, 오늘 포함 전 날까지). years 가 1 미만이면 아무것도 지우지 않는다 */
+export async function purgeRecords(years: number, opts: { dryRun?: boolean; now?: Date } = {}): Promise<{ due: number; deleted: number }> {
+  if (!Number.isInteger(years) || years < 1 || years > 50) return { due: 0, deleted: 0 };
+  const cut = new Date(opts.now ?? new Date());
+  cut.setFullYear(cut.getFullYear() - years);
+  const old = (await listRecords()).filter((r) => { const t = new Date(r.saved_at).getTime(); return Number.isFinite(t) && t < cut.getTime(); });
+  if (opts.dryRun) return { due: old.length, deleted: 0 };
+  let deleted = 0;
+  for (const r of old) if (await deleteRecord(r.id)) deleted++;
+  return { due: old.length, deleted };
+}
+
 export async function deleteRecord(id: string): Promise<boolean> {
   const f = fileOf(id);
   if (!existsSync(f)) return false;
