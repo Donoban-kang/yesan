@@ -2,11 +2,14 @@
  *  AI 없이 정해진 규칙으로만 견준다. 이상 없음·확인 필요·점검 못함만 보이고, 집행 가능 여부는 판정하지 않는다. */
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, CircleAlert, CircleDashed, ClipboardCheck } from "lucide-react";
+import { Archive, CheckCircle2, CircleAlert, CircleDashed, ClipboardCheck, FileDown } from "lucide-react";
 import type { BudgetBundle, BudgetPrecheck, BudgetPrecheckStatus } from "../../lib/contract";
 import { rpc, errorText } from "../../lib/rpc";
 import { useApp } from "../../state/app";
-import { Note } from "../common/Status";
+import { useTask } from "../../hooks/useTask";
+import { Button } from "../ui/Button";
+import { ErrorLine, Note, SavedFile } from "../common/Status";
+import { exportPrecheck, precheckChanged } from "./PrecheckHistory";
 
 const ICON: Record<BudgetPrecheckStatus, typeof CheckCircle2> = { ok: CheckCircle2, check: CircleAlert, na: CircleDashed };
 const NAME: Record<BudgetPrecheckStatus, string> = { ok: "이상 없음", check: "확인 필요", na: "점검 못함" };
@@ -29,6 +32,17 @@ export function PrecheckPanel({ bundle, itemId, amount, year }: { bundle: Budget
     }, 250);
     return () => { alive = false; window.clearTimeout(t); };
   }, [bundle, itemId, amount, year]);
+
+  const [memo, setMemo] = useState("");
+  const args = () => ({ bundle, item_id: itemId ?? undefined, amount: amount > 0 ? amount : undefined, year, memo: memo.trim() || undefined });
+  const keep = useTask<string>();
+  const out = useTask<string>();
+  const keepRecord = () => void keep.run(async () => {
+    const r = await rpc("budget_precheck_save", args());
+    precheckChanged();
+    return r.id;
+  });
+  const exportDoc = () => void out.run(async () => exportPrecheck(await rpc("budget_precheck_record", args())));
 
   const count = (s: BudgetPrecheckStatus) => res?.items.filter((i) => i.status === s).length ?? 0;
   return (
@@ -72,6 +86,18 @@ export function PrecheckPanel({ bundle, itemId, amount, year }: { bundle: Budget
             })}
           </ul>
           <p className="kd-small kd-muted">{res.caveat}</p>
+          <label className="kd-field">
+            <span className="kd-label">메모 (선택)</span>
+            <input className="kd-input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 1차 점검, 견적서 보완 요청 예정" />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={keepRecord} isLoading={keep.busy}><Archive size={13} /> 점검 기록 보관</Button>
+            <Button size="sm" variant="secondary" onClick={exportDoc} isLoading={out.busy}><FileDown size={13} /> 점검표 HWPX로 저장</Button>
+          </div>
+          <ErrorLine message={keep.error || out.error} />
+          {keep.result && !keep.busy && <Note tone="ok">점검 기록을 이 PC에 보관했습니다. 아래 "보관한 점검 기록"에서 다시 열 수 있습니다.</Note>}
+          {out.result && !out.busy && <SavedFile path={out.result} label="점검표를 저장했습니다" />}
+          <p className="kd-small kd-muted">보관·저장하는 기록에는 계좌번호 중간 3자리를 가리고, 파일 경로는 넣지 않습니다. 화면의 지급할 곳은 원본 그대로입니다.</p>
         </>
       )}
     </section>

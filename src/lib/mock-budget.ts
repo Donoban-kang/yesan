@@ -4,7 +4,8 @@ import type { BudgetAnalysis, BudgetBookView, BudgetEntry, BudgetItem, RpcMethod
 import { linkedDocs, linkedNumbers, reversedGroups, reversibleGroups, settledCommits, viewOf } from "../../node-sidecar/src/core/budget/tally";
 import { suggestItems } from "../../node-sidecar/src/core/budget/suggest";
 import { rankClauses, splitClauses } from "../../node-sidecar/src/core/budget/guide-match";
-import type { BudgetBundleDoc, BudgetGuide } from "./contract";
+import type { BudgetBundleDoc, BudgetGuide, BudgetPrecheckRecord } from "./contract";
+import { buildRecord, summaryOf } from "../../node-sidecar/src/core/budget/precheck-record";
 
 /** 미리보기용 가상 규정 (실제 규정 아님) */
 const MOCK_RULE = [
@@ -121,6 +122,8 @@ const analysisOf = (path: string): BudgetAnalysis => {
 type H = { [M in RpcMethod]?: (p: RpcParams<M>) => RpcResult<M> | Promise<RpcResult<M>> };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const precheckRecords: BudgetPrecheckRecord[] = [];
+
 export const budgetHandlers: H = {
   budget_book: () => book(),
   budget_analyze: async (p) => { await wait(400); return analysisOf(p.path); },
@@ -160,6 +163,27 @@ export const budgetHandlers: H = {
       ],
       caveat: "정해진 규칙으로 읽은 값만 견준 참고용 점검표입니다. 집행 가능 여부와 규정 적합 여부는 기관 규정 원문과 회계 담당 확인으로 정하세요.",
     };
+  },
+  budget_precheck_record: async (p) => {
+    const it = items.find((x) => x.id === p.item_id);
+    return buildRecord({ bundle: p.bundle, precheck: await budgetHandlers.budget_precheck!(p), year: 2026, item: it ? { id: it.id, name: it.name } : undefined, amount: p.amount, memo: p.memo });
+  },
+  budget_precheck_save: async (p) => {
+    const rec = await budgetHandlers.budget_precheck_record!(p);
+    const saved = { ...rec, id: `pc-${Date.now()}-${(++seq).toString(16).padStart(6, "0")}` };
+    precheckRecords.unshift(saved);
+    return saved;
+  },
+  budget_precheck_list: () => precheckRecords.map(summaryOf),
+  budget_precheck_get: (p) => {
+    const r = precheckRecords.find((x) => x.id === p.id);
+    if (!r) throw new Error("점검 기록을 찾지 못했습니다. 이미 지웠거나 다른 PC의 기록일 수 있습니다.");
+    return r;
+  },
+  budget_precheck_delete: (p) => {
+    const i = precheckRecords.findIndex((x) => x.id === p.id);
+    if (i >= 0) precheckRecords.splice(i, 1);
+    return i >= 0;
   },
   budget_suggest: (p) => suggestItems(items.map((it) => viewOf(it, entries)), entries, MOCK_BUDGET_SETTINGS, { ...p, account: p.account || undefined }),
   budget_apply: (p) => {

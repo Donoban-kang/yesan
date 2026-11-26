@@ -167,3 +167,77 @@ describe('RPC budget_precheck', () => {
     expect(r.items.find((i) => i.id === 'rule')?.status).toBe('na');
   });
 });
+
+describe('계좌번호 가리기', () => {
+  it('숫자 가운데 중간 3자리만 가리고 붙임표는 둔다', async () => {
+    const { maskAccount } = await import('../src/core/budget/precheck-record.js');
+    expect(maskAccount('1002-345-678901')).toBe('1002-3**-*78901');
+    expect(maskAccount('110123456789')).toBe('1101***56789');
+    expect(maskAccount('12345')).toBe('1***5');
+    expect(maskAccount('123')).toBe('***');
+    expect(maskAccount('계좌 없음')).toBe('계좌 없음');
+    for (const a of ['1002-345-678901', '110123456789', '3333-12-3456789']) {
+      const m = maskAccount(a);
+      expect(m.replace(/\D/g, '').length).toBe(a.replace(/\D/g, '').length - 3);
+      expect((m.match(/\*/g) ?? []).length).toBe(3);
+      expect(m.length).toBe(a.length);
+    }
+  });
+});
+
+describe('점검 기록 보관·문서 글', () => {
+  const bundle = (): BudgetPrecheckBundle => ({
+    docs: [
+      { path: '/pc/비밀/공문.hwpx', name: '공문.hwpx', kind: 'letter', label: '공문' },
+      { path: '/pc/비밀/통장.pdf', name: '통장.pdf', kind: 'bank', label: '계좌 사본', bank: '가온은행', account: '1002-345-678901', holder: '가온관광' },
+    ],
+    receipts_total: 0, quotes_total: 0, analysis: { amount: 1_980_000, nature: '임차', title: '진로체험 | 버스 임차', basis: '' },
+  });
+
+  it('기록에는 가린 계좌번호만 있고 경로와 원래 번호는 없다', async () => {
+    const { call, setupEnv } = await import('./doc-helpers.js');
+    setupEnv();
+    const rec = await call('budget_precheck_save', { bundle: bundle(), memo: '1차 점검' }) as import('../src/types/rpc-contract.js').BudgetPrecheckRecord;
+    expect(rec.id).toMatch(/^pc-\d{13}-[0-9a-f]{6}$/);
+    expect(rec.docs.find((d) => d.kind === 'bank')?.account).toBe('1002-3**-*78901');
+    const json = JSON.stringify(rec);
+    expect(json).not.toContain('678901');
+    expect(json).not.toContain('/pc/비밀');
+    // 파일에도 원래 번호가 없다
+    const { readFile } = await import('node:fs/promises');
+    const { budgetDir } = await import('../src/core/budget/store.js');
+    const { join } = await import('node:path');
+    expect(await readFile(join(budgetDir(), 'precheck', `${rec.id}.json`), 'utf-8')).not.toContain('678901');
+    // 목록·열기·지우기
+    const list = await call('budget_precheck_list', {}) as Array<{ id: string; title: string }>;
+    expect(list.some((x) => x.id === rec.id)).toBe(true);
+    expect((await call('budget_precheck_get', { id: rec.id }) as { memo?: string }).memo).toBe('1차 점검');
+    expect(await call('budget_precheck_delete', { id: rec.id })).toBe(true);
+    expect(await call('budget_precheck_delete', { id: rec.id })).toBe(false);
+    await expect(call('budget_precheck_get', { id: rec.id })).rejects.toThrow('찾지 못했습니다');
+  });
+
+  it('폴더 밖을 가리키는 id 는 받지 않는다', async () => {
+    const { call, setupEnv } = await import('./doc-helpers.js');
+    setupEnv();
+    await expect(call('budget_precheck_get', { id: '../../settings' })).rejects.toThrow('고르세요');
+    await expect(call('budget_precheck_delete', { id: '../x' })).rejects.toThrow('고르세요');
+  });
+
+  it('내보내기용 기록은 저장하지 않고, 문서 글에 가린 번호가 들어간다', async () => {
+    const { call, setupEnv } = await import('./doc-helpers.js');
+    const { precheckMarkdown } = await import('../src/core/budget/precheck-record.js');
+    setupEnv();
+    const before = (await call('budget_precheck_list', {}) as unknown[]).length;
+    const rec = await call('budget_precheck_record', { bundle: bundle() }) as import('../src/types/rpc-contract.js').BudgetPrecheckRecord;
+    expect(rec.id).toBe('');
+    expect((await call('budget_precheck_list', {}) as unknown[]).length).toBe(before);
+    const md = precheckMarkdown(rec);
+    expect(md).toContain('1002-3**-*78901');
+    expect(md).not.toContain('678901');
+    expect(md).toContain('# 집행 전 점검표');
+    expect(md).toContain('진로체험 / 버스 임차'); // 표 칸의 세로선은 바꾼다
+    expect(md).toContain('| 서류 구비 | 확인 필요 |');
+    expect(md).toContain('※ 정해진 규칙으로');
+  });
+});

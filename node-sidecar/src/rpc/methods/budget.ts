@@ -9,7 +9,8 @@ import { guideAdd, guideClause, guideFind, guideList, guideRemove } from '../../
 import { budgetSettings, yearOf } from '../../core/budget/settings.js';
 import { loadBook } from '../../core/budget/store.js';
 import { budgetBundle } from '../../core/budget/bundle.js';
-import { budgetPrecheck } from '../../core/budget/precheck-run.js';
+import { budgetPrecheck, budgetPrecheckRecord, budgetPrecheckSave } from '../../core/budget/precheck-run.js';
+import { deleteRecord, getRecord, listRecords } from '../../core/budget/precheck-store.js';
 import type { BudgetBundleDoc, BudgetPrecheckBundle } from '../../types/rpc-contract.js';
 import { bool, num, oneOf, optPath, registrar, reqPath, reqPaths, str, strList } from './params.js';
 
@@ -37,12 +38,12 @@ function precheckBundle(v: unknown): BudgetPrecheckBundle {
       path: str(r.path) ?? '', name: r.name, kind: r.kind as BudgetBundleDoc['kind'], label: str(r.label) ?? '',
       ...(num(r.page) ? { page: num(r.page) } : {}), ...(num(r.amount) !== undefined ? { amount: num(r.amount) } : {}),
       ...(str(r.date) ? { date: str(r.date) } : {}), ...(str(r.brn) ? { brn: str(r.brn) } : {}),
-      ...(str(r.account) ? { account: str(r.account) } : {}), ...(str(r.holder) ? { holder: str(r.holder) } : {}),
+      ...(str(r.bank) ? { bank: str(r.bank) } : {}), ...(str(r.account) ? { account: str(r.account) } : {}), ...(str(r.holder) ? { holder: str(r.holder) } : {}),
     }];
   });
   return {
     docs, receipts_total: n(o.receipts_total), quotes_total: n(o.quotes_total),
-    analysis: { amount: num(a.amount), people: str(a.people), nature: str(a.nature), sent_date: str(a.sent_date), basis: str(a.basis) ?? '' },
+    analysis: { amount: num(a.amount), title: str(a.title), people: str(a.people), nature: str(a.nature), sent_date: str(a.sent_date), basis: str(a.basis) ?? '' },
   };
 }
 const id = (v: unknown) => {
@@ -65,6 +66,12 @@ export function registerBudget(router: RpcRouter): void {
   reg('budget_analyze', (p, signal) => budgetAnalyze({ path: reqPath(p.path), year: year(p) }, signal), { heavy: true });
   reg('budget_bundle', (p, signal) => budgetBundle({ paths: reqPaths(p.paths), year: year(p) }, signal), { heavy: true });
   reg('budget_precheck', (p) => budgetPrecheck({ bundle: precheckBundle(p.bundle), item_id: str(p.item_id), amount: num(p.amount), year: year(p) }));
+  const precheckArgs = (p: Record<string, unknown>) => ({ bundle: precheckBundle(p.bundle), item_id: str(p.item_id), amount: num(p.amount), year: year(p), memo: str(p.memo) });
+  reg('budget_precheck_record', (p) => budgetPrecheckRecord(precheckArgs(p)));
+  reg('budget_precheck_save', (p) => budgetPrecheckSave(precheckArgs(p)));
+  reg('budget_precheck_list', () => listRecords());
+  reg('budget_precheck_get', (p) => getRecord(id(p.id)));
+  reg('budget_precheck_delete', (p) => deleteRecord(id(p.id)));
   reg('budget_suggest', (p) => budgetSuggest({
     year: year(p), text: str(p.text) ?? '', nature: str(p.nature), account: str(p.account), amount: num(p.amount), sender: str(p.sender), limit: num(p.limit), subjects: strList(p.subjects),
   }));

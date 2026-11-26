@@ -208,6 +208,13 @@ export interface RpcMethods {
   budget_bundle: [{ paths: string[]; year?: number }, BudgetBundle];
   /** 집행 전 점검표 (서류 구비·금액 일치·사업자·계좌·잔액·규정 기준 대조, AI 없이 규칙으로) */
   budget_precheck: [{ bundle: BudgetPrecheckBundle; item_id?: string; amount?: number; year?: number }, BudgetPrecheck];
+  /** 점검 기록 만들기 (저장하지 않음, 문서로 내보낼 때): 점검을 다시 하고 계좌번호 중간 3자리를 가린 기록으로 */
+  budget_precheck_record: [{ bundle: BudgetPrecheckBundle; item_id?: string; amount?: number; year?: number; memo?: string }, BudgetPrecheckRecord];
+  /** 점검 기록 보관 (이 PC 앱 데이터에만, 자동 삭제 없음) */
+  budget_precheck_save: [{ bundle: BudgetPrecheckBundle; item_id?: string; amount?: number; year?: number; memo?: string }, BudgetPrecheckRecord];
+  budget_precheck_list: [Record<string, never>, BudgetPrecheckRecordSummary[]];
+  budget_precheck_get: [{ id: string }, BudgetPrecheckRecord];
+  budget_precheck_delete: [{ id: string }, boolean];
   /** 글과 금액으로 다시 추천 (회계 구분을 바꾸거나 금액을 고쳤을 때) */
   budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }, BudgetSuggestion[]];
   /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */
@@ -878,7 +885,7 @@ export interface BudgetPrecheckBundle {
   docs: BudgetBundleDoc[];
   receipts_total: number;
   quotes_total: number;
-  analysis: Pick<BudgetAnalysis, 'amount' | 'people' | 'nature' | 'sent_date' | 'basis'>;
+  analysis: Pick<BudgetAnalysis, 'amount' | 'people' | 'nature' | 'sent_date' | 'basis' | 'title'>;
 }
 
 /** 점검 결과: ok=이상 없음, check=확인 필요, na=읽은 값이 모자라 점검하지 못함 (적정·위반을 판정하지 않는다) */
@@ -913,6 +920,34 @@ export interface BudgetPrecheck {
   items: BudgetPrecheckItem[];
   /** 항상 보이는 한계 문구 */
   caveat: string;
+}
+
+/** 보관·내보내는 점검 기록. 계좌번호는 중간 3자리를 가려 담고, 파일 경로는 담지 않는다 */
+export interface BudgetPrecheckRecord {
+  /** 보관 전(내보내기만)은 빈 글 */
+  id: string;
+  saved_at: string;
+  year: number;
+  title: string;
+  nature?: string;
+  amount?: number;
+  item?: { id: string; name: string };
+  memo?: string;
+  docs: Array<{ name: string; page?: number; kind: BudgetBundleKind; label: string; amount?: number; date?: string; brn?: string; bank?: string; account?: string; holder?: string }>;
+  receipts_total: number;
+  quotes_total: number;
+  precheck: BudgetPrecheck;
+}
+
+export interface BudgetPrecheckRecordSummary {
+  id: string;
+  saved_at: string;
+  title: string;
+  amount?: number;
+  item_name?: string;
+  ok: number;
+  check: number;
+  na: number;
 }
 
 /** 기관 규정·지침 파일 하나 (budget_guide_*) */
