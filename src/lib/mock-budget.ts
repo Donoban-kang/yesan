@@ -4,7 +4,7 @@ import type { BudgetAnalysis, BudgetBookView, BudgetEntry, BudgetItem, RpcMethod
 import { linkedDocs, linkedNumbers, reversedGroups, reversibleGroups, settledCommits, viewOf } from "../../node-sidecar/src/core/budget/tally";
 import { suggestItems } from "../../node-sidecar/src/core/budget/suggest";
 import { rankClauses, splitClauses } from "../../node-sidecar/src/core/budget/guide-match";
-import type { BudgetGuide } from "./contract";
+import type { BudgetBundleDoc, BudgetGuide } from "./contract";
 
 /** 미리보기용 가상 규정 (실제 규정 아님) */
 const MOCK_RULE = [
@@ -91,7 +91,9 @@ const analysisOf = (path: string): BudgetAnalysis => {
       doc_kind: "원인행위서", fiscal_year: 2025, resolution_no: "20251BD0000E40000001", doc_number: "20251BD0000E40000001", title: "[육성]출장여비 정산 결의 요청(교육혁신과/김*온외 1명)",
       sender: "교육혁신과", sent_date: "2026-01-08", purpose: "[육성]출장여비 정산 결의 요청", amount: 412_000,
       amounts: [{ value: 412_000, source: "원인행위서 금액 칸", confidence: 0.97, form: "결의서" }], nature: "여비", nature_words: ["여비"], account_hint: "growth",
-      budget_lines: lines, basis, subjects, suggestions: suggestItems(views, entries, MOCK_BUDGET_SETTINGS, { text: basis, nature: "여비", account: "growth", amount: 412_000, subjects }),
+      budget_lines: lines, basis, subjects,
+      content: "# [육성]출장여비 정산 결의 요청\n\n| 회계연도 | 2025 | 결의구분 | 원인행위 |\n|---|---|---|---|\n| 발의부서 | 교육혁신과 | 발의일자 | 2026-01-08 |\n\n| 세부사업 | 예산과목 | 금액 |\n|---|---|---|\n" + lines.map((l) => `| ${l.detail} | ${l.subject} | ${l.amount.toLocaleString("ko-KR")} |`).join("\n") + "\n\n적요: 1. 관련: 교육혁신과-0000(2026.01.05.) 2. 내용: 가온 교육혁신 포럼 참석 3. 지급금액: 금412,000원",
+      suggestions: suggestItems(views, entries, MOCK_BUDGET_SETTINGS, { text: basis, nature: "여비", account: "growth", amount: 412_000, subjects }),
     };
   }
   const forum = path.includes("포럼");
@@ -109,6 +111,9 @@ const analysisOf = (path: string): BudgetAnalysis => {
     purpose: forum ? "지역 협업 포럼 개최" : "진로체험 버스 임차", period: forum ? "2026. 12. 4.(금) 14:00" : "2026. 11. 27.(금) 08:30~15:30", people: forum ? undefined : "학생 142명, 인솔 8명",
     amount, amounts: [{ value: amount, source: forum ? "나. 소요 예산: 금3,000,000원(행사 운영)" : "라. 소요 예산: 금1,980,000원(45인승 버스 3대, 부가세 포함)", confidence: 0.85, form: "원" }, { value: 660_000, source: "버스 1대 660,000원", confidence: 0.45, form: "원" }],
     nature, nature_words: forum ? ["포럼"] : ["임차", "버스"], ...(account ? { account_hint: account } : {}), basis,
+    content: forum
+      ? "# 글로컬대학 30 지역 협업 포럼 개최 안내\n\n1. 관련: 기획처-70(2026. 11. 3.)\n2. 지역 협업을 위한 포럼을 아래와 같이 개최하오니 참석하여 주시기 바랍니다.\n  가. 일시: 2026. 12. 4.(금) 14:00\n  나. 소요 예산: 금3,000,000원(행사 운영)\n\n붙임  1. 포럼 계획서 1부.  끝."
+      : "# 2026 진로체험 버스 임차 협조 요청\n\n1. 학생 진로체험 활동을 위하여 버스 임차를 아래와 같이 협조 요청하오니 2026. 11. 20.까지 회신하여 주시기 바랍니다.\n  가. 일시: 2026. 11. 27.(금) 08:30~15:30\n  나. 대상: 학생 142명, 인솔 8명\n  다. 차량: 45인승 버스 3대 (1대 660,000원)\n  라. 소요 예산: 금1,980,000원(45인승 버스 3대, 부가세 포함)\n\n| 구분 | 수량 | 단가 | 금액 |\n|---|---|---|---|\n| 45인승 버스 | 3 | 660,000 | 1,980,000 |\n\n붙임  1. 견적서 1부.  끝.",
     suggestions: suggestItems(views, entries, MOCK_BUDGET_SETTINGS, { text: basis, nature, account, amount }),
   };
 };
@@ -119,6 +124,23 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const budgetHandlers: H = {
   budget_book: () => book(),
   budget_analyze: async (p) => { await wait(400); return analysisOf(p.path); },
+  budget_bundle: async (p) => {
+    await wait(500);
+    const name = (x: string) => x.split("/").pop() ?? x;
+    // 이름으로 가른 가상 서류 (계좌·사업자번호는 지어낸 값)
+    const docs = p.paths.map((x): BudgetBundleDoc => {
+      const n = name(x);
+      if (/영수증/.test(n)) return { path: x, name: n, kind: "receipt", label: "영수증", amount: 1_980_000, date: "2026-11-27", ocr: true };
+      if (/통장|계좌/.test(n)) return { path: x, name: n, kind: "bank", label: "계좌 사본", bank: "가온은행", account: "1002-345-678901", holder: "가온관광", ocr: true };
+      return { path: x, name: n, kind: "letter", label: "공문" };
+    });
+    const main = docs.find((d) => d.kind === "letter") ?? docs[0];
+    const analysis = { ...analysisOf(main.path), doc_kind: "공문" as const, budget_lines: undefined };
+    const receipts_total = docs.filter((d) => d.kind === "receipt").reduce((n, d) => n + (d.amount ?? 0), 0);
+    const payees = docs.filter((d) => d.kind === "bank").map((d) => ({ bank: d.bank, account: d.account, holder: d.holder, from: d.name }));
+    const notes = docs.some((d) => d.ocr) ? ["스캔 서류는 글자 읽기(OCR)로 읽어 틀릴 수 있습니다. 원본과 견줘 확인하세요."] : [];
+    return { analysis, docs, receipts_total, quotes_total: 0, failed: [], notes, payees };
+  },
   budget_suggest: (p) => suggestItems(items.map((it) => viewOf(it, entries)), entries, MOCK_BUDGET_SETTINGS, { ...p, account: p.account || undefined }),
   budget_apply: (p) => {
     const it = items.find((x) => x.id === p.item_id)!;

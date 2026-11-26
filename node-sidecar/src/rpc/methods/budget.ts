@@ -8,6 +8,7 @@ import {
 import { guideAdd, guideClause, guideFind, guideList, guideRemove } from '../../core/budget/guide.js';
 import { budgetSettings, yearOf } from '../../core/budget/settings.js';
 import { loadBook } from '../../core/budget/store.js';
+import { budgetBundle } from '../../core/budget/bundle.js';
 import { bool, num, oneOf, optPath, registrar, reqPath, reqPaths, str, strList } from './params.js';
 
 const MAP_KEYS = ['account', 'program', 'unit', 'detail', 'name', 'code', 'budget', 'spent'] as const;
@@ -39,6 +40,7 @@ export function registerBudget(router: RpcRouter): void {
   }));
   reg('budget_item_update', (p) => budgetItemUpdate({ year: year(p), id: id(p.id), keywords: strList(p.keywords), budget: num(p.budget), spent_before: num(p.spent_before) }));
   reg('budget_analyze', (p, signal) => budgetAnalyze({ path: reqPath(p.path), year: year(p) }, signal), { heavy: true });
+  reg('budget_bundle', (p, signal) => budgetBundle({ paths: reqPaths(p.paths), year: year(p) }, signal), { heavy: true });
   reg('budget_suggest', (p) => budgetSuggest({
     year: year(p), text: str(p.text) ?? '', nature: str(p.nature), account: str(p.account), amount: num(p.amount), sender: str(p.sender), limit: num(p.limit), subjects: strList(p.subjects),
   }));

@@ -204,6 +204,8 @@ export interface RpcMethods {
   budget_item_update: [{ year?: number; id: string; keywords?: string[]; budget?: number; spent_before?: number }, BudgetItemView];
   /** 받은 공문을 읽어 금액·목적·기간·거래 성격·회계 구분 단서를 뽑고 예산 과목을 추천 (HWP·HWPX·HWX·HML·PDF·DOCX) */
   budget_analyze: [{ path: string; year?: number }, BudgetAnalysis];
+  /** 지출 서류 묶음: 공문·영수증·계좌 사본·견적서 등을 함께 읽어 서류마다 종류와 값, 중심 공문 분석 (원인행위서·결의서 칸 읽기는 하지 않음) */
+  budget_bundle: [{ paths: string[]; year?: number }, BudgetBundle];
   /** 글과 금액으로 다시 추천 (회계 구분을 바꾸거나 금액을 고쳤을 때) */
   budget_suggest: [{ year?: number; text: string; nature?: string; account?: string; amount?: number; sender?: string; limit?: number; subjects?: string[] }, BudgetSuggestion[]];
   /** 지출 반영: commit = 품의(집행 예정), paid = 지출 완료. 잔액을 넘으면 설정(over_block)에 따라 막는다 */
@@ -741,6 +743,8 @@ export interface BudgetAnalysis {
   path: string;
   name: string;
   format: DocFormat;
+  /** 읽은 본문(마크다운, 앞 10만 자) — 지출 도우미가 "공문 내용"으로 보여 준다. 이 PC 화면에만 쓴다 */
+  content?: string;
   /** HWX 를 어떻게 읽었는지 등 */
   notes: string[];
   /** 공문 · 원인행위서 · 지출결의서 … */
@@ -826,6 +830,45 @@ export interface BudgetEvidenceResult {
   /** 갈래에 비해 빠진 서류 이름 */
   missing: string[];
   ocr: boolean;
+}
+
+/** 지출 서류 묶음의 서류 종류 */
+export type BudgetBundleKind = 'letter' | 'plan' | 'receipt' | 'quote' | 'invoice' | 'bank' | 'request' | 'claim' | 'inspection' | 'other';
+
+/** 묶음 안 서류 하나 (파일 하나, 스캔 PDF 는 쪽 하나). 계좌 사본의 지급할 곳은 화면에 그대로 보인다(외부로 보내지 않음) */
+export interface BudgetBundleDoc {
+  path: string;
+  name: string;
+  /** 스캔 PDF 의 쪽 번호 (글자층 문서는 없음) */
+  page?: number;
+  kind: BudgetBundleKind;
+  label: string;
+  amount?: number;
+  date?: string;
+  /** 사업자 등록번호 */
+  brn?: string;
+  /** 계좌 사본·입금 계좌: 지급할 곳 (은행, 계좌번호, 예금주) */
+  bank?: string;
+  account?: string;
+  holder?: string;
+  /** 글자 읽기(OCR)로 읽었는가 (틀릴 수 있음) */
+  ocr?: boolean;
+}
+
+/** 지출 서류 묶음 읽기 결과 (budget_bundle) */
+export interface BudgetBundle {
+  /** 중심 서류(공문, 없으면 계획서·첫 서류)로 낸 분석 */
+  analysis: BudgetAnalysis;
+  docs: BudgetBundleDoc[];
+  /** 영수증 합계 · 견적 합계 (읽은 것만) */
+  receipts_total: number;
+  quotes_total: number;
+  /** 읽지 못한 파일 */
+  failed: Array<{ path: string; error: string }>;
+  /** 알림 (영수증 합계와 공문 금액이 다름 등) */
+  notes: string[];
+  /** 지급할 곳 (계좌 사본에서 읽은 것, 여럿이면 차례대로) */
+  payees: Array<{ bank?: string; account?: string; holder?: string; from: string }>;
 }
 
 /** 기관 규정·지침 파일 하나 (budget_guide_*) */

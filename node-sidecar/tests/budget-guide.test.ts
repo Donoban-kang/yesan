@@ -11,6 +11,14 @@ vi.mock('../src/infra/progress.js', async (orig) => ({ ...(await orig<typeof imp
 let env: ReturnType<typeof setupEnv>;
 beforeAll(() => { env = setupEnv(); });
 
+/** 시험용 CP949 인코더: Node 에는 euc-kr 인코더가 없어 디코더로 완성형 표를 거꾸로 만든다 */
+function encodeCp949(text: string): Buffer {
+  const map = new Map<string, number[]>();
+  const dec = new TextDecoder('euc-kr');
+  for (let a = 0xb0; a <= 0xc8; a++) for (let b = 0xa1; b <= 0xfe; b++) map.set(dec.decode(Buffer.from([a, b])), [a, b]);
+  return Buffer.from([...text].flatMap((ch) => (ch.charCodeAt(0) < 0x80 ? [ch.charCodeAt(0)] : map.get(ch) ?? [0x3f])));
+}
+
 const RULE = [
   '가온대학교 예산집행 지침 (시험용 가상 규정)',
   '',
@@ -108,6 +116,23 @@ describe('규정 넣기·근거 찾기 (RPC)', () => {
     const c = await call('budget_guide_clause', { id: r.added[0].id, no: '제2조' });
     expect(c.text).toContain('1박당 70,000원 이내');
     expect(c.text).not.toContain('<p>');
+    for (const g of r.added) await call('budget_guide_remove', { id: g.id });
+  }, 30_000);
+
+  it('예전 한글 인코딩(CP949)·UTF-16·숫자 엔티티도 읽고, 너무 큰 모르는 파일은 읽기 전에 거절', async () => {
+    const body = ['제1조(목적) 이 지침은 업무추진비 집행 기준을 정한다.', '제2조(한도) 간담회 식대는 1인당 30,000원 이내로 한다.', '제3조(증빙) 참석자 명단을 붙인다.'].join('\n');
+    const cp949 = join(env.work, '업무추진비.law');
+    writeFileSync(cp949, encodeCp949(body));
+    const u16 = join(env.work, '업무추진비2.log');
+    writeFileSync(u16, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(body, 'utf16le')]));
+    const ent = join(env.work, '업무추진비3.htm');
+    writeFileSync(ent, `<html><body>${body.split('\n').map((l) => `<p>${[...l].map((ch) => (/[가-힣]/.test(ch) ? `&#${ch.codePointAt(0)};` : ch)).join('')}</p>`).join('')}</body></html>`);
+    const big = join(env.work, '큰 파일.bin');
+    writeFileSync(big, Buffer.alloc(21 * 1024 * 1024, 0x41));
+    const r = await call('budget_guide_add', { paths: [cp949, u16, ent, big] });
+    expect(r.added.map((g: { articles: number }) => g.articles)).toEqual([3, 3, 3]);
+    for (const g of r.added) expect((await call('budget_guide_clause', { id: g.id, no: '제2조' })).text).toContain('1인당 30,000원 이내');
+    expect(r.failed.map((f: { error: string }) => f.error)).toEqual([expect.stringMatching(/너무 큽니다/)]);
     for (const g of r.added) await call('budget_guide_remove', { id: g.id });
   }, 30_000);
 });

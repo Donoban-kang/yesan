@@ -24,6 +24,7 @@ pub const ALLOWED_METHODS: &[&str] = &[
     "budget_apply",
     "budget_apply_split",
     "budget_book",
+    "budget_bundle",
     "budget_evidence",
     "budget_export",
     "budget_guide_add",

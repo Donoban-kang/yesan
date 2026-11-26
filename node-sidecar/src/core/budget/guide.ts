@@ -29,16 +29,38 @@ const clauseFile = (id: string) => join(dir(), `${id}.json`);
 const MAX_PLAIN = 20 * 1024 * 1024;
 
 /** 확장자를 모르는 파일(.htm·.law·.log 등): UTF-8 글이면 읽고(웹 문서는 태그를 걷음), 바이너리면 까닭과 함께 거절 */
-async function readPlain(path: string): Promise<string> {
-  const buf = await readFile(path);
-  const bad = () => new Error('글자로 읽을 수 없는 파일입니다. HWP·HWPX·HWX·PDF·DOCX·XLSX·PPTX·그림·TXT·MD 파일로 저장해 넣으세요.');
-  if (buf.length > MAX_PLAIN || buf.subarray(0, 8192).includes(0)) throw bad();
-  const text = buf.toString('utf-8');
-  const broken = (text.match(/\uFFFD/g) ?? []).length;
-  if (broken > Math.max(8, text.length / 200)) throw bad();
+const BAD_PLAIN = '글자로 읽을 수 없는 파일입니다. HWP·HWPX·HWX·PDF·DOCX·XLSX·PPTX·그림·TXT·MD 파일로 저장해 넣으세요.';
+const tooBig = () => new Error(`파일이 너무 큽니다(${MAX_PLAIN / 1024 / 1024}MB 넘음). 규정 본문만 TXT·HWPX·PDF로 저장해 넣으세요.`);
+
+/** 깨진 글자(U+FFFD)가 많으면 그 인코딩이 아니다 */
+const decodes = (text: string) => (text.match(/\uFFFD/g) ?? []).length <= Math.max(8, text.length / 200);
+
+/** UTF-8(BOM 포함)·UTF-16(BOM)·CP949(EUC-KR, 예전 Windows 한글 파일) 차례로 풀어 본다 */
+function decodeText(buf: Buffer): string | null {
+  if (buf[0] === 0xff && buf[1] === 0xfe) return new TextDecoder('utf-16le').decode(buf.subarray(2));
+  if (buf[0] === 0xfe && buf[1] === 0xff) return new TextDecoder('utf-16be').decode(buf.subarray(2));
+  if (buf.subarray(0, 8192).includes(0)) return null;
+  const utf8 = buf.toString('utf-8').replace(/^\uFEFF/, '');
+  if (decodes(utf8)) return utf8;
+  try {
+    const cp949 = new TextDecoder('euc-kr').decode(buf);
+    if (decodes(cp949)) return cp949;
+  } catch { /* euc-kr 디코더가 없는 Node */ }
+  return null;
+}
+
+const ENTITY: Record<string, string> = { nbsp: ' ', lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
+
+/** 확장자를 모르는 파일(.htm·.law·.log 등): 글자 파일이면 읽고(웹 문서는 태그를 걷음), 바이너리면 까닭과 함께 거절 */
+async function readPlain(buf: Buffer): Promise<string> {
+  if (buf.length > MAX_PLAIN) throw tooBig();
+  const text = decodeText(buf);
+  if (text === null) throw new Error(BAD_PLAIN);
   if (!/<(html|body|p|div|table)[\s>]/i.test(text)) return text;
   return text.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<(br|\/p|\/div|\/tr|\/h\d|\/li)[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&(nbsp|lt|gt|quot|apos|amp);/g, (_, n: string) => ENTITY[n])
     .split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).join('\n');
 }
 
@@ -68,10 +90,10 @@ async function loadClauses(id: string): Promise<GuideClause[]> {
   }
 }
 
-async function readGuideText(path: string, signal?: AbortSignal): Promise<string> {
+async function readGuideText(path: string, buf: Buffer, signal?: AbortSignal): Promise<string> {
   if (extname(path).toLowerCase() === '.hwx') return (await readHwx(path, signal)).markdown;
   const fmt = formatOf(path);
-  if (!PARSEABLE.has(fmt) && !TEXT_FORMATS.has(fmt)) return readPlain(path);
+  if (!PARSEABLE.has(fmt) && !TEXT_FORMATS.has(fmt)) return readPlain(buf);
   const r = await parseDoc(path, { images: false, plain: true, pages: fmt === 'pdf' ? '1-300' : undefined, signal });
   return r.markdown;
 }
@@ -89,14 +111,17 @@ export async function guideAdd(paths: string[], signal?: AbortSignal): Promise<{
   for (const path of paths) {
     signal?.throwIfAborted();
     try {
+      // 모르는 확장자는 읽기 전에 크기부터 본다 ("모든 파일"로 큰 동영상을 골라도 통째로 읽지 않게)
+      const known = extname(path).toLowerCase() === '.hwx' || PARSEABLE.has(formatOf(path)) || TEXT_FORMATS.has(formatOf(path));
+      if (!known && (await stat(path)).size > MAX_PLAIN) throw tooBig();
       const buf = await readFile(path);
       const id = createHash('sha256').update(buf).digest('hex').slice(0, 16);
-      const text = await readGuideText(path, signal);
+      const text = await readGuideText(path, buf, signal);
       const clauses = splitClauses(text);
       if (!clauses.length || squash(text).length < 30) throw new Error('글을 읽지 못했습니다. 스캔 파일이면 글자 읽기(OCR) 모델이 깔려 있는지 설정 › 시스템의 엔진 점검으로 확인한 뒤 다시 넣으세요.');
       const guide: BudgetGuide = {
         id, name: basename(path), added_at: new Date().toISOString(), clauses: clauses.length,
-        articles: clauses.filter((c) => c.no.startsWith('제')).length, chars: squash(text).length, size: (await stat(path)).size,
+        articles: clauses.filter((c) => c.no.startsWith('제')).length, chars: squash(text).length, size: buf.length,
       };
       await mkdir(dir(), { recursive: true });
       await writeFile(clauseFile(id), JSON.stringify({ version: 1, guide, clauses } satisfies GuideFile), 'utf-8');

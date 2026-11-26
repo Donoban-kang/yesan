@@ -2,8 +2,8 @@
  *  ① 공문 ② 읽은 값 확인 ③ 과목 고르기 ④ 반영 전 잔액 확인. 반영은 늘 사람이 누르고 한 번 더 확인한다 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChartColumn, FilePlus2, NotebookPen, Search, Sparkles, Wallet } from "lucide-react";
-import type { BudgetAnalysis, BudgetItemView, BudgetSuggestion, RpcResult } from "../../lib/contract";
+import { Check, ChartColumn, FilePlus2, NotebookPen, Sparkles, Wallet } from "lucide-react";
+import type { BudgetBundle, BudgetItemView, BudgetSuggestion, RpcResult } from "../../lib/contract";
 import { useApp } from "../../state/app";
 import { rpc, errorText } from "../../lib/rpc";
 import { pickFiles } from "../../lib/native";
@@ -13,11 +13,12 @@ import { ScreenHeader } from "../shell/ScreenHeader";
 import { Button } from "../ui/Button";
 import { Seg } from "../common/Field";
 import { Empty, ErrorLine, Note, Working } from "../common/Status";
-import { budgetChanged, itemPath, LETTER_FILTER, parseWon, useBudgetBook, won } from "./useBudget";
+import { budgetChanged, itemPath, BUNDLE_FILTER, parseWon, useBudgetBook, won } from "./useBudget";
 import { VoucherDraft } from "./VoucherDraft";
-import { EvidenceCheck } from "./EvidenceCheck";
 import { GuideRefs } from "./GuideRefs";
-import { SplitApply } from "./SplitApply";
+import { ItemTree, projectOf } from "./ItemTree";
+import { DocContent } from "./DocContent";
+import { BundleDocs, BundleSummary } from "./BundleDocs";
 import "./budget.css";
 
 type InboxItem = RpcResult<"inbox_list">["items"][number];
@@ -26,14 +27,18 @@ type Stage = "commit" | "paid";
 export function SpendScreen({ active }: { active: boolean }) {
   const { ready, registerDrop, dragTarget, spendIntent, go, toast, settings } = useApp();
   const { book, error: bookError } = useBudgetBook(active);
-  const analysis = useTask<BudgetAnalysis>({ keepOnFail: true });
+  const analysis = useTask<BudgetBundle>({ keepOnFail: true });
   const [inbox, setInbox] = useState<InboxItem[]>([]);
   const [amountText, setAmountText] = useState("");
   const [account, setAccount] = useState("");
   const [suggestions, setSuggestions] = useState<BudgetSuggestion[]>([]);
   const [itemId, setItemId] = useState<string | null>(null);
+  /** 사람이 과목표·같은 세부사업 목록에서 직접 고른 과목이면 금액·회계 구분을 바꿔 다시 추천해도 바꾸지 않는다 */
+  const manualPick = useRef(false);
   const [pickMode, setPickMode] = useState<"suggest" | "tree">("suggest");
   const [search, setSearch] = useState("");
+  /** 과목표에서 직접 찾기: 먼저 고른 세부사업(회계 › 정책 › 단위 › 세부 경로). 빈 글이면 전체 */
+  const [project, setProject] = useState("");
   const [stage, setStage] = useState<Stage>("commit");
   const [memo, setMemo] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -42,12 +47,13 @@ export function SpendScreen({ active }: { active: boolean }) {
   const [done, setDone] = useState<{ name: string; amount: number; avail: number; warning?: string } | null>(null);
   const [again, setAgain] = useState(false);
 
-  const a = analysis.result;
+  const bundle = analysis.result;
+  const a = bundle?.analysis;
   const amount = parseWon(amountText);
   const warnAt = settings?.budget?.warn_at ?? 90;
   const overBlock = settings?.budget?.over_block ?? true;
   const accounts = book?.accounts ?? [];
-  const label = (id: string) => accounts.find((x) => x.id === id)?.label ?? id;
+  const label = useCallback((id: string) => accounts.find((x) => x.id === id)?.label ?? id, [accounts]);
 
   // 받은 공문 목록 (할 일 먼저) — 공문을 고르는 가장 빠른 길
   useEffect(() => {
@@ -59,17 +65,19 @@ export function SpendScreen({ active }: { active: boolean }) {
   busyRef.current = analysis.busy;
   // 결의서 예산 줄을 하나 골랐으면 그 줄만으로 추천
   const subjectsRef = useRef<string[] | undefined>(undefined);
-  const analyze = useCallback(async (path: string) => {
-    if (busyRef.current) { toast("앞 공문을 읽는 중입니다. 다 읽은 뒤 다시 넣으세요.", "info"); return; }
+  const analyze = useCallback(async (paths: string[]) => {
+    if (!paths.length) return;
+    if (busyRef.current) { toast("앞 서류를 읽는 중입니다. 다 읽은 뒤 다시 넣으세요.", "info"); return; }
     setConfirming(false); setDone(null); setApplyError(""); setMemo(""); setAgain(false); subjectsRef.current = undefined;
-    const r = await analysis.run(({ signal, onProgress }) => rpc("budget_analyze", { path }, { signal, onProgress }));
-    if (!r) return;
+    const b = await analysis.run(({ signal, onProgress }) => rpc("budget_bundle", { paths }, { signal, onProgress }));
+    if (!b) return;
+    const r = b.analysis;
     setAmountText(r.amount ? won(r.amount) : "");
-    // 원인행위서는 지출원인행위(집행 예정), 지출결의서는 지급(지출 완료)
-    setStage(r.doc_kind === "지출결의서" ? "paid" : "commit");
+    setStage("commit");
     setEvidenceNote("");
     setAccount(r.account_hint ?? "");
     setSuggestions(r.suggestions);
+    manualPick.current = false;
     setItemId(r.suggestions[0]?.item.id ?? null);
     setPickMode(r.suggestions.length ? "suggest" : "tree");
   }, [analysis, toast]);
@@ -79,10 +87,10 @@ export function SpendScreen({ active }: { active: boolean }) {
   useEffect(() => {
     if (!spendIntent || !ready || spendIntent.nonce === handled.current) return;
     handled.current = spendIntent.nonce;
-    void analyze(spendIntent.value.path);
+    void analyze([spendIntent.value.path]);
   }, [spendIntent, ready, analyze]);
 
-  useEffect(() => registerDrop("spend", (p) => { if (p[0]) void analyze(p[0]); }), [registerDrop, analyze]);
+  useEffect(() => registerDrop("spend", (p) => { void analyze(p); }), [registerDrop, analyze]);
 
   // 회계 구분·금액을 바꾸면 다시 추천 (글은 처음 읽은 것 그대로)
   const resuggest = useCallback(async (acc: string, amt: number) => {
@@ -90,7 +98,7 @@ export function SpendScreen({ active }: { active: boolean }) {
     try {
       const list = await rpc("budget_suggest", { text: a.basis, nature: a.nature, account: acc || undefined, amount: amt || undefined, sender: a.sender, subjects: subjectsRef.current ?? a.subjects });
       setSuggestions(list);
-      setItemId((cur) => (cur && list.some((s) => s.item.id === cur) ? cur : list[0]?.item.id ?? cur));
+      setItemId((cur) => (cur && (manualPick.current || list.some((s) => s.item.id === cur)) ? cur : list[0]?.item.id ?? cur));
     } catch (e) {
       toast(`다시 추천하지 못했습니다: ${errorText(e)}`, "error");
     }
@@ -131,19 +139,19 @@ export function SpendScreen({ active }: { active: boolean }) {
     }
   };
 
-  const pick = () => void pickFiles({ filters: LETTER_FILTER, multiple: false }).then((p) => { if (p[0]) void analyze(p[0]); });
+  const pick = () => void pickFiles({ filters: BUNDLE_FILTER, multiple: true }).then((p) => { void analyze(p); });
   const noItems = !!book && items.length === 0;
 
-  const q = search.trim();
-  const treeItems = items.filter((x) => (!account || x.account === account) && (!q || `${itemPath(x)} ${x.name} ${x.code ?? ""}`.includes(q)));
+  /** 고른 과목과 같은 세부사업의 다른 과목 (바꿔 고르기) */
+  const siblings = item ? items.filter((x) => !x.retired && x.id !== item.id && projectOf(x) === projectOf(item)) : [];
 
   return (
     <div className="kd-screen" hidden={!active}>
-      <ScreenHeader title="지출 도우미" sub="받은 공문을 읽어 맞는 예산 과목을 추천하고, 반영하면 남은 예산을 바로 보여 줍니다."
+      <ScreenHeader title="지출 도우미" sub="지출할 공문·영수증·계좌 사본 등 서류를 함께 넣으면 서류마다 읽고, 맞는 예산 과목을 추천하고, 반영하면 남은 예산을 보여 줍니다."
         actions={(
           <>
             <Button variant="ghost" onClick={() => go("ledger")}><NotebookPen size={15} /> 지출 대장</Button>
-            <Button variant="secondary" onClick={pick} disabled={analysis.busy}><FilePlus2 size={15} /> 공문 고르기</Button>
+            <Button variant="secondary" onClick={pick} disabled={analysis.busy}><FilePlus2 size={15} /> 서류 고르기</Button>
           </>
         )} />
       <div className="kd-body kd-budget-drop" data-drop="spend" data-over={dragTarget === "spend"}>
@@ -158,19 +166,19 @@ export function SpendScreen({ active }: { active: boolean }) {
             </Note>
           )}
           <div className="kd-spend">
-            {/* ① 공문 */}
+            {/* ① 지출 서류 */}
             <div className="kd-spend-col">
-              <div className="kd-step" data-on="true"><b>1</b>받은 공문</div>
+              <div className="kd-step" data-on="true"><b>1</b>지출 서류 넣기</div>
               <button type="button" className="kd-dropzone" data-over={dragTarget === "spend"} onClick={pick} disabled={analysis.busy}>
                 <FilePlus2 size={22} aria-hidden="true" />
-                <span className="kd-row-title block">공문을 끌어다 놓거나 눌러서 고르기</span>
-                <span className="kd-small kd-muted block">공문·원인행위서·지출결의서 (HWP · HWPX · HWX · HML · PDF · DOCX)</span>
+                <span className="kd-row-title block">서류를 끌어다 놓거나 눌러서 고르기 (여러 개 함께)</span>
+                <span className="kd-small kd-muted block">지출할 공문 · 영수증 · 견적서 · 세금계산서 · 계좌 사본 (HWP · HWPX · HWX · PDF · 사진)</span>
               </button>
               {inbox.length > 0 && (
                 <div className="kd-docpick" aria-label="접수함의 공문">
                   <span className="kd-label">접수함에서 고르기</span>
                   {inbox.map((it) => (
-                    <button key={it.id} type="button" className="kd-docopt" aria-pressed={a?.path === it.path} onClick={() => void analyze(it.path)} disabled={analysis.busy}>
+                    <button key={it.id} type="button" className="kd-docopt" aria-pressed={a?.path === it.path} onClick={() => void analyze([it.path])} disabled={analysis.busy}>
                       <Wallet size={15} aria-hidden="true" className="kd-muted" />
                       <span className="min-w-0"><span className="kd-docopt-name">{it.title ?? it.name}</span><span className="kd-small kd-muted">{it.sender ?? baseName(it.path)}</span></span>
                       <span className="kd-badge" data-tone={linked.has(it.path) ? "ok" : undefined}>{linked.has(it.path) ? "반영됨" : "미연결"}</span>
@@ -178,22 +186,22 @@ export function SpendScreen({ active }: { active: boolean }) {
                   ))}
                 </div>
               )}
-              {analysis.busy && <Working label="공문을 읽는 중" progress={analysis.progress} onCancel={analysis.cancel} />}
+              {analysis.busy && <Working label="서류를 읽는 중" progress={analysis.progress} onCancel={analysis.cancel} />}
               <ErrorLine message={analysis.error} />
+              {bundle && !analysis.busy && <BundleDocs bundle={bundle} />}
+              {a && !analysis.busy && <DocContent analysis={a} />}
             </div>
 
             {/* ② 읽은 값 · ③ 과목 */}
             <div className="kd-spend-col">
               <div className="kd-step" data-on={!!a}><b>2</b>읽은 값 확인</div>
               {!a ? (
-                <Empty icon={<Wallet size={28} />} title="공문을 넣으면 여기에 금액·목적이 보입니다">AI 없이 정해진 규칙으로 읽습니다.</Empty>
+                <Empty icon={<Wallet size={28} />} title="서류를 넣으면 여기에 금액·목적·지급할 곳이 보입니다">AI 없이 정해진 규칙으로 읽습니다.</Empty>
               ) : (
                 <div className="kd-bcard">
                   <dl className="kd-dl">
-                    {a.doc_kind && a.doc_kind !== "공문" && <div><dt>문서</dt><dd><span className="kd-badge" data-tone="info">{a.doc_kind}</span> <span className="kd-small kd-muted">결의서 칸에서 바로 읽었습니다</span></dd></div>}
-                    <div><dt>{a.doc_kind && a.doc_kind !== "공문" ? "건명" : "공문"}</dt><dd className="min-w-0">{a.title ?? a.name}{(a.doc_number || a.sender) && <span className="kd-small kd-muted block">{a.sender ? `${a.sender} · ` : ""}{a.resolution_no ? `결의번호 ${a.resolution_no}` : a.doc_number}{a.sent_date && a.resolution_no ? ` · 발의 ${a.sent_date}` : ""}</span>}</dd></div>
+                    <div><dt>공문</dt><dd className="min-w-0">{a.title ?? a.name}{(a.doc_number || a.sender) && <span className="kd-small kd-muted block">{a.sender ? `${a.sender} · ` : ""}{a.doc_number}</span>}</dd></div>
                     {a.fiscal_year && <div><dt>회계연도</dt><dd className="kd-num">{a.fiscal_year}</dd></div>}
-                    {a.vendor && <div><dt>거래처</dt><dd>{a.vendor}{a.vendor_no && <span className="kd-small kd-muted"> · {a.vendor_no}</span>}</dd></div>}
                     {a.nature && <div><dt>거래 성격</dt><dd><span className="kd-badge" data-tone="accent">{a.nature}</span> <span className="kd-small kd-muted">"{a.nature_words.slice(0, 3).join("·")}" 낱말로 판단</span></dd></div>}
                     {a.period && <div><dt>기간</dt><dd>{a.period}</dd></div>}
                     {a.people && <div><dt>대상</dt><dd>{a.people}</dd></div>}
@@ -203,38 +211,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {a.fiscal_year && book && a.fiscal_year !== book.year && (
                     <Note tone="warn">문서는 {a.fiscal_year}회계연도인데 지금 장부는 {book.year}회계연도입니다. 맞는 장부에 반영하려면 설정 › 예산과 회계에서 회계연도를 바꾸세요.</Note>
                   )}
-                  {a.memo && (
-                    <div className="kd-inset p-3">
-                      <span className="kd-label">적요{a.related ? ` · 관련 ${a.related}` : ""}</span>
-                      <p className="kd-small mt-1" style={{ whiteSpace: "pre-wrap" }}>{a.memo}</p>
-                    </div>
-                  )}
-                  {a.checks && a.checks.length > 0 && (
-                    <div className="flex flex-col gap-1" aria-label="결의서 칸 대조">
-                      <span className="kd-label">결의서 칸 대조</span>
-                      {a.checks.map((c) => (
-                        <span key={c.label} className="kd-small flex flex-wrap items-center gap-2">
-                          <span className="kd-badge" data-tone={c.ok ? "ok" : "err"}>{c.ok ? "맞음" : "다름"}</span>{c.label}<span className="kd-muted kd-num">{c.detail}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {a.doc_kind && a.doc_kind !== "공문" && <EvidenceCheck key={a.path} analysis={a} onResult={setEvidenceNote} />}
-                  {a.budget_lines && a.budget_lines.length > 0 && (
-                    <div className="flex flex-col gap-1.5" aria-label="결의서 예산 줄">
-                      <span className="kd-label">결의서 예산 줄{a.budget_lines.length > 1 ? ` ${a.budget_lines.length}개: 줄을 누르면 그 줄만 추천·반영하고, 아래에서 한 번에 나눠 반영할 수도 있습니다` : ""}</span>
-                      {a.budget_lines.map((l, i) => (
-                        <button key={i} type="button" className="kd-docopt" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }} disabled={a.budget_lines!.length < 2}
-                          onClick={() => { subjectsRef.current = [[l.detail, l.subject].filter(Boolean).join(" ")]; setAmountText(won(l.amount)); setConfirming(false); void resuggest(account, l.amount); }}>
-                          <span className="min-w-0"><span className="kd-docopt-name">{l.subject}</span><span className="kd-small kd-muted">{[l.source, l.detail].filter(Boolean).join(" · ")}</span></span>
-                          <span className="kd-num font-semibold">{won(l.amount)}원</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {a.budget_lines && a.budget_lines.length > 1 && (
-                    <SplitApply key={a.path} analysis={a} items={items} label={label} already={appliedBefore} again={again} onAgain={setAgain} />
-                  )}
+                  {bundle && <BundleSummary bundle={bundle} />}
                   <label className="kd-field">
                     <span className="kd-label">금액 (원)</span>
                     <input className="kd-input kd-amount-input" inputMode="numeric" value={amountText} data-low={!a.amounts[0] || a.amounts[0].confidence < 0.6}
@@ -256,7 +233,7 @@ export function SpendScreen({ active }: { active: boolean }) {
 
               <div className="kd-step" data-on={!!a}><b>3</b>예산 과목 고르기</div>
               {accounts.length > 0 && (
-                <Seg label="회계 구분" value={account} onChange={(v) => { setAccount(v); void resuggest(v, amount); }}
+                <Seg label="회계 구분" value={account} onChange={(v) => { setAccount(v); manualPick.current = false; void resuggest(v, amount); }}
                   options={[{ value: "", label: "전체" }, ...accounts.map((x) => ({ value: x.id, label: x.label }))]} />
               )}
               <Seg label="고르는 방법" value={pickMode} onChange={setPickMode} options={[{ value: "suggest", label: `추천 ${suggestions.length}` }, { value: "tree", label: "과목표에서 직접 찾기" }]} />
@@ -265,7 +242,7 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {!a ? <p className="kd-small kd-muted">공문을 읽으면 맞는 과목을 추천합니다.</p>
                     : suggestions.length === 0 ? <Note tone="info">맞는 과목을 찾지 못했습니다. 과목표에서 직접 찾으세요. 과목에 추천 낱말을 더하면 다음부터 찾습니다(예산 현황).</Note>
                       : suggestions.map((s, i) => (
-                        <button key={s.item.id} type="button" role="radio" aria-checked={itemId === s.item.id} className="kd-sug" onClick={() => { setItemId(s.item.id); setConfirming(false); }}>
+                        <button key={s.item.id} type="button" role="radio" aria-checked={itemId === s.item.id} className="kd-sug" onClick={() => { manualPick.current = false; setItemId(s.item.id); setConfirming(false); }}>
                           <span className="kd-sug-radio" aria-hidden="true" />
                           <span className="min-w-0">
                             <span className="kd-sug-path block">{label(s.item.account)} · {itemPath(s.item) || "사업 없음"}</span>
@@ -278,29 +255,8 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {a && suggestions.length > 0 && <p className="kd-small kd-muted flex items-center gap-1"><Sparkles size={13} aria-hidden="true" /> 점수는 순서를 정할 뿐 확률이 아닙니다. 근거를 보고 고르세요.</p>}
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
-                  <label className="relative block">
-                    <span className="sr-only">과목 찾기</span>
-                    <Search size={15} className="kd-muted absolute left-2.5 top-2.5" aria-hidden="true" />
-                    <input className="kd-input" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="사업명·과목명·코드로 찾기 (예: 여비)" />
-                  </label>
-                  <div className="kd-tree">
-                    {treeItems.length === 0 ? <p className="kd-small kd-muted p-3">찾는 과목이 없습니다.</p> : treeItems.map((x, i) => {
-                      const g = `${label(x.account)} › ${itemPath(x) || "사업 없음"}`;
-                      const prev = treeItems[i - 1];
-                      const head = !prev || `${label(prev.account)} › ${itemPath(prev) || "사업 없음"}` !== g;
-                      return (
-                        <div key={x.id}>
-                          {head && <div className="kd-tree-g">{g}</div>}
-                          <button type="button" className="kd-tree-row" aria-pressed={itemId === x.id} onClick={() => { setItemId(x.id); setConfirming(false); }}>
-                            <span className="font-semibold">{x.name}{x.code && <span className="kd-small kd-muted"> ({x.code})</span>}</span>
-                            <span className="kd-small kd-muted kd-num">잔액 {won(x.avail)}</span>
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <ItemTree items={items} account={account} label={label} itemId={itemId} onPick={(id) => { manualPick.current = true; setItemId(id); setConfirming(false); }}
+                  project={project} onProject={setProject} search={search} onSearch={setSearch} />
               )}
               <GuideRefs analysis={a ?? null} item={item} year={book?.year} />
             </div>
@@ -316,6 +272,15 @@ export function SpendScreen({ active }: { active: boolean }) {
                     <span className="kd-sug-path block">{label(item.account)} · {itemPath(item) || "사업 없음"}</span>
                     <span className="kd-sug-name block" style={{ marginBottom: 0 }}>{item.name}</span>
                   </div>
+                  {siblings.length > 0 && (
+                    <label className="kd-field">
+                      <span className="kd-small kd-muted">같은 세부사업의 다른 과목으로 바꾸기</span>
+                      <select className="kd-input" value="" onChange={(e) => { if (e.target.value) { manualPick.current = true; setItemId(e.target.value); setConfirming(false); } }}>
+                        <option value="">과목 {siblings.length + 1}개 중 고르기</option>
+                        {siblings.map((x) => <option key={x.id} value={x.id}>{x.name}{x.code ? ` (${x.code})` : ""} · 잔액 {won(x.avail)}원</option>)}
+                      </select>
+                    </label>
+                  )}
                   <div>
                     <span className="kd-small kd-muted">{already ? "지금 가용 잔액" : "반영 후 가용 잔액"}</span>
                     <div className="kd-big" data-over={over}>{over ? "−" : ""}{won(Math.abs(after))}<small> 원</small></div>

@@ -664,7 +664,9 @@ export function mockCommand(cmd: string, _args: Record<string, unknown>): unknow
   return null;
 }
 
-export function mockPickFiles(multiple: boolean, filters: Array<{ extensions: string[] }>): string[] {
+export function mockPickFiles(multiple: boolean, filters: Array<{ name?: string; extensions: string[] }>): string[] {
+  // 지출 서류 묶음 미리보기: 공문 + 영수증 + 계좌 사본 (가상)
+  if (filters.some((f) => f.name === "지출 서류")) return ["2026 진로체험 버스 임차 협조.hwpx", "버스 임차 영수증.jpg", "가온관광 통장사본.pdf"].map((n) => joinPath(DOCS_DIR, n));
   const exts = filters.flatMap((f) => f.extensions);
   if (exts.includes("png") && !exts.includes("pdf")) return [joinPath(DOCS_DIR, "관인.png")];
   if (exts.includes("gguf")) return ["/Volumes/USB/models/gemma-3-12b-it-q4_k_m.gguf"];

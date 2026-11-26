@@ -44,3 +44,5 @@ export const itemPath = (it: { program: string; unit: string; detail: string }) 
 
 export const BUDGET_FILTER = [{ name: "예산 과목표", extensions: ["xlsx", "xls", "csv"] }];
 export const LETTER_FILTER = [{ name: "공문", extensions: ["hwp", "hwpx", "hwx", "hml", "pdf", "docx", "txt"] }];
+/** 지출 서류 묶음: 공문·영수증·견적서·세금계산서·계좌 사본 (스캔 PDF·사진 포함) */
+export const BUNDLE_FILTER = [{ name: "지출 서류", extensions: ["hwp", "hwpx", "hwx", "hml", "pdf", "docx", "png", "jpg", "jpeg", "webp", "txt"] }];

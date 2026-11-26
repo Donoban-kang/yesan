@@ -1,12 +1,12 @@
 /** 결의서 입력 초안 — 고른 과목·금액으로 회계 시스템에 옮겨 적을 건명·적요와 증빙 확인표 (core/budget/draft 의 순수 함수) */
 
 import { useMemo, useState } from "react";
-import { ClipboardCopy, FileDown, ListChecks, Undo2 } from "lucide-react";
+import { ClipboardCopy, FileDown, ListChecks, RotateCcw } from "lucide-react";
 import type { BudgetAnalysis, BudgetItemView } from "../../lib/contract";
-import { buildDraft, buildProposalMarkdown, draftKindOf, stripDateTail, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
+import { buildDraft, buildProposalMarkdown, draftKindOf, subjectName, type DraftKind } from "../../../node-sidecar/src/core/budget/draft";
 import { rpc } from "../../lib/rpc";
 import { useTask } from "../../hooks/useTask";
-import { ErrorLine, SavedFile, Working } from "../common/Status";
+import { ErrorLine, Note, SavedFile, Working } from "../common/Status";
 import { useApp } from "../../state/app";
 import { Button } from "../ui/Button";
 import { Seg } from "../common/Field";
@@ -24,18 +24,20 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
     kind, title: analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today,
   }), [kind, analysis.title, analysis.period, related, place, items, amount, accountLabel, item.name, today]);
 
-  // 사용자가 고친 건명·적요 (null 이면 자동 초안을 그대로 따라간다. 갈래·금액을 바꿔도 고친 값은 유지)
-  const [titleEdit, setTitleEdit] = useState<string | null>(null);
-  const [memoEdit, setMemoEdit] = useState<string | null>(null);
-  const title = titleEdit ?? d.title;
-  const memo = memoEdit ?? d.memo;
-  const noTitle = !analysis.title?.trim();
+  /** 사람이 고친 건명·적요 (갈래마다 따로 둔다. 없으면 만든 글 그대로) */
+  //   base = 고치기 시작할 때 앱이 만든 글. 그 뒤 금액·관련 문서 등이 바뀌어 만든 글이 달라지면 고친 글에 예전 값이 남았다고 알린다
+  type Edit = { text: string; base: string };
+  const [edits, setEdits] = useState<Partial<Record<DraftKind, { title?: Edit; memo?: Edit }>>>({});
+  const mine = edits[kind] ?? {};
+  const title = mine.title?.text ?? d.title;
+  const memo = mine.memo?.text ?? d.memo;
+  const stale = (["title", "memo"] as const).filter((k) => mine[k] && mine[k]!.base !== d[k]);
+  const edit = (k: "title" | "memo", v: string) => setEdits((e) => ({ ...e, [kind]: { ...e[kind], [k]: { text: v, base: e[kind]?.[k]?.base ?? d[k] } } }));
+  const reset = (k: "title" | "memo") => setEdits((e) => ({ ...e, [kind]: { ...e[kind], [k]: undefined } }));
 
   const proposal = useTask<string>();
   const saveProposal = () => void proposal.run(async () => {
-    // 여비 정산은 건명이 정해진 글이라 품의서 제목에 쓰지 않는다. 그 밖에는 고친 건명을 쓴다(끝의 지출일 표시는 뗀다)
-    const proposalTitle = kind !== "travel" && titleEdit != null ? stripDateTail(titleEdit) : analysis.title;
-    const markdown = buildProposalMarkdown({ kind, title: proposalTitle, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
+    const markdown = buildProposalMarkdown({ kind, title: mine.title ? mine.title.text.replace(/\s*\(\d{2}\.\d{2}\)$/, "") : analysis.title, related, period: analysis.period, place, items, amount, account: accountLabel, subject: subjectName(item.name), date: today });
     const r = await rpc("generate_hwpx", { markdown, preset: "official" });
     if (!r.output_path) throw new Error("품의서 초안을 저장하지 못했습니다. 다시 눌러 보세요.");
     return r.output_path;
@@ -68,23 +70,28 @@ export function VoucherDraft({ analysis, item, amount, accountLabel }: { analysi
       )}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <label className="kd-label" htmlFor="vd-title">건명{titleEdit != null && <span className="kd-small kd-muted"> · 직접 고침</span>}</label>
-          <span className="flex items-center gap-1">
-            {titleEdit != null && <Button size="sm" variant="ghost" onClick={() => setTitleEdit(null)}><Undo2 size={13} /> 자동 초안으로</Button>}
+          <label className="kd-label" htmlFor="vd-title">건명</label>
+          <span className="flex gap-1">
+            {mine.title && <Button size="sm" variant="ghost" onClick={() => reset("title")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
             <Button size="sm" variant="ghost" onClick={() => void copy(title, "건명")}><ClipboardCopy size={13} /> 복사</Button>
           </span>
         </div>
-        <input id="vd-title" className="kd-input" value={title} onChange={(e) => setTitleEdit(e.target.value)} />
-        {noTitle && titleEdit == null && <p className="kd-small kd-muted">공문에서 건명을 읽지 못했습니다. 위 칸에 직접 적어 주세요.</p>}
+        <input id="vd-title" className="kd-input kd-small" value={title} onChange={(e) => edit("title", e.target.value)} />
         <div className="flex items-center justify-between gap-2">
-          <label className="kd-label" htmlFor="vd-memo">적요{memoEdit != null && <span className="kd-small kd-muted"> · 직접 고침</span>}</label>
-          <span className="flex items-center gap-1">
-            {memoEdit != null && <Button size="sm" variant="ghost" onClick={() => setMemoEdit(null)}><Undo2 size={13} /> 자동 초안으로</Button>}
+          <label className="kd-label" htmlFor="vd-memo">적요</label>
+          <span className="flex gap-1">
+            {mine.memo && <Button size="sm" variant="ghost" onClick={() => reset("memo")} data-tip="고친 것을 버리고 처음 만든 글로"><RotateCcw size={13} /> 처음 글로</Button>}
             <Button size="sm" variant="ghost" onClick={() => void copy(memo, "적요")}><ClipboardCopy size={13} /> 복사</Button>
           </span>
         </div>
-        <textarea id="vd-memo" className="kd-input" rows={4} value={memo} onChange={(e) => setMemoEdit(e.target.value)} style={{ resize: "vertical" }} />
-        <p className="kd-small kd-muted">건명과 적요는 직접 고칠 수 있습니다. 고친 값은 복사와 품의서 초안에 그대로 쓰이고, 금액·갈래를 바꿔도 유지됩니다.</p>
+        <textarea id="vd-memo" className="kd-textarea kd-small w-full resize-y" rows={4} value={memo} onChange={(e) => edit("memo", e.target.value)} />
+        {stale.length > 0 && (
+          <Note tone="warn">
+            고친 뒤에 금액이나 입력값이 바뀌었습니다. 고친 {stale.map((k) => (k === "title" ? "건명" : "적요")).join("·")}에 예전 값이 남아 있을 수 있으니 확인하세요.{" "}
+            <button type="button" className="kd-link kd-small" onClick={() => stale.forEach(reset)}>바뀐 값으로 다시 만들기</button>
+          </Note>
+        )}
+        <p className="kd-small kd-muted">건명·적요는 고쳐 쓸 수 있습니다. 고친 글은 갈래(여비 정산·물품 구매·일반 지출)마다 따로 남고, 복사하면 고친 글이 복사됩니다.</p>
       </div>
       <div className="flex flex-col gap-1.5">
         {proposal.busy ? <Working label="품의서 초안을 만드는 중" /> : (
