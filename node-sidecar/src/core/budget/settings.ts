@@ -2,7 +2,7 @@
 
 import type { Settings } from '../../types/index.js';
 import { DEFAULT_SETTINGS, getSettings } from '../../infra/config.js';
-import { REQUIRED_DOC_KINDS } from './bundle-kinds.js';
+import { REQUIRED_DOC_KINDS } from './required-docs.js';
 
 export type BudgetSettings = Settings['budget'];
 

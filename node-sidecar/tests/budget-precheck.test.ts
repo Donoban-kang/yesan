@@ -43,6 +43,15 @@ describe('필요 서류', () => {
     expect(requiredDocs('임차', RULES.map((r) => (r.nature === '임차' ? { ...r, docs: ['letter'] } : r))).source).toBe('settings');
     expect(requiredDocs('임차', RULES).source).toBe('default');
   });
+  it('필요 서류를 모두 해제(빈 목록)하면 기본값을 쓴다', () => {
+    const r = requiredDocs('임차', RULES.map((x) => (x.nature === '임차' ? { ...x, docs: [] } : x)));
+    expect(r).toEqual({ kinds: ['letter', 'quote', 'bank'], source: 'default' });
+    expect(byId(buildPrecheck(make([doc('letter')], { rules: RULES.map((x) => (x.nature === '임차' ? { ...x, docs: [] } : x)) })), 'docs').status).toBe('check');
+  });
+  it('기본 목록은 단일 정본(required-docs)에서 오고 설정 기본값과 같다', async () => {
+    const { DEFAULT_REQUIRED_DOCS } = await import('../src/core/budget/required-docs.js');
+    for (const r of RULES) expect(r.docs).toEqual([...(DEFAULT_REQUIRED_DOCS[r.nature] ?? [])]);
+  });
   it('성격을 모르면 공문만 본다', () => {
     const p = buildPrecheck(make([doc('letter')], {}, { nature: undefined }));
     expect(byId(p, 'docs').status).toBe('ok');

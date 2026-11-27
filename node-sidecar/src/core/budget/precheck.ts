@@ -5,14 +5,11 @@
 
 import type { BudgetBundleKind, BudgetGuideMatch, BudgetPrecheck, BudgetPrecheckBundle, BudgetPrecheckClause, BudgetPrecheckItem, BudgetPrecheckStatus } from '../../types/rpc-contract.js';
 import type { Settings } from '../../types/index.js';
-import { DEFAULT_SETTINGS } from '../../infra/config.js';
 import { brnValid } from '../receipt/parse.js';
-import { BUNDLE_LABEL, REQUIRED_DOC_KINDS } from './bundle-kinds.js';
+import { BUNDLE_LABEL } from './bundle-kinds.js';
+import { REQUIRED_DOC_KINDS, defaultDocsOf } from './required-docs.js';
 
 const won = (n: number) => n.toLocaleString('ko-KR');
-
-/** 거래 성격을 모를 때 최소로 보는 서류 */
-const GENERIC_DOCS: BudgetBundleKind[] = ['letter'];
 
 export interface PrecheckInput {
   bundle: BudgetPrecheckBundle;
@@ -37,19 +34,18 @@ function satisfies(need: BudgetBundleKind, has: Set<BudgetBundleKind>): boolean 
   return has.has(need);
 }
 
-/** 거래 성격의 필요 서류 (설정의 docs → 기본값의 같은 성격 → 공문만). source 는 기본값에서 고쳤는지 */
+/** 거래 성격의 필요 서류 (설정의 docs → 기본값 → 공문만). source 는 기본값에서 고쳤는지 */
 export function requiredDocs(nature: string | undefined, rules: Settings['budget']['rules']): { kinds: BudgetBundleKind[]; source: 'default' | 'settings' } {
-  const valid = (list?: string[]) => (list ?? []).filter((k): k is BudgetBundleKind => (REQUIRED_DOC_KINDS as readonly string[]).includes(k));
+  const valid = (list?: readonly string[]) => (list ?? []).filter((k): k is BudgetBundleKind => (REQUIRED_DOC_KINDS as readonly string[]).includes(k));
   const mine = nature ? rules.find((r) => r.nature === nature) : undefined;
-  const base = nature ? DEFAULT_SETTINGS.budget.rules.find((r) => r.nature === nature) : undefined;
-  const set = mine?.docs ? valid(mine.docs) : undefined;
-  if (set) {
-    const def = valid(base?.docs);
+  const def = defaultDocsOf(nature);
+  // 빈 목록은 "고르지 않음"이라 기본값을 쓴다 (모두 해제해도 점검이 조용히 통과되지 않게)
+  if (mine?.docs?.length) {
+    const set = valid(mine.docs);
     const same = def.length === set.length && def.every((k) => set.includes(k));
-    return { kinds: set, source: base && same ? 'default' : 'settings' };
+    return { kinds: set, source: same ? 'default' : 'settings' };
   }
-  const def = valid(base?.docs);
-  return { kinds: def.length ? def : GENERIC_DOCS, source: 'default' };
+  return { kinds: def, source: 'default' };
 }
 
 function docsItem(input: PrecheckInput): { item: BudgetPrecheckItem; source: 'default' | 'settings' } {
