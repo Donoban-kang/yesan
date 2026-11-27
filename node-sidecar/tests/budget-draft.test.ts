@@ -1,7 +1,7 @@
 /** 결의서 입력 초안 — 실제 표본의 적요 꼴을 따른 여비·물품 구매 글, 한글 금액, 증빙 확인표 (가상 값) */
 
 import { describe, it, expect } from 'vitest';
-import { buildDraft, draftKindOf, koreanAmount, subjectName } from '../src/core/budget/draft.js';
+import { buildDraft, draftKindOf, koreanAmount, stripDateTail, subjectName } from '../src/core/budget/draft.js';
 
 describe('결의서 입력 초안', () => {
   it('한글 금액 (회계 서류처럼 1 도 "일")', () => {
@@ -72,4 +72,10 @@ describe('품의서 기안문 초안 (F-10)', () => {
     const back = await parse(readFileSync(out));
     expect(back.success && back.markdown).toContain('일반수용비');
   }, 30_000);
+
+  it('고친 건명에서 끝의 지출일 표시만 뗀다', () => {
+    expect(stripDateTail('가온 행사 지출(11.23)')).toBe('가온 행사 지출');
+    expect(stripDateTail('가온 행사 지출')).toBe('가온 행사 지출');
+    expect(stripDateTail('1차 (2026) 계획')).toBe('1차 (2026) 계획');
+  });
 });

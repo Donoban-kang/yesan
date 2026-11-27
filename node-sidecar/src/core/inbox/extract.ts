@@ -105,14 +105,21 @@ function firstLine(lines: string[]): string | undefined {
   return t && /^[가-힣A-Za-z·()\s]{2,20}$/.test(t) && !HEADER.test(t) ? t : undefined;
 }
 
-/** 제목 줄 → 없으면 제목처럼 생긴 첫 줄 (기관명·날짜 줄·항목 줄 빼고) */
+/** 예산 과목 나열 ("대학회계,물건비,업무추진비,관서업무추진비" 꼴) — 쉼표로 이은 짧은 낱말 셋 이상이고 문장 끝맺음이 없다.
+ *  스캔한 결의서·원인행위서의 과목 칸이 "제목처럼 생긴 첫 줄"로 뽑히는 것을 막는다 */
+export function looksLikeAccountPath(line: string): boolean {
+  const parts = line.split(/\s*[,，、]\s*/).map((x) => x.trim()).filter(Boolean);
+  return parts.length >= 3 && parts.every((x) => x.length <= 16) && !/(?:다|요|음|함|임)\.?$/.test(line);
+}
+
+/** 제목 줄 → 없으면 제목처럼 생긴 첫 줄 (기관명·날짜 줄·항목 줄·예산 과목 나열 빼고) */
 function titleOf(lines: string[], agency?: string): string | undefined {
   for (const l of lines) {
     const m = /^제\s?목\s*[:：]?\s*(\S.*)$/.exec(l) ?? /^\|\s*제\s?목\s*\|\s*([^|]+?)\s*\|/.exec(l);
     if (m) return m[1].trim().slice(0, 120);
   }
   return lines.find((l) => !l.startsWith('|') && l !== agency && l.length >= 6 && l.length <= 80 && !MARKER.test(l) && !HEADER.test(l)
-    && !/시점|배포|수\s?신|경\s?유/.test(l) && (l.match(/\d/g)?.length ?? 0) <= l.length * 0.2)?.slice(0, 120);
+    && !/시점|배포|수\s?신|경\s?유/.test(l) && !looksLikeAccountPath(l) && (l.match(/\d/g)?.length ?? 0) <= l.length * 0.2)?.slice(0, 120);
 }
 
 /** 기관·문서번호·시행일 */
