@@ -13,8 +13,11 @@ import { homedir, totalmem } from 'node:os';
 import { parse as parseYaml } from 'yaml';
 import type { Settings } from '../types/index.js';
 import { logger } from './logger.js';
+import { DEFAULT_REQUIRED_DOCS } from '../core/budget/required-docs.js';
 import { FORBIDDEN_KEYS, isObj, loadPolicy, type Policy } from './policy.js';
 import { hasSecretKey, isSealed, seal, unseal } from './secret-box.js';
+
+const dd = (n: string): string[] => [...(DEFAULT_REQUIRED_DOCS[n] ?? [])];
 
 export const DEFAULT_SETTINGS: Settings = {
   version: 2,
@@ -55,16 +58,16 @@ export const DEFAULT_SETTINGS: Settings = {
       { id: 'growth', label: '육성사업', words: ['육성사업', '국립대학육성', '대학육성'] },
     ],
     rules: [
-      { nature: '임차', words: ['임차', '대절', '버스', '대여', '렌탈'], hints: ['임차', '임대'], docs: ['letter','quote','bank'] },
-      { nature: '구입', words: ['구입', '구매', '기자재', '물품', '장비'], hints: ['구입', '자산', '기자재', '재료', '수용비', '소모품'], docs: ['letter','quote','bank'] },
-      { nature: '여비', words: ['출장', '여비', '교통비', '숙박'], hints: ['여비'], docs: ['letter'] },
-      { nature: '수당', words: ['강사', '수당', '사례비', '자문료', '심사비', '원고료'], hints: ['수당', '사례', '인건비'], docs: ['letter','bank'] },
-      { nature: '회의', words: ['회의', '간담회', '다과', '협의회', '식대'], hints: ['회의', '협의회', '업무추진'], docs: ['letter'] },
-      { nature: '용역', words: ['용역', '위탁', '제작', '개발', '컨설팅'], hints: ['용역', '위탁'], docs: ['letter','quote','bank'] },
-      { nature: '행사', words: ['행사', '포럼', '세미나', '설명회', '박람회', '캠프'], hints: ['행사', '운영비'], docs: ['letter','quote','bank'] },
-      { nature: '인쇄', words: ['인쇄', '홍보물', '현수막', '책자', '자료집'], hints: ['인쇄', '홍보', '수용비'], docs: ['letter','quote','bank'] },
-      { nature: '장학', words: ['장학금', '장학', '학생 지원금'], hints: ['장학'], docs: ['letter','bank'] },
-      { nature: '수선', words: ['수선', '보수', '공사', '교체', '정비'], hints: ['수선', '시설', '공사'], docs: ['letter','quote','bank'] },
+      { nature: '임차', words: ['임차', '대절', '버스', '대여', '렌탈'], hints: ['임차', '임대'], docs: dd('임차') },
+      { nature: '구입', words: ['구입', '구매', '기자재', '물품', '장비'], hints: ['구입', '자산', '기자재', '재료', '수용비', '소모품'], docs: dd('구입') },
+      { nature: '여비', words: ['출장', '여비', '교통비', '숙박'], hints: ['여비'], docs: dd('여비') },
+      { nature: '수당', words: ['강사', '수당', '사례비', '자문료', '심사비', '원고료'], hints: ['수당', '사례', '인건비'], docs: dd('수당') },
+      { nature: '회의', words: ['회의', '간담회', '다과', '협의회', '식대'], hints: ['회의', '협의회', '업무추진'], docs: dd('회의') },
+      { nature: '용역', words: ['용역', '위탁', '제작', '개발', '컨설팅'], hints: ['용역', '위탁'], docs: dd('용역') },
+      { nature: '행사', words: ['행사', '포럼', '세미나', '설명회', '박람회', '캠프'], hints: ['행사', '운영비'], docs: dd('행사') },
+      { nature: '인쇄', words: ['인쇄', '홍보물', '현수막', '책자', '자료집'], hints: ['인쇄', '홍보', '수용비'], docs: dd('인쇄') },
+      { nature: '장학', words: ['장학금', '장학', '학생 지원금'], hints: ['장학'], docs: dd('장학') },
+      { nature: '수선', words: ['수선', '보수', '공사', '교체', '정비'], hints: ['수선', '시설', '공사'], docs: dd('수선') },
     ],
   },
 };

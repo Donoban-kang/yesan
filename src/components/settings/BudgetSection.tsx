@@ -8,6 +8,7 @@ import { useSectionMark } from "./marks";
 import { Button } from "../ui/Button";
 import { Section, Switch, TextField } from "../common/Field";
 import { rpc } from "../../lib/rpc";
+import { REQUIRED_DOC_KINDS, REQUIRED_DOC_LABEL, defaultDocsOf } from "../../../node-sidecar/src/core/budget/required-docs";
 import { Note } from "../common/Status";
 import { Advanced, UnsavedBadge, useDirtyMark } from "./dirty";
 import { GuideList } from "./GuideList";
@@ -15,8 +16,6 @@ import { GuideList } from "./GuideList";
 type B = Settings["budget"];
 const words = (s: string) => s.split(/[,，]+/).map((w) => w.trim()).filter(Boolean);
 const joinW = (w: string[]) => w.join(", ");
-/** 집행 전 점검표의 필요 서류 종류 (엔진 REQUIRED_DOC_KINDS 와 같은 값) */
-const DOCS: Array<[string, string]> = [["letter", "공문"], ["quote", "견적서"], ["receipt", "영수증"], ["bank", "계좌 사본"], ["claim", "여비 정산 신청서"], ["inspection", "검사·검수서"]];
 
 export function BudgetSection() {
   const mark = useSectionMark("set-budget");
@@ -81,6 +80,29 @@ export function BudgetSection() {
             </div>
           ))}
         </div>
+        <div className="flex flex-col gap-2" id="set-budget-docs">
+          <span className="kd-label">집행 전 점검표: 거래 성격별 필요 서류</span>
+          <p className="kd-small kd-muted">지출 도우미가 서류를 넣었을 때 이 서류가 모두 있는지 점검합니다. 표시된 기본값은 일반적인 관행을 가정한 추정이니, 기관 지출 규정에 맞춰 고르세요. 하나도 고르지 않으면 기본값을 씁니다. 영수증은 거래명세서·세금계산서도 인정합니다.</p>
+          {b.rules.map((r, i) => {
+            const chosen = r.docs ?? [];
+            const def = defaultDocsOf(r.nature);
+            return (
+              <fieldset key={`${r.nature}#${i}`} className="kd-field" aria-label={`${r.nature} 필요 서류`}>
+                <legend className="kd-label">{r.nature}</legend>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {REQUIRED_DOC_KINDS.map((k) => (
+                    <label key={k} className="kd-small flex items-center gap-1">
+                      <input type="checkbox" checked={chosen.includes(k)}
+                        onChange={(e) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, docs: REQUIRED_DOC_KINDS.filter((d) => (d === k ? e.target.checked : (x.docs ?? []).includes(d))) } : x)) })} />
+                      {REQUIRED_DOC_LABEL[k]}
+                    </label>
+                  ))}
+                </div>
+                {!chosen.length && <span className="kd-small kd-muted">고르지 않아 기본값(추정)을 씁니다: {def.map((k) => REQUIRED_DOC_LABEL[k as keyof typeof REQUIRED_DOC_LABEL] ?? k).join(" · ")}</span>}
+              </fieldset>
+            );
+          })}
+        </div>
         <Advanced title="거래 성격 규칙">
           <p className="kd-small kd-muted mb-2">공문에 "공문 낱말"이 보이면 그 거래 성격으로 보고, 과목 이름에 "과목 단서"가 든 과목을 먼저 추천합니다. 기관 과목 이름에 맞게 고치세요.</p>
           <div className="flex flex-col gap-2">
@@ -89,19 +111,6 @@ export function BudgetSection() {
                 <TextField label="거래 성격" value={r.nature} onChange={(v) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, nature: v } : x)) })} />
                 <TextField label="공문 낱말" value={joinW(r.words)} onChange={(v) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, words: words(v) } : x)) })} />
                 <TextField label="과목 단서" value={joinW(r.hints)} onChange={(v) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, hints: words(v) } : x)) })} />
-                <fieldset className="kd-field" aria-label={`${r.nature} 필요 서류`}>
-                  <legend className="kd-label">필요 서류 (집행 전 점검표)</legend>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1">
-                    {DOCS.map(([k, name]) => (
-                      <label key={k} className="kd-small flex items-center gap-1">
-                        <input type="checkbox" checked={(r.docs ?? []).includes(k)}
-                          onChange={(e) => setB({ ...b, rules: b.rules.map((x, j) => (j === i ? { ...x, docs: DOCS.map(([d]) => d).filter((d) => (d === k ? e.target.checked : (x.docs ?? []).includes(d))) } : x)) })} />
-                        {name}
-                      </label>
-                    ))}
-                  </div>
-                  {!r.docs?.length && <span className="kd-small kd-muted">고르지 않으면 일반 기본값(추정)을 씁니다.</span>}
-                </fieldset>
               </div>
             ))}
           </div>
