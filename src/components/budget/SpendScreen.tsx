@@ -139,6 +139,17 @@ export function SpendScreen({ active }: { active: boolean }) {
     }
   };
 
+  /** 금액 후보: 실제 쓴 돈(영수증·명세서 합계, 견적 합계)을 먼저, 그 뒤 공문에서 찾은 금액. 같은 금액은 한 번만 */
+  const candidates = useMemo(() => {
+    if (!a) return [];
+    const list: Array<{ value: number; label: string; tip: string }> = [];
+    if (bundle?.receipts_total) list.push({ value: bundle.receipts_total, label: "영수증·명세서 합계", tip: "넣은 영수증·거래명세서·세금계산서 금액을 더한 값입니다. 실제 지출한 금액이면 이것을 고르세요." });
+    if (bundle?.quotes_total) list.push({ value: bundle.quotes_total, label: "견적 합계", tip: "넣은 견적서 금액을 더한 값입니다." });
+    for (const x of a.amounts.slice(0, 5)) list.push({ value: x.value, label: "", tip: `공문에서 찾은 금액: "${x.source}"` });
+    const seen = new Set<number>();
+    return list.filter((x) => x.value > 0 && !seen.has(x.value) && (seen.add(x.value), true));
+  }, [a, bundle]);
+
   const pick = () => void pickFiles({ filters: BUNDLE_FILTER, multiple: true }).then((p) => { void analyze(p); });
   const noItems = !!book && items.length === 0;
 
@@ -221,10 +232,13 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {a.amounts[0] && (
                     <p className="kd-small kd-muted">근거: "{a.amounts[0].source}"{a.amounts[0].confidence < 0.6 && " · 확실하지 않으니 공문과 견줘 확인하세요"}</p>
                   )}
-                  {a.amounts.length > 1 && (
-                    <div className="kd-amount-alt" aria-label="다른 금액 후보">
-                      {a.amounts.slice(1, 5).map((x) => (
-                        <button key={x.value} type="button" className="kd-chip" data-tip={x.source} onClick={() => { setAmountText(won(x.value)); void resuggest(account, x.value); }}>{won(x.value)}원</button>
+                  {candidates.length > 0 && (
+                    <div className="kd-amount-alt" aria-label="금액 후보">
+                      {candidates.map((x) => (
+                        <button key={`${x.label}#${x.value}`} type="button" className="kd-chip" aria-pressed={amount === x.value} data-tip={x.tip}
+                          onClick={() => { setAmountText(won(x.value)); setConfirming(false); void resuggest(account, x.value); }}>
+                          {x.label ? `${x.label} ` : ""}{won(x.value)}원
+                        </button>
                       ))}
                     </div>
                   )}
