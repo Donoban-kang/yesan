@@ -74,14 +74,21 @@ export function SpendScreen({ active }: { active: boolean }) {
     const b = await analysis.run(({ signal, onProgress }) => rpc("budget_bundle", { paths }, { signal, onProgress }));
     if (!b) return;
     const r = b.analysis;
-    setAmountText(r.amount ? won(r.amount) : "");
+    // 영수증·명세서가 있으면 실제 쓴 돈(그 합계)을 처음 금액으로. 없으면 공문에서 찾은 금액
+    const start = b.receipts_total > 0 ? b.receipts_total : r.amount ?? 0;
+    let list = r.suggestions;
+    if (start && start !== r.amount) {
+      // 엔진은 공문 금액으로 추천했다 → 잔액 충분·부족을 처음 금액으로 다시 본다 (실패하면 엔진 추천 그대로)
+      list = await rpc("budget_suggest", { text: r.basis, nature: r.nature, account: r.account_hint || undefined, amount: start, sender: r.sender, subjects: r.subjects }).catch(() => r.suggestions);
+    }
+    setAmountText(start ? won(start) : "");
     setStage("commit");
     setEvidenceNote("");
     setAccount(r.account_hint ?? "");
-    setSuggestions(r.suggestions);
+    setSuggestions(list);
     manualPick.current = false;
-    setItemId(r.suggestions[0]?.item.id ?? null);
-    setPickMode(r.suggestions.length ? "suggest" : "tree");
+    setItemId(list[0]?.item.id ?? null);
+    setPickMode(list.length ? "suggest" : "tree");
   }, [analysis, toast]);
 
   // 접수함·문서 보기에서 넘겨받은 공문
@@ -140,6 +147,17 @@ export function SpendScreen({ active }: { active: boolean }) {
       setApplying(false);
     }
   };
+
+  /** 금액 후보: 실제 쓴 돈(영수증·명세서 합계, 견적 합계)을 먼저, 그 뒤 공문에서 찾은 금액. 같은 금액은 한 번만 */
+  const candidates = useMemo(() => {
+    if (!a) return [];
+    const list: Array<{ value: number; label: string; tip: string }> = [];
+    if (bundle?.receipts_total) list.push({ value: bundle.receipts_total, label: "영수증·명세서 합계", tip: "넣은 영수증·거래명세서·세금계산서 금액을 더한 값입니다. 실제 지출한 금액이면 이것을 고르세요." });
+    if (bundle?.quotes_total) list.push({ value: bundle.quotes_total, label: "견적 합계", tip: "넣은 견적서 금액을 더한 값입니다." });
+    for (const x of a.amounts.slice(0, 5)) list.push({ value: x.value, label: "", tip: `공문에서 찾은 금액: "${x.source}"` });
+    const seen = new Set<number>();
+    return list.filter((x) => x.value > 0 && !seen.has(x.value) && (seen.add(x.value), true));
+  }, [a, bundle]);
 
   const pick = () => void pickFiles({ filters: BUNDLE_FILTER, multiple: true }).then((p) => { void analyze(p); });
   const noItems = !!book && items.length === 0;
@@ -216,17 +234,22 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {bundle && <BundleSummary bundle={bundle} />}
                   <label className="kd-field">
                     <span className="kd-label">금액 (원)</span>
-                    <input className="kd-input kd-amount-input" inputMode="numeric" value={amountText} data-low={!a.amounts[0] || a.amounts[0].confidence < 0.6}
+                    <input className="kd-input kd-amount-input" inputMode="numeric" value={amountText} data-low={!(bundle && bundle.receipts_total > 0 && amount === bundle.receipts_total) && (!a.amounts[0] || a.amounts[0].confidence < 0.6)}
                       onChange={(e) => { setAmountText(e.target.value.replace(/[^\d,]/g, "")); setConfirming(false); }}
                       onBlur={() => { const n = parseWon(amountText); setAmountText(n ? won(n) : ""); void resuggest(account, n); }} placeholder="공문에서 금액을 찾지 못했습니다. 직접 적으세요." />
                   </label>
-                  {a.amounts[0] && (
+                  {bundle && bundle.receipts_total > 0 && amount === bundle.receipts_total ? (
+                    <p className="kd-small kd-muted">근거: 넣은 영수증·명세서 합계{a.amount && a.amount !== amount ? ` (공문 금액은 ${won(a.amount)}원)` : ""}</p>
+                  ) : a.amounts[0] && (
                     <p className="kd-small kd-muted">근거: "{a.amounts[0].source}"{a.amounts[0].confidence < 0.6 && " · 확실하지 않으니 공문과 견줘 확인하세요"}</p>
                   )}
-                  {a.amounts.length > 1 && (
-                    <div className="kd-amount-alt" aria-label="다른 금액 후보">
-                      {a.amounts.slice(1, 5).map((x) => (
-                        <button key={x.value} type="button" className="kd-chip" data-tip={x.source} onClick={() => { setAmountText(won(x.value)); void resuggest(account, x.value); }}>{won(x.value)}원</button>
+                  {candidates.length > 0 && (
+                    <div className="kd-amount-alt" aria-label="금액 후보">
+                      {candidates.map((x) => (
+                        <button key={`${x.label}#${x.value}`} type="button" className="kd-chip" aria-pressed={amount === x.value} data-tip={x.tip}
+                          onClick={() => { setAmountText(won(x.value)); setConfirming(false); void resuggest(account, x.value); }}>
+                          {x.label ? `${x.label} ` : ""}{won(x.value)}원
+                        </button>
                       ))}
                     </div>
                   )}
