@@ -72,14 +72,21 @@ export function SpendScreen({ active }: { active: boolean }) {
     const b = await analysis.run(({ signal, onProgress }) => rpc("budget_bundle", { paths }, { signal, onProgress }));
     if (!b) return;
     const r = b.analysis;
-    setAmountText(r.amount ? won(r.amount) : "");
+    // 영수증·명세서가 있으면 실제 쓴 돈(그 합계)을 처음 금액으로. 없으면 공문에서 찾은 금액
+    const start = b.receipts_total > 0 ? b.receipts_total : r.amount ?? 0;
+    let list = r.suggestions;
+    if (start && start !== r.amount) {
+      // 엔진은 공문 금액으로 추천했다 → 잔액 충분·부족을 처음 금액으로 다시 본다 (실패하면 엔진 추천 그대로)
+      list = await rpc("budget_suggest", { text: r.basis, nature: r.nature, account: r.account_hint || undefined, amount: start, sender: r.sender, subjects: r.subjects }).catch(() => r.suggestions);
+    }
+    setAmountText(start ? won(start) : "");
     setStage("commit");
     setEvidenceNote("");
     setAccount(r.account_hint ?? "");
-    setSuggestions(r.suggestions);
+    setSuggestions(list);
     manualPick.current = false;
-    setItemId(r.suggestions[0]?.item.id ?? null);
-    setPickMode(r.suggestions.length ? "suggest" : "tree");
+    setItemId(list[0]?.item.id ?? null);
+    setPickMode(list.length ? "suggest" : "tree");
   }, [analysis, toast]);
 
   // 접수함·문서 보기에서 넘겨받은 공문
@@ -225,11 +232,13 @@ export function SpendScreen({ active }: { active: boolean }) {
                   {bundle && <BundleSummary bundle={bundle} />}
                   <label className="kd-field">
                     <span className="kd-label">금액 (원)</span>
-                    <input className="kd-input kd-amount-input" inputMode="numeric" value={amountText} data-low={!a.amounts[0] || a.amounts[0].confidence < 0.6}
+                    <input className="kd-input kd-amount-input" inputMode="numeric" value={amountText} data-low={!(bundle && bundle.receipts_total > 0 && amount === bundle.receipts_total) && (!a.amounts[0] || a.amounts[0].confidence < 0.6)}
                       onChange={(e) => { setAmountText(e.target.value.replace(/[^\d,]/g, "")); setConfirming(false); }}
                       onBlur={() => { const n = parseWon(amountText); setAmountText(n ? won(n) : ""); void resuggest(account, n); }} placeholder="공문에서 금액을 찾지 못했습니다. 직접 적으세요." />
                   </label>
-                  {a.amounts[0] && (
+                  {bundle && bundle.receipts_total > 0 && amount === bundle.receipts_total ? (
+                    <p className="kd-small kd-muted">근거: 넣은 영수증·명세서 합계{a.amount && a.amount !== amount ? ` (공문 금액은 ${won(a.amount)}원)` : ""}</p>
+                  ) : a.amounts[0] && (
                     <p className="kd-small kd-muted">근거: "{a.amounts[0].source}"{a.amounts[0].confidence < 0.6 && " · 확실하지 않으니 공문과 견줘 확인하세요"}</p>
                   )}
                   {candidates.length > 0 && (
